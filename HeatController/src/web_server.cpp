@@ -15,14 +15,14 @@ const char index_html[] PROGMEM = R"rawliteral(
     <title>Heat Controller</title>
     <style>
         :root {
-            --primary-color: #2196F3;
-            --secondary-color: #03A9F4;
+            --primary-color: #ff3333;
+            --secondary-color: #2d2d2d;
             --success-color: #4CAF50;
             --warning-color: #FFC107;
-            --error-color: #F44336;
-            --background-color: #F5F5F5;
-            --card-background: #FFFFFF;
-            --text-color: #333333;
+            --error-color: #ff3333;
+            --background-color: #1a1a1a;
+            --card-background: #2d2d2d;
+            --text-color: #ffffff;
         }
 
         * {
@@ -52,7 +52,7 @@ const char index_html[] PROGMEM = R"rawliteral(
         .config {
             background: var(--card-background);
             border-radius: 10px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
             margin: 20px 0;
             padding: 20px;
             transition: transform 0.2s;
@@ -64,7 +64,7 @@ const char index_html[] PROGMEM = R"rawliteral(
         }
 
         .heating-circuit {
-            background: var(--background-color);
+            background: #222222;
             border-radius: 8px;
             padding: 20px;
             margin: 10px 0;
@@ -82,17 +82,19 @@ const char index_html[] PROGMEM = R"rawliteral(
         }
 
         .pwm-display {
-            color: var(--secondary-color);
+            color: #cccccc;
             font-size: 1.1em;
         }
 
         input[type="number"], input[type="text"], input[type="password"] {
             width: 120px;
             padding: 8px 12px;
-            border: 2px solid #ddd;
+            border: 2px solid #444444;
             border-radius: 4px;
             font-size: 16px;
             transition: border-color 0.3s;
+            background-color: #333333;
+            color: white;
         }
 
         input[type="number"]:focus, input[type="text"]:focus, input[type="password"]:focus {
@@ -112,14 +114,16 @@ const char index_html[] PROGMEM = R"rawliteral(
         }
 
         button:hover, input[type="submit"]:hover {
-            background-color: var(--secondary-color);
+            background-color: #ff4444;
         }
 
         .pid-config {
-            background: #f8f9fa;
+            background: #292929;
+            color: #ffffff;
             padding: 15px;
             border-radius: 8px;
             margin: 15px 0;
+            border: 1px solid #333333;
         }
 
         .pid-config label {
@@ -129,7 +133,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 
         .log-container {
             text-align: left;
-            background: #2b2b2b;
+            background: #222222;
             color: #ffffff;
             padding: 15px;
             margin: 10px 0;
@@ -138,6 +142,7 @@ const char index_html[] PROGMEM = R"rawliteral(
             font-family: 'Consolas', monospace;
             font-size: 14px;
             border-radius: 8px;
+            border: 1px solid #333333;
         }
 
         .error { color: var(--error-color); }
@@ -164,7 +169,7 @@ const char index_html[] PROGMEM = R"rawliteral(
         }
         
         .mode-heater {
-            background-color: var(--error-color);
+            background-color: var(--primary-color);
             color: white;
         }
 
@@ -199,7 +204,7 @@ const char index_html[] PROGMEM = R"rawliteral(
             flex: 1;
             height: 25px;
             -webkit-appearance: none;
-            background: #d3d3d3;
+            background: #333333;
             outline: none;
             border-radius: 12px;
             overflow: hidden;
@@ -213,7 +218,7 @@ const char index_html[] PROGMEM = R"rawliteral(
             border-radius: 50%;
             background: var(--primary-color);
             cursor: pointer;
-            border: 4px solid #fff;
+            border: 4px solid #333;
             box-shadow: -407px 0 0 400px var(--primary-color);
         }
 
