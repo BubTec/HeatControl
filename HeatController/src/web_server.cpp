@@ -6,7 +6,7 @@
 
 ESP8266WebServer server(80);
 
-// HTML Template für die Hauptseite
+// HTML Template for the main page
 const char index_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE HTML>
 <html>
@@ -26,15 +26,15 @@ const char index_html[] PROGMEM = R"rawliteral(
         h2, h3 { color: var(--primary-color); margin-bottom: 15px; }
         .container { max-width: 1200px; margin: 0 auto; }
         .config { background: var(--card-background); border-radius: 10px; padding: 20px; margin: 20px 0; }
-        button, input[type="submit"] { background-color: var(--primary-color); color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
-        .back-button { background-color: #ff3333; } /* Rot für den Back-Button */
+        button { background-color: var(--primary-color); color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
+        .back-button { background-color: #ff3333; } /* Red for the Back button */
     </style>
 </head>
 <body>
     <div class="container">
         <h2>Heat Controller</h2>
         <div class="config">
-            <h3>Operating Mode: %MODE_TEXT%</h3> <!-- Betriebsmodus -->
+            <h3>Operating Mode: %MODE_TEXT%</h3> <!-- Display the operating mode -->
         </div>
         <div class="config">
             <h3>WiFi Configuration</h3>
@@ -84,7 +84,7 @@ const char index_html[] PROGMEM = R"rawliteral(
                 });
         }
 
-        // Log-Aktualisierung
+        // Log update
         setInterval(function() {
             fetch('/getlog')
                 .then(response => response.text())
@@ -97,7 +97,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 </html>
 )rawliteral";
 
-// HTML Template für die Temperaturregelung
+// HTML Template for the temperature control
 const char temperature_control_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE HTML>
 <html>
@@ -139,6 +139,7 @@ const char temperature_control_html[] PROGMEM = R"rawliteral(
             width: 200px;
             margin: 20px auto;
             text-align: center;
+            background-color: #ff3333; /* Red for the Back button */
         }
     </style>
 </head>
@@ -238,15 +239,15 @@ void handleSetTemp() {
 }
 
 void setupWebServer() {
-    // Lade die gespeicherten Temperaturen aus der Config
+    // Load saved temperatures from config
     TARGET_TEMP1 = config.targetTemp1;
     TARGET_TEMP2 = config.targetTemp2;
     
     server.on("/", HTTP_GET, handleRoot);
     server.on("/temperature_control", HTTP_GET, handleTemperatureControl);
     server.on("/settemp", HTTP_GET, handleSetTemp);
-    server.on("/getlog", HTTP_GET, handleGetLog);     // Diese Funktion ist in logger.cpp implementiert
-    server.on("/clearlog", HTTP_GET, handleClearLog); // Diese Funktion ist in logger.cpp implementiert
+    server.on("/getlog", HTTP_GET, handleGetLog);     // This function is implemented in logger.cpp
+    server.on("/clearlog", HTTP_GET, handleClearLog); // This function is implemented in logger.cpp
     
     // Captive Portal Routes
     server.on("/generate_204", HTTP_GET, handleRoot);
