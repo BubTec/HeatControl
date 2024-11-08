@@ -2,10 +2,11 @@
 #include "logger.h"
 #include "config.h"
 #include "heating_control.h"
+#include "data_logger.h"
 
 ESP8266WebServer server(80);
 
-// HTML Template
+// HTML Template für die Hauptseite
 const char index_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE HTML>
 <html>
@@ -16,245 +17,38 @@ const char index_html[] PROGMEM = R"rawliteral(
     <style>
         :root {
             --primary-color: #ff3333;
-            --secondary-color: #2d2d2d;
-            --success-color: #4CAF50;
-            --warning-color: #FFC107;
-            --error-color: #ff3333;
             --background-color: #1a1a1a;
             --card-background: #2d2d2d;
             --text-color: #ffffff;
         }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        body {
-            font-family: 'Segoe UI', Arial, sans-serif;
-            line-height: 1.6;
-            background-color: var(--background-color);
-            color: var(--text-color);
-            padding: 20px;
-        }
-
-        h2, h3, h4 {
-            color: var(--primary-color);
-            margin-bottom: 15px;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .config {
-            background: var(--card-background);
-            border-radius: 10px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-            margin: 20px 0;
-            padding: 20px;
-            transition: transform 0.2s;
-        }
-
-        .config:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-        }
-
-        .heating-circuit {
-            background: #222222;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 10px 0;
-        }
-
-        .temp-display {
-            font-size: 1.2em;
-            margin: 15px 0;
-        }
-
-        .temp-value {
-            font-size: 2em;
-            font-weight: bold;
-            color: var(--primary-color);
-        }
-
-        .pwm-display {
-            color: #cccccc;
-            font-size: 1.1em;
-        }
-
-        input[type="number"], input[type="text"], input[type="password"] {
-            width: 120px;
-            padding: 8px 12px;
-            border: 2px solid #444444;
-            border-radius: 4px;
-            font-size: 16px;
-            transition: border-color 0.3s;
-            background-color: #333333;
-            color: white;
-        }
-
-        input[type="number"]:focus, input[type="text"]:focus, input[type="password"]:focus {
-            border-color: var(--primary-color);
-            outline: none;
-        }
-
-        button, input[type="submit"] {
-            background-color: var(--primary-color);
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 16px;
-            transition: background-color 0.3s;
-        }
-
-        button:hover, input[type="submit"]:hover {
-            background-color: #ff4444;
-        }
-
-        .pid-config {
-            background: #292929;
-            color: #ffffff;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 15px 0;
-            border: 1px solid #333333;
-        }
-
-        .pid-config label {
-            display: inline-block;
-            margin: 5px 10px;
-        }
-
-        .log-container {
-            text-align: left;
-            background: #222222;
-            color: #ffffff;
-            padding: 15px;
-            margin: 10px 0;
-            height: 300px;
-            overflow-y: auto;
-            font-family: 'Consolas', monospace;
-            font-size: 14px;
-            border-radius: 8px;
-            border: 1px solid #333333;
-        }
-
-        .error { color: var(--error-color); }
-        .warning { color: var(--warning-color); }
-        .info { color: var(--success-color); }
-
-        .mode-display {
-            text-align: center;
-            padding: 15px;
-        }
-        
-        .mode-indicator {
-            display: inline-block;
-            padding: 10px 20px;
-            border-radius: 5px;
-            font-size: 1.2em;
-            font-weight: bold;
-            margin: 10px;
-        }
-        
-        .mode-normal {
-            background-color: var(--success-color);
-            color: white;
-        }
-        
-        .mode-heater {
-            background-color: var(--primary-color);
-            color: white;
-        }
-
-        @media (max-width: 768px) {
-            .container {
-                padding: 10px;
-            }
-            
-            input[type="number"], input[type="text"], input[type="password"] {
-                width: 100%;
-                margin: 5px 0;
-            }
-            
-            .pid-config label {
-                display: block;
-                margin: 10px 0;
-            }
-        }
-
-        .temp-control {
-            margin: 20px 0;
-        }
-
-        .slider-container {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 10px;
-        }
-
-        input[type="range"] {
-            flex: 1;
-            height: 25px;
-            -webkit-appearance: none;
-            background: #333333;
-            outline: none;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
-        }
-
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 25px;
-            height: 25px;
-            border-radius: 50%;
-            background: var(--primary-color);
-            cursor: pointer;
-            border: 4px solid #333;
-            box-shadow: -407px 0 0 400px var(--primary-color);
-        }
-
-        input[type="range"]::-moz-range-thumb {
-            width: 25px;
-            height: 25px;
-            border-radius: 50%;
-            background: var(--primary-color);
-            cursor: pointer;
-            border: 4px solid #fff;
-            box-shadow: -407px 0 0 400px var(--primary-color);
-        }
-
-        input[type="number"] {
-            width: 80px !important;
-            text-align: center;
-        }
-
-        .unit {
-            color: var(--text-color);
-            font-size: 1.1em;
-            min-width: 30px;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; background-color: var(--background-color); color: var(--text-color); padding: 20px; }
+        h2, h3 { color: var(--primary-color); margin-bottom: 15px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .config { background: var(--card-background); border-radius: 10px; padding: 20px; margin: 20px 0; }
+        button, input[type="submit"] { background-color: var(--primary-color); color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
+        .back-button { background-color: #ff3333; } /* Rot für den Back-Button */
     </style>
 </head>
 <body>
     <div class="container">
         <h2>Heat Controller</h2>
-        
         <div class="config">
-            <div class="mode-display">
-                <h3>Operating Mode</h3>
-                <div class="mode-indicator %MODE_CLASS%">
-                    %MODE_TEXT%
-                </div>
-            </div>
+            <h3>Operating Mode: %MODE_TEXT%</h3> <!-- Betriebsmodus -->
+        </div>
+        <div class="config">
+            <h3>WiFi Configuration</h3>
+            <form action="/setwifi" method="post">
+                <p><label>SSID:<br><input type="text" name="ssid" value="%WIFI_SSID%" required></label></p>
+                <p><label>Password:<br><input type="password" name="pass" value="%WIFI_PASS%" required></label></p>
+                <input type="submit" value="Save WiFi Settings">
+            </form>
+        </div>
+
+        <div class="config">
+            <h3>System Log</h3>
+            <div class="log-container" id="logContainer">%SYSTEM_LOG%</div>
+            <button onclick="clearLog()">Clear Log</button>
         </div>
 
         <div class="config">
@@ -264,33 +58,8 @@ const char index_html[] PROGMEM = R"rawliteral(
                     <span>Current Temperature: </span>
                     <span class="temp-value">%TEMP1%°C</span>
                     <p>Target Temperature: %TARGET1%°C</p>
-                    <p class="pwm-display">PWM: %PWM1%%</p>
                 </div>
-                <form action="/settemp" method="get" class="temp-control">
-                    <div class="slider-container">
-                        <input type="range" name="temp1_slider" min="10" max="40" step="0.5" value="%TARGET1%" 
-                            oninput="this.nextElementSibling.value = this.value">
-                        <input type="number" name="temp1" min="10" max="40" step="0.5" value="%TARGET1%" 
-                            oninput="this.previousElementSibling.value = this.value">
-                        <span class="unit">°C</span>
-                    </div>
-                    <input type="submit" value="Set Temperature">
-                </form>
-                <div class="pid-config">
-                    <h4>PID Parameters</h4>
-                    <form action="/setpid" method="get">
-                        <label>Kp: <input type="number" name="kp1" step="0.1" value="%KP1%" min="0" max="100" required
-                            oninvalid="this.setCustomValidity('Kp must be between 0 and 100')"
-                            oninput="this.setCustomValidity('')"></label>
-                        <label>Ki: <input type="number" name="ki1" step="0.01" value="%KI1%" min="0" max="1" required
-                            oninvalid="this.setCustomValidity('Ki must be between 0 and 1')"
-                            oninput="this.setCustomValidity('')"></label>
-                        <label>Kd: <input type="number" name="kd1" step="0.1" value="%KD1%" min="0" max="100" required
-                            oninvalid="this.setCustomValidity('Kd must be between 0 and 100')"
-                            oninput="this.setCustomValidity('')"></label>
-                        <input type="submit" value="Save Parameters">
-                    </form>
-                </div>
+                <button onclick="window.location.href='/temperature_control?circuit=1'">Set Temperature</button>
             </div>
         </div>
 
@@ -301,68 +70,13 @@ const char index_html[] PROGMEM = R"rawliteral(
                     <span>Current Temperature: </span>
                     <span class="temp-value">%TEMP2%°C</span>
                     <p>Target Temperature: %TARGET2%°C</p>
-                    <p class="pwm-display">PWM: %PWM2%%</p>
                 </div>
-                <form action="/settemp" method="get" class="temp-control">
-                    <div class="slider-container">
-                        <input type="range" name="temp2_slider" min="10" max="40" step="0.5" value="%TARGET2%" 
-                            oninput="this.nextElementSibling.value = this.value">
-                        <input type="number" name="temp2" min="10" max="40" step="0.5" value="%TARGET2%" 
-                            oninput="this.previousElementSibling.value = this.value">
-                        <span class="unit">°C</span>
-                    </div>
-                    <input type="submit" value="Set Temperature">
-                </form>
-                <div class="pid-config">
-                    <h4>PID Parameters</h4>
-                    <form action="/setpid" method="get">
-                        <label>Kp: <input type="number" name="kp2" step="0.1" value="%KP2%" min="0" max="100" required
-                            oninvalid="this.setCustomValidity('Kp must be between 0 and 100')"
-                            oninput="this.setCustomValidity('')"></label>
-                        <label>Ki: <input type="number" name="ki2" step="0.01" value="%KI2%" min="0" max="1" required
-                            oninvalid="this.setCustomValidity('Ki must be between 0 and 1')"
-                            oninput="this.setCustomValidity('')"></label>
-                        <label>Kd: <input type="number" name="kd2" step="0.1" value="%KD2%" min="0" max="100" required
-                            oninvalid="this.setCustomValidity('Kd must be between 0 and 100')"
-                            oninput="this.setCustomValidity('')"></label>
-                        <input type="submit" value="Save Parameters">
-                    </form>
-                </div>
+                <button onclick="window.location.href='/temperature_control?circuit=2'">Set Temperature</button>
             </div>
-        </div>
-        
-        <div class="config">
-            <h3>System Log</h3>
-            <div class="log-container" id="logContainer">%SYSTEM_LOG%</div>
-            <button onclick="clearLog()">Clear Log</button>
-        </div>
-        
-        <div class="config">
-            <h3>WiFi Configuration</h3>
-            <form action="/setwifi" method="post">
-                <p><label>SSID:<br><input type="text" name="ssid" value="%WIFI_SSID%" maxlength="32" minlength="1" required pattern="[A-Za-z0-9_-]{1,32}"
-                    oninvalid="this.setCustomValidity('SSID may only contain letters, numbers, - and _')"
-                    oninput="this.setCustomValidity('')"></label></p>
-                <p><label>Password:<br><input type="password" name="pass" value="%WIFI_PASS%" maxlength="64" minlength="8" required
-                    oninvalid="this.setCustomValidity('Password must be at least 8 characters')"
-                    oninput="this.setCustomValidity('')"></label></p>
-                <input type="submit" value="Save WiFi Settings">
-            </form>
-            <p><small>The device will restart in 3 seconds...</small></p>
         </div>
     </div>
 
     <script>
-        setInterval(function() {
-            fetch('/getlog')
-                .then(response => response.text())
-                .then(log => {
-                    document.getElementById('logContainer').innerHTML = log;
-                    var container = document.getElementById('logContainer');
-                    container.scrollTop = container.scrollHeight;
-                });
-        }, 5000);
-
         function clearLog() {
             fetch('/clearlog')
                 .then(() => {
@@ -370,69 +84,87 @@ const char index_html[] PROGMEM = R"rawliteral(
                 });
         }
 
-        // Validation functions
-        function validateTemp(value) {
-            const temp = parseFloat(value);
-            return !isNaN(temp) && temp >= 10 && temp <= 40;
+        // Log-Aktualisierung
+        setInterval(function() {
+            fetch('/getlog')
+                .then(response => response.text())
+                .then(log => {
+                    document.getElementById('logContainer').innerHTML = log;
+                });
+        }, 5000);
+    </script>
+</body>
+</html>
+)rawliteral";
+
+// HTML Template für die Temperaturregelung
+const char temperature_control_html[] PROGMEM = R"rawliteral(
+<!DOCTYPE HTML>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>Temperature Control</title>
+    <style>
+        :root {
+            --primary-color: #ff3333;
+            --background-color: #1a1a1a;
+            --card-background: #2d2d2d;
+            --text-color: #ffffff;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; background-color: var(--background-color); color: var(--text-color); padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .config { background: var(--card-background); border-radius: 10px; padding: 20px; margin: 20px 0; }
+        .temp-display { font-size: 1.2em; margin: 15px 0; }
+        .temp-value { font-size: 2em; font-weight: bold; color: var(--primary-color); }
+        input[type="range"] { width: 100%; }
+        button, input[type="submit"], .confirm-button { 
+            background-color: var(--primary-color); 
+            color: white; 
+            border: none; 
+            padding: 10px 20px; 
+            border-radius: 5px; 
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 0;
         }
 
-        function validatePID(kp, ki, kd) {
-            const p = parseFloat(kp);
-            const i = parseFloat(ki);
-            const d = parseFloat(kd);
-            return !isNaN(p) && !isNaN(i) && !isNaN(d) &&
-                   p >= 0 && p <= 100 &&
-                   i >= 0 && i <= 1 &&
-                   d >= 0 && d <= 100;
+        button:hover, input[type="submit"]:hover, .confirm-button:hover {
+            background-color: #ff4444;
         }
 
-        // Event handlers for forms
-        document.querySelectorAll('form').forEach(form => {
-            form.onsubmit = function(e) {
-                const temp1 = this.querySelector('input[name="temp1"]');
-                const temp2 = this.querySelector('input[name="temp2"]');
-                const kp = this.querySelector('input[name="kp1"], input[name="kp2"]');
-                const ki = this.querySelector('input[name="ki1"], input[name="ki2"]');
-                const kd = this.querySelector('input[name="kd1"], input[name="kd2"]');
-                
-                if (temp1 && !validateTemp(temp1.value)) {
-                    alert('Temperature must be between 10°C and 40°C');
-                    e.preventDefault();
-                    return false;
-                }
-                
-                if (temp2 && !validateTemp(temp2.value)) {
-                    alert('Temperature must be between 10°C and 40°C');
-                    e.preventDefault();
-                    return false;
-                }
-                
-                if (kp && ki && kd && !validatePID(kp.value, ki.value, kd.value)) {
-                    alert('Invalid PID parameters');
-                    e.preventDefault();
-                    return false;
-                }
-                
-                return true;
-            };
-        });
-
-        // Function to format slider values
-        document.querySelectorAll('input[type="range"]').forEach(slider => {
-            slider.addEventListener('input', function() {
-                // Update the number value
-                let numberInput = this.nextElementSibling;
-                numberInput.value = parseFloat(this.value).toFixed(1);
-            });
-        });
-
-        document.querySelectorAll('input[type="number"]').forEach(input => {
-            input.addEventListener('input', function() {
-                // Update the slider
-                let slider = this.previousElementSibling;
-                slider.value = this.value;
-            });
-        });
+        .back-button {
+            display: block;
+            width: 200px;
+            margin: 20px auto;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Temperature Control</h2>
+        <div class="config">
+            <h3>Heating Circuit %CIRCUIT%</h3>
+            <div class="heating-circuit">
+                <form action="/settemp" method="get" class="temp-control" id="tempForm">
+                    <div class="temp-display">
+                        <label for="temp">Set Target Temperature:</label>
+                        <input type="range" id="temperature" name="temp" min="10" max="40" step="0.5" value="%TARGET%" oninput="updateTemperature(this.value)">
+                        <span id="tempDisplay">%TARGET%°C</span>
+                    </div>
+                    <input type="hidden" name="circuit" value="%CIRCUIT%">
+                    <button type="submit" class="confirm-button">Set Temperature</button>
+                </form>
+            </div>
+        </div>
+        <button onclick="window.location.href='/'" class="back-button">Back to Main</button>
+    </div>
+    <script>
+        function updateTemperature(value) {
+            document.getElementById('tempDisplay').innerText = value + '°C';
+        }
     </script>
 </body>
 </html>
@@ -443,196 +175,78 @@ void handleRoot() {
     html.replace("%TEMP1%", String(currentTemp1, 1));
     html.replace("%TARGET1%", String(TARGET_TEMP1, 1));
     html.replace("%PWM1%", String((float)currentPWM1/MAX_PWM * 100, 0));
-    html.replace("%KP1%", String(config.Kp1, 1));
-    html.replace("%KI1%", String(config.Ki1, 3));
-    html.replace("%KD1%", String(config.Kd1, 1));
-    
     html.replace("%TEMP2%", String(currentTemp2, 1));
     html.replace("%TARGET2%", String(TARGET_TEMP2, 1));
     html.replace("%PWM2%", String((float)currentPWM2/MAX_PWM * 100, 0));
-    html.replace("%KP2%", String(config.Kp2, 1));
-    html.replace("%KI2%", String(config.Ki2, 3));
-    html.replace("%KD2%", String(config.Kd2, 1));
-    
-    html.replace("%WIFI_SSID%", String(config.ssid));
-    html.replace("%WIFI_PASS%", String(config.password));
+    html.replace("%WIFI_SSID%", String(config.ssid)); // WiFi SSID
+    html.replace("%WIFI_PASS%", String(config.password)); // WiFi Passwort
+    html.replace("%SYSTEM_LOG%", getLog()); // System Log
 
     if (rtcData.magic == MAGIC_HEATER_ON) {
-        html.replace("%MODE_CLASS%", "mode-heater");
         html.replace("%MODE_TEXT%", "FULL POWER (100%)");
     } else {
-        html.replace("%MODE_CLASS%", "mode-normal");
         html.replace("%MODE_TEXT%", "NORMAL (Temperature Control)");
     }
     
     server.send(200, "text/html", html);
 }
 
+void handleTemperatureControl() {
+    int circuit = server.arg("circuit").toInt();
+    String html = String(temperature_control_html);
+    
+    float targetTemp = (circuit == 1) ? TARGET_TEMP1 : TARGET_TEMP2;
+    html.replace("%TARGET%", String(targetTemp, 1));
+    html.replace("%CIRCUIT%", String(circuit));
+
+    server.send(200, "text/html", html);
+}
+
 void handleSetTemp() {
     bool changed = false;
     String message;
-    
-    if (server.hasArg("temp1")) {
-        float newTemp1 = server.arg("temp1").toFloat();
-        if (newTemp1 >= 10 && newTemp1 <= 40) {
-            TARGET_TEMP1 = newTemp1;
-            config.targetTemp1 = newTemp1;
-            changed = true;
-            char logMsg[64];
-            snprintf(logMsg, sizeof(logMsg), "Heating Circuit 1 Temperature set to %.1f°C", newTemp1);
-            addLog(logMsg, 0);
-        } else {
-            message += "Temperature 1 outside the valid range (10-40°C). ";
-            addLog("Invalid temperature for Heating Circuit 1", 1);
-        }
-    }
-    
-    if (server.hasArg("temp2")) {
-        float newTemp2 = server.arg("temp2").toFloat();
-        if (newTemp2 >= 10 && newTemp2 <= 40) {
-            TARGET_TEMP2 = newTemp2;
-            config.targetTemp2 = newTemp2;
-            changed = true;
-            char logMsg[64];
-            snprintf(logMsg, sizeof(logMsg), "Heating Circuit 2 Temperature set to %.1f°C", newTemp2);
-            addLog(logMsg, 0);
-        } else {
-            message += "Temperature 2 outside the valid range (10-40°C). ";
-            addLog("Invalid temperature for Heating Circuit 2", 1);
-        }
-    }
-    
-    if (changed) {
-        saveConfig();
-        server.sendHeader("Location", "/");
-        server.send(302, "text/plain", "Updated");
-    } else {
-        server.send(400, "text/plain", message);
-    }
-}
 
-void handleSetPID() {
-    bool changed = false;
-    String message;
-    
-    auto validatePIDValue = [](float val, float min, float max, const char* name) -> String {
-        if (val < min || val > max || isnan(val)) {
-            char msg[64];
-            snprintf(msg, sizeof(msg), "%s must be between %.1f and %.1f", name, min, max);
-            return String(msg);
-        }
-        return "";
-    };
-    
-    // Heating Circuit 1
-    if (server.hasArg("kp1") && server.hasArg("ki1") && server.hasArg("kd1")) {
-        float kp = server.arg("kp1").toFloat();
-        float ki = server.arg("ki1").toFloat();
-        float kd = server.arg("kd1").toFloat();
+    if (server.hasArg("temp")) {
+        float newTemp = server.arg("temp").toFloat();
+        int circuit = server.arg("circuit").toInt();
         
-        message += validatePIDValue(kp, 0, 100, "Kp1");
-        message += validatePIDValue(ki, 0, 1, "Ki1");
-        message += validatePIDValue(kd, 0, 100, "Kd1");
-        
-        if (message.length() == 0) {
-            config.Kp1 = kp;
-            config.Ki1 = ki;
-            config.Kd1 = kd;
-            changed = true;
-            addLog("PID Parameters for Heating Circuit 1 updated", 0);
-        }
-    }
-    
-    // Heating Circuit 2
-    if (server.hasArg("kp2") && server.hasArg("ki2") && server.hasArg("kd2")) {
-        float kp = server.arg("kp2").toFloat();
-        float ki = server.arg("ki2").toFloat();
-        float kd = server.arg("kd2").toFloat();
-        
-        message += validatePIDValue(kp, 0, 100, "Kp2");
-        message += validatePIDValue(ki, 0, 1, "Ki2");
-        message += validatePIDValue(kd, 0, 100, "Kd2");
-        
-        if (message.length() == 0) {
-            config.Kp2 = kp;
-            config.Ki2 = ki;
-            config.Kd2 = kd;
-            changed = true;
-            addLog("PID Parameters for Heating Circuit 2 updated", 0);
-        }
-    }
-    
-    if (changed) {
-        saveConfig();
-        server.sendHeader("Location", "/");
-        server.send(302, "text/plain", "Updated");
-    } else {
-        if (message.length() == 0) {
-            message = "No valid parameters submitted";
-        }
-        server.send(400, "text/plain", message);
-    }
-}
-
-void handleSetWifi() {
-    if (server.method() != HTTP_POST) {
-        server.send(405, "text/plain", "Method Not Allowed");
-        return;
-    }
-    
-    if (server.hasArg("ssid") && server.hasArg("pass")) {
-        String newSSID = server.arg("ssid");
-        String newPass = server.arg("pass");
-        
-        // Validate SSID
-        if (newSSID.length() < 1 || newSSID.length() > 32) {
-            server.send(400, "text/plain", "SSID must be between 1 and 32 characters");
-            return;
-        }
-        
-        // Validate password
-        if (newPass.length() < 8 || newPass.length() > 64) {
-            server.send(400, "text/plain", "Password must be at least 8 characters");
-            return;
-        }
-        
-        // Check for allowed characters
-        for (char c : newSSID) {
-            if (!isalnum(c) && c != '_' && c != '-') {
-                server.send(400, "text/plain", "SSID may only contain letters, numbers, - and _");
-                return;
+        if (newTemp >= 10 && newTemp <= 40) {
+            if (circuit == 1) {
+                TARGET_TEMP1 = newTemp;
+                config.targetTemp1 = newTemp;
+            } else {
+                TARGET_TEMP2 = newTemp;
+                config.targetTemp2 = newTemp;
             }
+            changed = true;
+            char logMsg[64];
+            snprintf(logMsg, sizeof(logMsg), "Heating Circuit %d Temperature set to %.1f°C", circuit, newTemp);
+            addLog(logMsg, 0);
+        } else {
+            message += "Temperature outside the valid range (10-40°C). ";
+            addLog("Invalid temperature for Heating Circuit", 1);
         }
-        
-        strncpy(config.ssid, newSSID.c_str(), sizeof(config.ssid) - 1);
-        strncpy(config.password, newPass.c_str(), sizeof(config.password) - 1);
-        config.ssid[sizeof(config.ssid) - 1] = '\0';
-        config.password[sizeof(config.password) - 1] = '\0';
-        
+    }
+
+    if (changed) {
         saveConfig();
-        addLog("WiFi settings updated - device will restart in 3 seconds", 0);
-        
-        server.send(200, "text/html", 
-            "<html><body>"
-            "<h2>Settings saved</h2>"
-            "<p>The device will restart in 3 seconds...</p>"
-            "<script>setTimeout(function(){ window.location.href='/' }, 3000);</script>"
-            "</body></html>");
-            
-        delay(500);
-        ESP.restart();
+        server.sendHeader("Location", "/");
+        server.send(302, "text/plain", "Updated");
     } else {
-        server.send(400, "text/plain", "Missing parameters");
+        server.send(400, "text/plain", message);
     }
 }
 
 void setupWebServer() {
+    // Lade die gespeicherten Temperaturen aus der Config
+    TARGET_TEMP1 = config.targetTemp1;
+    TARGET_TEMP2 = config.targetTemp2;
+    
     server.on("/", HTTP_GET, handleRoot);
+    server.on("/temperature_control", HTTP_GET, handleTemperatureControl);
     server.on("/settemp", HTTP_GET, handleSetTemp);
-    server.on("/setpid", HTTP_GET, handleSetPID);
-    server.on("/setwifi", HTTP_POST, handleSetWifi);
-    server.on("/getlog", HTTP_GET, handleGetLog);
-    server.on("/clearlog", HTTP_GET, handleClearLog);
+    server.on("/getlog", HTTP_GET, handleGetLog);     // Diese Funktion ist in logger.cpp implementiert
+    server.on("/clearlog", HTTP_GET, handleClearLog); // Diese Funktion ist in logger.cpp implementiert
     
     // Captive Portal Routes
     server.on("/generate_204", HTTP_GET, handleRoot);

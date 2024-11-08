@@ -63,3 +63,12 @@ void handleClearLog() {
     addLog("Log cleared", 0);
     server.send(200, "text/plain", "OK");
 }
+
+String getLog() {
+    // Implementierung zum Abrufen des Logs
+    return String("Log data"); // Beispielimplementierung
+}
+
+void clearLog() {
+    // Implementierung zum Löschen des Logs
+}
