@@ -9,6 +9,7 @@
 #define MAGIC_NORMAL 0xEF
 #define EEPROM_SIZE 512
 #define EEPROM_MAGIC 0xAB
+#define MODE_PIN D5  // Wähle einen freien Pin
 
 // RTC Datenstruktur
 struct RTCData {

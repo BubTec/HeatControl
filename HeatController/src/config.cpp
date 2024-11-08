@@ -42,23 +42,48 @@ void saveConfig() {
 }
 
 void checkOperationMode() {
-    system_rtc_mem_read(64, &rtcData, sizeof(rtcData));
+    // Mode-Pin als Eingang mit Pull-up konfigurieren
+    pinMode(MODE_PIN, INPUT_PULLUP);
+    delay(50);  // Kurz warten für stabile Lesung
     
-    if (rtcData.magic == MAGIC_HEATER_ON) {
+    // Lies den Mode-Pin
+    bool pinState = digitalRead(MODE_PIN);
+    Serial.printf("Mode-Pin Status: %d\n", pinState);
+    
+    // Wenn der Pin LOW ist (Kondensator entladen), starte im Normal-Modus
+    if (pinState == LOW) {
         rtcData.magic = MAGIC_NORMAL;
         config.lastMode = MAGIC_NORMAL;
-        addLog("Wechsel zu Normal-Modus", 0);
-    } else if (rtcData.magic == MAGIC_NORMAL) {
-        rtcData.magic = MAGIC_HEATER_ON;
-        config.lastMode = MAGIC_HEATER_ON;
-        addLog("Wechsel zu Heizung-An Modus (100%)", 0);
-    } else {
-        rtcData.magic = config.lastMode;
-        addLog("Wiederherstellung des letzten Modus", 0);
+        addLog("Normal-Modus aktiviert (Kondensator entladen)", 0);
+        
+        // Setze Pin auf HIGH für nächsten Neustart
+        pinMode(MODE_PIN, OUTPUT);
+        digitalWrite(MODE_PIN, HIGH);
+    }
+    // Wenn der Pin HIGH ist (Kondensator geladen), wechsle den Modus
+    else {
+        // Wenn wir im Normal-Modus waren, wechsle zu Heizung-An
+        if (config.lastMode == MAGIC_NORMAL) {
+            rtcData.magic = MAGIC_HEATER_ON;
+            config.lastMode = MAGIC_HEATER_ON;
+            addLog("Heizung-An Modus aktiviert (Kondensator geladen)", 0);
+            
+            // Setze Pin auf LOW für nächsten Neustart
+            pinMode(MODE_PIN, OUTPUT);
+            digitalWrite(MODE_PIN, LOW);
+        }
+        // Wenn wir im Heizung-An Modus waren, wechsle zu Normal
+        else {
+            rtcData.magic = MAGIC_NORMAL;
+            config.lastMode = MAGIC_NORMAL;
+            addLog("Normal-Modus aktiviert (Kondensator geladen)", 0);
+            
+            // Setze Pin auf LOW für nächsten Neustart
+            pinMode(MODE_PIN, OUTPUT);
+            digitalWrite(MODE_PIN, LOW);
+        }
     }
     
-    rtcData.bootCount++;
-    system_rtc_mem_write(64, &rtcData, sizeof(rtcData));
     saveConfig();
 }
 
