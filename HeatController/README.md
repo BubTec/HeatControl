@@ -1,31 +1,41 @@
-# HeatControl - Dual Channel Temperature Controller
+# DivingHeatControl - Dual Channel Diving Suit Heating Controller
 
 ## Description
-HeatControl is an ESP8266-based controller for two independent heating circuits with the following features:
-- Two independent temperature control circuits
+DivingHeatControl is an ESP8266-based controller specifically designed for drysuit heating systems with the following features:
+- Two independent heating circuits (main body and gloves)
 - PID control for precise temperature regulation
 - Web interface for configuration
 - Two operating modes: Normal and FULL POWER (100%)
 - Automatic captive portal for easy configuration
-- Logging system for troubleshooting
+- Logging system for monitoring dive temperatures
+
+## System Overview
+This system is designed for divers using heated drysuits. It manages and controls heating elements connected to a 12V battery supply:
+- Main body heating circuit
+- Heated gloves circuit
+
+Temperature sensors are strategically placed:
+- One sensor on the chest area for core temperature monitoring
+- One sensor on the hand for extremity temperature control
+
+This setup allows for precise temperature control during dives, ensuring diver comfort and safety in cold water conditions.
 
 ## Hardware Components
 
 ### Required Parts
 - 1x Wemos D1 Mini Pro (ESP8266)
-- 2x DS18B20 temperature sensors (waterproof, with cable)
-- 2x MOSFET IRLZ44N (or similar logic-level MOSFETs)
+- 2x DS18B20 waterproof temperature sensors with marine-grade cables
+- 2x IRLZ44N MOSFET (logic-level, suitable for 12V operation)
 - 1x 4.7kΩ pull-up resistor (for OneWire bus)
 - 1x 10kΩ pull-up resistor (for mode pin)
-- 1x 1000µF electrolytic capacitor (min. 6.3V)
-- 5V power supply (minimum 2A)
-- Perfboard or PCB
-- Terminal blocks for:
-  - 2x heaters
+- 1x 1000µF electrolytic capacitor (min. 16V for 12V system)
+- DC-DC converter (12V to 5V) for ESP power supply
+- Waterproof enclosure (minimum IP67 rated)
+- Marine-grade terminal blocks for:
+  - 2x heating elements
   - 2x temperature sensors
-  - 1x power supply
-- Enclosure (waterproof if used in humid environment)
-- Wires in various colors
+  - 1x battery connection
+- Marine-grade cables and connectors
 
 ### Detailed Schematic
 
@@ -177,14 +187,14 @@ HeatControl is an ESP8266-based controller for two independent heating circuits 
 
 #### 1. Normal Mode
 - PID-controlled temperature regulation
-- Separate setpoints for both heating circuits
+- Individual temperature settings for body and gloves
 - Adjustable PID parameters
-- Temperature range: 10-40°C
+- Temperature range: 20-45°C (adjustable for diving conditions)
 
 #### 2. FULL POWER Mode
 - Both heating circuits at 100% power
 - No temperature regulation
-- Useful for rapid heating
+- Useful for initial heating before water entry
 - Automatic return to normal mode after extended power loss
 
 #### Mode Switching
@@ -195,48 +205,57 @@ HeatControl is an ESP8266-based controller for two independent heating circuits 
 ### Safety Instructions
 
 #### 1. Electrical Safety
-- Use short-circuit protected power supply
+- Use short-circuit protected connections
 - Implement overload protection
-- Clean cable routing
-- Ground enclosure if metallic
+- Waterproof all connections
+- Regular inspection of cable integrity
 
 #### 2. Temperature Safety
 - Regular sensor function checks
 - Redundancy through two sensors
 - Fail-safe on sensor failure
-- Temperature monitoring implemented
+- Maximum temperature limiting
 
-#### 3. Fire Safety
-- Observe fire protection regulations
-- Ensure adequate ventilation
-- Keep flammable materials away
-- Regular maintenance
+#### 3. Diving Safety
+- Check system before each dive
+- Monitor battery voltage
+- Ensure all connections are secure
+- Have backup heating plan
+- Test system in controlled conditions first
 
 ### Initial Setup
 
 1. Build and check hardware
-2. Flash ESP with code
-3. Connect power supply
-4. Connect to WiFi "HeatControl" (password: HeatControl)
-5. Open 192.168.4.1 in browser
-6. Set temperatures and PID parameters
-7. Test functionality
+2. Waterproof all connections
+3. Flash ESP with code
+4. Connect to battery supply
+5. Connect to WiFi "DivingHeatControl" (password: HeatControl)
+6. Open 192.168.4.1 in browser
+7. Set temperatures for body and gloves
+8. Test functionality before diving
 
 ### Maintenance
 
-1. Regular Checks
+1. Pre-Dive Checks
+   - Test temperature sensors
+   - Check all waterproof connections
+   - Verify battery charge
+   - Test heating elements
+   - Check enclosure seals
+
+2. Regular Checks
    - Test temperature sensors
    - Check cable connections
    - Clean heat sinks
    - Check enclosure ventilation
 
-2. Software Updates
+3. Software Updates
    - Check current version
    - Backup settings
    - Perform update
    - Restore settings
 
-3. Troubleshooting
+4. Troubleshooting
    - Check ESP LED status
    - Serial Monitor (115200 baud) for debug output
    - Verify temperature values
@@ -245,10 +264,11 @@ HeatControl is an ESP8266-based controller for two independent heating circuits 
 
 ### Technical Specifications
 
-- Operating voltage: 5V DC
-- Current consumption: max. 500mA (without heaters)
-- Temperature range: 10-40°C
+- Operating voltage: 12V DC (from diving battery)
+- Current consumption: max. 500mA (controller only)
+- Heating element support: up to 10A per channel
+- Temperature range: 20-45°C
 - Control accuracy: ±0.5°C
-- WiFi: 2.4GHz
-- Protection class: depends on enclosure
-- Dimensions: depends on assembly
+- WiFi: 2.4GHz (for configuration only)
+- Protection class: IP67 or higher
+- Operating depth: Tested to 40m
