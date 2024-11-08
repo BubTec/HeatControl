@@ -6,17 +6,17 @@ unsigned long lastDataLog = 0;
 
 void setupDataLogger() {
     if (!SPIFFS.begin()) {
-        addLog("SPIFFS initialization failed!", 2);
+        addLog("SPIFFS Initialisierung fehlgeschlagen!", 2);
         return;
     }
     
-    // Check if log file exists, if not create header
+    // Prüfe ob Logdatei existiert, wenn nicht erstelle Header
     if (!SPIFFS.exists(LOG_FILE)) {
         File f = SPIFFS.open(LOG_FILE, "w");
         if (f) {
             f.println("timestamp,temp1,temp2,pwm1,pwm2");
             f.close();
-            addLog("New log file created", 0);
+            addLog("Neue Logdatei erstellt", 0);
         }
     }
 }
@@ -27,7 +27,7 @@ void logData() {
     
     File f = SPIFFS.open(LOG_FILE, "a");
     if (f) {
-        // Write timestamp (seconds since start), temperatures and PWM
+        // Schreibe Zeitstempel (Sekunden seit Start), Temperaturen und PWM
         f.printf("%lu,%.1f,%.1f,%d,%d\n", 
             millis()/1000, 
             currentTemp1, 
@@ -37,13 +37,13 @@ void logData() {
         );
         f.close();
         
-        // Check file size and rotate if necessary
+        // Prüfe Dateigröße und rotiere wenn nötig
         if (SPIFFS.exists(LOG_FILE)) {
             File f = SPIFFS.open(LOG_FILE, "r");
             if (f.size() > MAX_LOG_FILE_SIZE) {
-                // Keep only the last 75% of data
+                // Behalte nur die letzten 75% der Daten
                 String newContent;
-                f.seek(f.size() / 4);  // Skip first quarter
+                f.seek(f.size() / 4);  // Überspringe erstes Viertel
                 while (f.available()) {
                     newContent += (char)f.read();
                 }
@@ -53,7 +53,7 @@ void logData() {
                 f.println("timestamp,temp1,temp2,pwm1,pwm2");
                 f.print(newContent);
                 f.close();
-                addLog("Log file rotated", 0);
+                addLog("Logdatei rotiert", 0);
             }
         }
     }
@@ -64,7 +64,7 @@ String getLogData(uint32_t hours) {
     if (SPIFFS.exists(LOG_FILE)) {
         File f = SPIFFS.open(LOG_FILE, "r");
         
-        // Skip header
+        // Überspringe Header
         String line = f.readStringUntil('\n');
         
         uint32_t startTime = 0;
@@ -73,7 +73,7 @@ String getLogData(uint32_t hours) {
         while (f.available()) {
             line = f.readStringUntil('\n');
             if (line.length() > 0) {
-                // Parse CSV line
+                // Parse CSV Zeile
                 int idx = line.indexOf(',');
                 if (idx > 0) {
                     uint32_t timestamp = line.substring(0, idx).toInt();
@@ -82,7 +82,7 @@ String getLogData(uint32_t hours) {
                         firstLine = false;
                     }
                     
-                    // Only data from last X hours
+                    // Nur Daten der letzten X Stunden
                     if ((timestamp - startTime) <= hours * 3600) {
                         if (data != "[") data += ",";
                         data += line;
@@ -103,7 +103,7 @@ void clearLogData() {
         if (f) {
             f.println("timestamp,temp1,temp2,pwm1,pwm2");
             f.close();
-            addLog("Log file reset", 0);
+            addLog("Logdatei zurückgesetzt", 0);
         }
     }
 }
