@@ -2,16 +2,16 @@
 
 #include <Arduino.h>
 #include <EEPROM.h>
-#include <user_interface.h>  // Für RTC Memory Zugriff
+#include <user_interface.h>  // For RTC Memory access
 
-// Defines für Betriebsmodi
+// Defines for operating modes
 #define MAGIC_HEATER_ON 0xBE
 #define MAGIC_NORMAL 0xEF
 #define EEPROM_SIZE 512
 #define EEPROM_MAGIC 0xAB
-#define MODE_PIN D5  // Wähle einen freien Pin
+#define MODE_PIN D5  // Select a free pin
 
-// RTC Datenstruktur
+// RTC Data structure
 struct RTCData {
     uint32_t magic;
     uint32_t bootCount;
@@ -19,7 +19,7 @@ struct RTCData {
 
 extern RTCData rtcData;
 
-// Config Struktur
+// Config structure
 struct Config {
     char ssid[33];
     char password[65];
@@ -37,7 +37,7 @@ struct Config {
 
 extern Config config;
 
-// Funktionsdeklarationen
+// Function declarations
 void loadConfig();
 void saveConfig();
 void checkOperationMode();

@@ -9,24 +9,29 @@ void loadConfig() {
     EEPROM.get(0, config);
     EEPROM.end();
     
-    bool needsReset = false;
-    for (size_t i = 0; i < sizeof(config.ssid); i++) {
-        if (config.ssid[i] != 0 && (config.ssid[i] < 32 || config.ssid[i] > 126)) {
-            needsReset = true;
-            break;
-        }
-    }
-    for (size_t i = 0; i < sizeof(config.password); i++) {
-        if (config.password[i] != 0 && (config.password[i] < 32 || config.password[i] > 126)) {
-            needsReset = true;
-            break;
-        }
+    // Check only Magic Number
+    if (config.magic != EEPROM_MAGIC) {
+        Serial.println("First initialization - setting defaults");
+        strncpy(config.ssid, "HeatControl", sizeof(config.ssid));
+        strncpy(config.password, "HeatControl", sizeof(config.password));
+        config.targetTemp1 = 22.0;
+        config.targetTemp2 = 22.0;
+        config.Kp1 = 20.0;
+        config.Ki1 = 0.02;
+        config.Kd1 = 10.0;
+        config.Kp2 = 20.0;
+        config.Ki2 = 0.02;
+        config.Kd2 = 10.0;
+        config.lastMode = MAGIC_NORMAL;
+        config.magic = EEPROM_MAGIC;
+        saveConfig();
     }
     
-    if (config.magic != EEPROM_MAGIC || needsReset) {
-        Serial.println("Ungültige Konfiguration gefunden, setze zurück...");
-        resetConfig();
-    }
+    // Debug output of loaded configuration
+    Serial.println("Loaded configuration:");
+    Serial.printf("SSID: %s\n", config.ssid);
+    Serial.printf("Temp1: %.1f°C\n", config.targetTemp1);
+    Serial.printf("Temp2: %.1f°C\n", config.targetTemp2);
     
     rtcData.magic = config.lastMode;
     system_rtc_mem_write(64, &rtcData, sizeof(rtcData));
@@ -38,47 +43,47 @@ void saveConfig() {
     EEPROM.put(0, config);
     EEPROM.commit();
     EEPROM.end();
-    Serial.println("Konfiguration gespeichert");
+    Serial.println("Configuration saved");
 }
 
 void checkOperationMode() {
-    // Mode-Pin als Eingang mit Pull-up konfigurieren
+    // Configure mode pin as input with pull-up
     pinMode(MODE_PIN, INPUT_PULLUP);
-    delay(50);  // Kurz warten für stabile Lesung
+    delay(50);  // Short delay for stable reading
     
-    // Lies den Mode-Pin
+    // Read mode pin
     bool pinState = digitalRead(MODE_PIN);
-    Serial.printf("Mode-Pin Status: %d\n", pinState);
+    Serial.printf("Mode Pin Status: %d\n", pinState);
     
-    // Wenn der Pin LOW ist (Kondensator entladen), starte im Normal-Modus
+    // If pin is LOW (capacitor discharged), start in normal mode
     if (pinState == LOW) {
         rtcData.magic = MAGIC_NORMAL;
         config.lastMode = MAGIC_NORMAL;
-        addLog("Normal-Modus aktiviert (Kondensator entladen)", 0);
+        addLog("Normal mode activated (capacitor discharged)", 0);
         
-        // Setze Pin auf HIGH für nächsten Neustart
+        // Set pin HIGH for next restart
         pinMode(MODE_PIN, OUTPUT);
         digitalWrite(MODE_PIN, HIGH);
     }
-    // Wenn der Pin HIGH ist (Kondensator geladen), wechsle den Modus
+    // If pin is HIGH (capacitor charged), switch mode
     else {
-        // Wenn wir im Normal-Modus waren, wechsle zu Heizung-An
+        // If we were in normal mode, switch to full power
         if (config.lastMode == MAGIC_NORMAL) {
             rtcData.magic = MAGIC_HEATER_ON;
             config.lastMode = MAGIC_HEATER_ON;
-            addLog("Heizung-An Modus aktiviert (Kondensator geladen)", 0);
+            addLog("FULL POWER mode activated (capacitor charged)", 0);
             
-            // Setze Pin auf LOW für nächsten Neustart
+            // Set pin LOW for next restart
             pinMode(MODE_PIN, OUTPUT);
             digitalWrite(MODE_PIN, LOW);
         }
-        // Wenn wir im Heizung-An Modus waren, wechsle zu Normal
+        // If we were in full power mode, switch to normal
         else {
             rtcData.magic = MAGIC_NORMAL;
             config.lastMode = MAGIC_NORMAL;
-            addLog("Normal-Modus aktiviert (Kondensator geladen)", 0);
+            addLog("Normal mode activated (capacitor charged)", 0);
             
-            // Setze Pin auf LOW für nächsten Neustart
+            // Set pin LOW for next restart
             pinMode(MODE_PIN, OUTPUT);
             digitalWrite(MODE_PIN, LOW);
         }
@@ -110,5 +115,5 @@ void resetConfig() {
     
     saveConfig();
     
-    addLog("Konfiguration zurückgesetzt", 0);
+    addLog("Configuration reset to defaults", 0);
 } 

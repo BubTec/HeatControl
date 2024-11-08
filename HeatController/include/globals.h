@@ -2,14 +2,14 @@
 
 #include <Arduino.h>
 
-// Gemeinsame Konstanten
+// Common constants
 #define MAX_PWM 1023
 #define MIN_PWM 0
 
-// Temperatur-Variablen
+// Temperature variables
 extern float TARGET_TEMP1;
 extern float TARGET_TEMP2;
 extern float currentTemp1;
 extern float currentTemp2;
 extern int currentPWM1;
-extern int currentPWM2; 
+extern int currentPWM2;

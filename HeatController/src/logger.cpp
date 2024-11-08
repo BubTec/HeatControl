@@ -5,7 +5,7 @@
 
 struct LogEntry {
     char message[64];
-    uint8_t type;
+    uint8_t type;  // 0=info, 1=warning, 2=error
     unsigned long timestamp;
 };
 
@@ -13,7 +13,7 @@ static LogEntry logEntries[MAX_LOG_ENTRIES];
 static int logIndex = 0;
 static int logCount = 0;
 
-extern ESP8266WebServer server;  // Deklariere server als extern
+extern ESP8266WebServer server;
 
 void addLog(const char* message, uint8_t type) {
     unsigned long now = millis();
@@ -24,6 +24,15 @@ void addLog(const char* message, uint8_t type) {
     
     logIndex = (logIndex + 1) % MAX_LOG_ENTRIES;
     if (logCount < MAX_LOG_ENTRIES) logCount++;
+    
+    // Also print to Serial for debugging
+    const char* typeStr;
+    switch(type) {
+        case 1: typeStr = "WARNING"; break;
+        case 2: typeStr = "ERROR"; break;
+        default: typeStr = "INFO";
+    }
+    Serial.printf("[%s] %s\n", typeStr, message);
 }
 
 void handleGetLog() {
@@ -51,5 +60,6 @@ void handleGetLog() {
 void handleClearLog() {
     logIndex = 0;
     logCount = 0;
+    addLog("Log cleared", 0);
     server.send(200, "text/plain", "OK");
-} 
+}

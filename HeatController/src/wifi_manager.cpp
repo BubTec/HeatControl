@@ -11,15 +11,15 @@ void setupWiFi() {
     
     bool apResult = WiFi.softAPConfig(IPAddress(4,3,2,1), IPAddress(4,3,2,1), IPAddress(255,255,255,0));
     if (!apResult) {
-        addLog("WiFi AP Konfiguration fehlgeschlagen", 2);
+        addLog("WiFi AP configuration failed", 2);
     }
     
     if (WiFi.softAP(config.ssid, config.password)) {
         char logMsg[64];
-        snprintf(logMsg, sizeof(logMsg), "WiFi AP gestartet - SSID: %s", config.ssid);
+        snprintf(logMsg, sizeof(logMsg), "WiFi AP started - SSID: %s", config.ssid);
         addLog(logMsg, 0);
     } else {
-        addLog("WiFi AP Start fehlgeschlagen", 2);
+        addLog("WiFi AP start failed", 2);
     }
     
     dnsServer.setErrorReplyCode(DNSReplyCode::NoError);

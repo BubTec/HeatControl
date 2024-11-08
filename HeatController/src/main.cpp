@@ -6,17 +6,18 @@
 
 void setup() {
     Serial.begin(115200);
-    Serial.println("\n\n=== HeatControl Start ===");
+    Serial.println("\n\n=== HeatControl v1.0 Starting ===");
     
-    // Einmalig ausführen und dann auskommentieren:
-    // resetConfig();
-    
+    // First load configuration
     loadConfig();
     checkOperationMode();
     
+    // Then initialize components
     setupWiFi();
     setupHeating();
     setupWebServer();
+    
+    Serial.println("=== Startup complete ===");
 }
 
 void loop() {

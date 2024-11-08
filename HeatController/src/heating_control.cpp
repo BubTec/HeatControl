@@ -9,7 +9,7 @@
 #define TEMP_HISTORY_SIZE 6
 #define CONTROL_INTERVAL 10000
 
-// Nur die lokalen Variablen behalten
+// Keep only local variables
 float integral1 = 0;
 float integral2 = 0;
 float tempHistory1[TEMP_HISTORY_SIZE] = {0};
@@ -32,13 +32,13 @@ void setupHeating() {
     sensors.begin();
     
     if(sensors.getDeviceCount() < 2) {
-        addLog("Nicht genügend Temperatursensoren gefunden!", 1);
+        addLog("Not enough temperature sensors found!", 1);
     } else {
         sensors.getAddress(sensor1, 0);
         sensors.getAddress(sensor2, 1);
         sensors.setResolution(sensor1, 12);
         sensors.setResolution(sensor2, 12);
-        addLog("Temperatursensoren initialisiert", 0);
+        addLog("Temperature sensors initialized", 0);
     }
 }
 
@@ -54,7 +54,7 @@ void updateHeating() {
     if(sensors.getDeviceCount() > 0) {
         sensors.requestTemperatures();
         
-        // Heizkreis 1
+        // Heating Circuit 1
         float temp1 = sensors.getTempC(sensor1);
         if(temp1 != DEVICE_DISCONNECTED_C) {
             currentTemp1 = temp1;
@@ -65,15 +65,15 @@ void updateHeating() {
             }
             analogWrite(MOSFET1_PIN, currentPWM1);
             char logMsg[64];
-            snprintf(logMsg, sizeof(logMsg), "HK1: %.1f°C -> %d%% PWM", currentTemp1, (int)((float)currentPWM1/MAX_PWM * 100));
+            snprintf(logMsg, sizeof(logMsg), "HC1: %.1f°C -> %d%% PWM", currentTemp1, (int)((float)currentPWM1/MAX_PWM * 100));
             addLog(logMsg, 0);
         } else {
-            addLog("Heizkreis 1: Sensor Fehler!", 2);
+            addLog("Heating Circuit 1: Sensor error!", 2);
             currentPWM1 = 0;
             analogWrite(MOSFET1_PIN, 0);
         }
         
-        // Heizkreis 2
+        // Heating Circuit 2
         if(sensors.getDeviceCount() > 1) {
             float temp2 = sensors.getTempC(sensor2);
             if(temp2 != DEVICE_DISCONNECTED_C) {
@@ -85,16 +85,16 @@ void updateHeating() {
                 }
                 analogWrite(MOSFET2_PIN, currentPWM2);
                 char logMsg[64];
-                snprintf(logMsg, sizeof(logMsg), "HK2: %.1f°C -> %d%% PWM", currentTemp2, (int)((float)currentPWM2/MAX_PWM * 100));
+                snprintf(logMsg, sizeof(logMsg), "HC2: %.1f°C -> %d%% PWM", currentTemp2, (int)((float)currentPWM2/MAX_PWM * 100));
                 addLog(logMsg, 0);
             } else {
-                addLog("Heizkreis 2: Sensor Fehler!", 2);
+                addLog("Heating Circuit 2: Sensor error!", 2);
                 currentPWM2 = 0;
                 analogWrite(MOSFET2_PIN, 0);
             }
         }
     } else {
-        addLog("Keine Sensoren gefunden!", 2);
+        addLog("No sensors found!", 2);
         currentPWM1 = 0;
         currentPWM2 = 0;
         analogWrite(MOSFET1_PIN, 0);

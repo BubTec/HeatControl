@@ -12,7 +12,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
-    <title>Temperatur Controller</title>
+    <title>Heat Controller</title>
     <style>
         :root {
             --primary-color: #2196F3;
@@ -63,7 +63,7 @@ const char index_html[] PROGMEM = R"rawliteral(
             box-shadow: 0 4px 8px rgba(0,0,0,0.15);
         }
 
-        .heizkreis {
+        .heating-circuit {
             background: var(--background-color);
             border-radius: 8px;
             padding: 20px;
@@ -241,11 +241,11 @@ const char index_html[] PROGMEM = R"rawliteral(
 </head>
 <body>
     <div class="container">
-        <h2>Temperatur Controller</h2>
+        <h2>Heat Controller</h2>
         
         <div class="config">
             <div class="mode-display">
-                <h3>Betriebsmodus</h3>
+                <h3>Operating Mode</h3>
                 <div class="mode-indicator %MODE_CLASS%">
                     %MODE_TEXT%
                 </div>
@@ -253,12 +253,12 @@ const char index_html[] PROGMEM = R"rawliteral(
         </div>
 
         <div class="config">
-            <h3>Heizkreis 1</h3>
-            <div class="heizkreis">
+            <h3>Heating Circuit 1</h3>
+            <div class="heating-circuit">
                 <div class="temp-display">
-                    <span>Aktuelle Temperatur: </span>
+                    <span>Current Temperature: </span>
                     <span class="temp-value">%TEMP1%°C</span>
-                    <p>Zieltemperatur: %TARGET1%°C</p>
+                    <p>Target Temperature: %TARGET1%°C</p>
                     <p class="pwm-display">PWM: %PWM1%%</p>
                 </div>
                 <form action="/settemp" method="get" class="temp-control">
@@ -269,33 +269,33 @@ const char index_html[] PROGMEM = R"rawliteral(
                             oninput="this.previousElementSibling.value = this.value">
                         <span class="unit">°C</span>
                     </div>
-                    <input type="submit" value="Temperatur setzen">
+                    <input type="submit" value="Set Temperature">
                 </form>
                 <div class="pid-config">
-                    <h4>PID Parameter</h4>
+                    <h4>PID Parameters</h4>
                     <form action="/setpid" method="get">
                         <label>Kp: <input type="number" name="kp1" step="0.1" value="%KP1%" min="0" max="100" required
-                            oninvalid="this.setCustomValidity('Kp muss zwischen 0 und 100 liegen')"
+                            oninvalid="this.setCustomValidity('Kp must be between 0 and 100')"
                             oninput="this.setCustomValidity('')"></label>
                         <label>Ki: <input type="number" name="ki1" step="0.01" value="%KI1%" min="0" max="1" required
-                            oninvalid="this.setCustomValidity('Ki muss zwischen 0 und 1 liegen')"
+                            oninvalid="this.setCustomValidity('Ki must be between 0 and 1')"
                             oninput="this.setCustomValidity('')"></label>
                         <label>Kd: <input type="number" name="kd1" step="0.1" value="%KD1%" min="0" max="100" required
-                            oninvalid="this.setCustomValidity('Kd muss zwischen 0 und 100 liegen')"
+                            oninvalid="this.setCustomValidity('Kd must be between 0 and 100')"
                             oninput="this.setCustomValidity('')"></label>
-                        <input type="submit" value="Parameter speichern">
+                        <input type="submit" value="Save Parameters">
                     </form>
                 </div>
             </div>
         </div>
 
         <div class="config">
-            <h3>Heizkreis 2</h3>
-            <div class="heizkreis">
+            <h3>Heating Circuit 2</h3>
+            <div class="heating-circuit">
                 <div class="temp-display">
-                    <span>Aktuelle Temperatur: </span>
+                    <span>Current Temperature: </span>
                     <span class="temp-value">%TEMP2%°C</span>
-                    <p>Zieltemperatur: %TARGET2%°C</p>
+                    <p>Target Temperature: %TARGET2%°C</p>
                     <p class="pwm-display">PWM: %PWM2%%</p>
                 </div>
                 <form action="/settemp" method="get" class="temp-control">
@@ -306,21 +306,21 @@ const char index_html[] PROGMEM = R"rawliteral(
                             oninput="this.previousElementSibling.value = this.value">
                         <span class="unit">°C</span>
                     </div>
-                    <input type="submit" value="Temperatur setzen">
+                    <input type="submit" value="Set Temperature">
                 </form>
                 <div class="pid-config">
-                    <h4>PID Parameter</h4>
+                    <h4>PID Parameters</h4>
                     <form action="/setpid" method="get">
                         <label>Kp: <input type="number" name="kp2" step="0.1" value="%KP2%" min="0" max="100" required
-                            oninvalid="this.setCustomValidity('Kp muss zwischen 0 und 100 liegen')"
+                            oninvalid="this.setCustomValidity('Kp must be between 0 and 100')"
                             oninput="this.setCustomValidity('')"></label>
                         <label>Ki: <input type="number" name="ki2" step="0.01" value="%KI2%" min="0" max="1" required
-                            oninvalid="this.setCustomValidity('Ki muss zwischen 0 und 1 liegen')"
+                            oninvalid="this.setCustomValidity('Ki must be between 0 and 1')"
                             oninput="this.setCustomValidity('')"></label>
                         <label>Kd: <input type="number" name="kd2" step="0.1" value="%KD2%" min="0" max="100" required
-                            oninvalid="this.setCustomValidity('Kd muss zwischen 0 und 100 liegen')"
+                            oninvalid="this.setCustomValidity('Kd must be between 0 and 100')"
                             oninput="this.setCustomValidity('')"></label>
-                        <input type="submit" value="Parameter speichern">
+                        <input type="submit" value="Save Parameters">
                     </form>
                 </div>
             </div>
@@ -329,21 +329,21 @@ const char index_html[] PROGMEM = R"rawliteral(
         <div class="config">
             <h3>System Log</h3>
             <div class="log-container" id="logContainer">%SYSTEM_LOG%</div>
-            <button onclick="clearLog()">Log löschen</button>
+            <button onclick="clearLog()">Clear Log</button>
         </div>
         
         <div class="config">
-            <h3>WLAN Konfiguration</h3>
+            <h3>WiFi Configuration</h3>
             <form action="/setwifi" method="post">
                 <p><label>SSID:<br><input type="text" name="ssid" value="%WIFI_SSID%" maxlength="32" minlength="1" required pattern="[A-Za-z0-9_-]{1,32}"
-                    oninvalid="this.setCustomValidity('SSID darf nur Buchstaben, Zahlen, - und _ enthalten')"
+                    oninvalid="this.setCustomValidity('SSID may only contain letters, numbers, - and _')"
                     oninput="this.setCustomValidity('')"></label></p>
-                <p><label>Passwort:<br><input type="password" name="pass" value="%WIFI_PASS%" maxlength="64" minlength="8" required
-                    oninvalid="this.setCustomValidity('Passwort muss mindestens 8 Zeichen lang sein')"
+                <p><label>Password:<br><input type="password" name="pass" value="%WIFI_PASS%" maxlength="64" minlength="8" required
+                    oninvalid="this.setCustomValidity('Password must be at least 8 characters')"
                     oninput="this.setCustomValidity('')"></label></p>
-                <input type="submit" value="WLAN Einstellungen speichern">
+                <input type="submit" value="Save WiFi Settings">
             </form>
-            <p><small>Nach dem Speichern startet das Gerät neu!</small></p>
+            <p><small>The device will restart in 3 seconds...</small></p>
         </div>
     </div>
 
@@ -365,7 +365,7 @@ const char index_html[] PROGMEM = R"rawliteral(
                 });
         }
 
-        // Validierungsfunktionen
+        // Validation functions
         function validateTemp(value) {
             const temp = parseFloat(value);
             return !isNaN(temp) && temp >= 10 && temp <= 40;
@@ -381,7 +381,7 @@ const char index_html[] PROGMEM = R"rawliteral(
                    d >= 0 && d <= 100;
         }
 
-        // Event-Handler für Formulare
+        // Event handlers for forms
         document.querySelectorAll('form').forEach(form => {
             form.onsubmit = function(e) {
                 const temp1 = this.querySelector('input[name="temp1"]');
@@ -391,19 +391,19 @@ const char index_html[] PROGMEM = R"rawliteral(
                 const kd = this.querySelector('input[name="kd1"], input[name="kd2"]');
                 
                 if (temp1 && !validateTemp(temp1.value)) {
-                    alert('Temperatur muss zwischen 10°C und 40°C liegen');
+                    alert('Temperature must be between 10°C and 40°C');
                     e.preventDefault();
                     return false;
                 }
                 
                 if (temp2 && !validateTemp(temp2.value)) {
-                    alert('Temperatur muss zwischen 10°C und 40°C liegen');
+                    alert('Temperature must be between 10°C and 40°C');
                     e.preventDefault();
                     return false;
                 }
                 
                 if (kp && ki && kd && !validatePID(kp.value, ki.value, kd.value)) {
-                    alert('Ungültige PID-Parameter');
+                    alert('Invalid PID parameters');
                     e.preventDefault();
                     return false;
                 }
@@ -412,10 +412,10 @@ const char index_html[] PROGMEM = R"rawliteral(
             };
         });
 
-        // Funktion zum Formatieren der Slider-Werte
+        // Function to format slider values
         document.querySelectorAll('input[type="range"]').forEach(slider => {
             slider.addEventListener('input', function() {
-                // Aktualisiere den Zahlenwert
+                // Update the number value
                 let numberInput = this.nextElementSibling;
                 numberInput.value = parseFloat(this.value).toFixed(1);
             });
@@ -423,7 +423,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 
         document.querySelectorAll('input[type="number"]').forEach(input => {
             input.addEventListener('input', function() {
-                // Aktualisiere den Slider
+                // Update the slider
                 let slider = this.previousElementSibling;
                 slider.value = this.value;
             });
@@ -454,10 +454,10 @@ void handleRoot() {
 
     if (rtcData.magic == MAGIC_HEATER_ON) {
         html.replace("%MODE_CLASS%", "mode-heater");
-        html.replace("%MODE_TEXT%", "DURCHHEIZEN (100%)");
+        html.replace("%MODE_TEXT%", "FULL POWER (100%)");
     } else {
         html.replace("%MODE_CLASS%", "mode-normal");
-        html.replace("%MODE_TEXT%", "NORMAL (Temperaturregelung)");
+        html.replace("%MODE_TEXT%", "NORMAL (Temperature Control)");
     }
     
     server.send(200, "text/html", html);
@@ -474,11 +474,11 @@ void handleSetTemp() {
             config.targetTemp1 = newTemp1;
             changed = true;
             char logMsg[64];
-            snprintf(logMsg, sizeof(logMsg), "Heizkreis 1 Temperatur auf %.1f°C gesetzt", newTemp1);
+            snprintf(logMsg, sizeof(logMsg), "Heating Circuit 1 Temperature set to %.1f°C", newTemp1);
             addLog(logMsg, 0);
         } else {
-            message += "Temperatur 1 außerhalb des gültigen Bereichs (10-40°C). ";
-            addLog("Ungültige Temperatur für Heizkreis 1", 1);
+            message += "Temperature 1 outside the valid range (10-40°C). ";
+            addLog("Invalid temperature for Heating Circuit 1", 1);
         }
     }
     
@@ -489,11 +489,11 @@ void handleSetTemp() {
             config.targetTemp2 = newTemp2;
             changed = true;
             char logMsg[64];
-            snprintf(logMsg, sizeof(logMsg), "Heizkreis 2 Temperatur auf %.1f°C gesetzt", newTemp2);
+            snprintf(logMsg, sizeof(logMsg), "Heating Circuit 2 Temperature set to %.1f°C", newTemp2);
             addLog(logMsg, 0);
         } else {
-            message += "Temperatur 2 außerhalb des gültigen Bereichs (10-40°C). ";
-            addLog("Ungültige Temperatur für Heizkreis 2", 1);
+            message += "Temperature 2 outside the valid range (10-40°C). ";
+            addLog("Invalid temperature for Heating Circuit 2", 1);
         }
     }
     
@@ -513,13 +513,13 @@ void handleSetPID() {
     auto validatePIDValue = [](float val, float min, float max, const char* name) -> String {
         if (val < min || val > max || isnan(val)) {
             char msg[64];
-            snprintf(msg, sizeof(msg), "%s muss zwischen %.1f und %.1f liegen. ", name, min, max);
+            snprintf(msg, sizeof(msg), "%s must be between %.1f and %.1f", name, min, max);
             return String(msg);
         }
         return "";
     };
     
-    // Heizkreis 1
+    // Heating Circuit 1
     if (server.hasArg("kp1") && server.hasArg("ki1") && server.hasArg("kd1")) {
         float kp = server.arg("kp1").toFloat();
         float ki = server.arg("ki1").toFloat();
@@ -534,11 +534,11 @@ void handleSetPID() {
             config.Ki1 = ki;
             config.Kd1 = kd;
             changed = true;
-            addLog("PID Parameter für Heizkreis 1 aktualisiert", 0);
+            addLog("PID Parameters for Heating Circuit 1 updated", 0);
         }
     }
     
-    // Heizkreis 2
+    // Heating Circuit 2
     if (server.hasArg("kp2") && server.hasArg("ki2") && server.hasArg("kd2")) {
         float kp = server.arg("kp2").toFloat();
         float ki = server.arg("ki2").toFloat();
@@ -553,7 +553,7 @@ void handleSetPID() {
             config.Ki2 = ki;
             config.Kd2 = kd;
             changed = true;
-            addLog("PID Parameter für Heizkreis 2 aktualisiert", 0);
+            addLog("PID Parameters for Heating Circuit 2 updated", 0);
         }
     }
     
@@ -563,7 +563,7 @@ void handleSetPID() {
         server.send(302, "text/plain", "Updated");
     } else {
         if (message.length() == 0) {
-            message = "Keine gültigen Parameter übermittelt";
+            message = "No valid parameters submitted";
         }
         server.send(400, "text/plain", message);
     }
@@ -579,22 +579,22 @@ void handleSetWifi() {
         String newSSID = server.arg("ssid");
         String newPass = server.arg("pass");
         
-        // Validiere SSID
+        // Validate SSID
         if (newSSID.length() < 1 || newSSID.length() > 32) {
-            server.send(400, "text/plain", "SSID muss zwischen 1 und 32 Zeichen lang sein");
+            server.send(400, "text/plain", "SSID must be between 1 and 32 characters");
             return;
         }
         
-        // Validiere Passwort
+        // Validate password
         if (newPass.length() < 8 || newPass.length() > 64) {
-            server.send(400, "text/plain", "Passwort muss zwischen 8 und 64 Zeichen lang sein");
+            server.send(400, "text/plain", "Password must be at least 8 characters");
             return;
         }
         
-        // Prüfe auf erlaubte Zeichen
+        // Check for allowed characters
         for (char c : newSSID) {
             if (!isalnum(c) && c != '_' && c != '-') {
-                server.send(400, "text/plain", "SSID darf nur Buchstaben, Zahlen, - und _ enthalten");
+                server.send(400, "text/plain", "SSID may only contain letters, numbers, - and _");
                 return;
             }
         }
@@ -605,19 +605,19 @@ void handleSetWifi() {
         config.password[sizeof(config.password) - 1] = '\0';
         
         saveConfig();
-        addLog("WLAN Einstellungen aktualisiert - Neustart erfolgt", 0);
+        addLog("WiFi settings updated - device will restart in 3 seconds", 0);
         
         server.send(200, "text/html", 
             "<html><body>"
-            "<h2>Einstellungen gespeichert</h2>"
-            "<p>Das Gerät startet in 3 Sekunden neu...</p>"
+            "<h2>Settings saved</h2>"
+            "<p>The device will restart in 3 seconds...</p>"
             "<script>setTimeout(function(){ window.location.href='/' }, 3000);</script>"
             "</body></html>");
             
         delay(500);
         ESP.restart();
     } else {
-        server.send(400, "text/plain", "Fehlende Parameter");
+        server.send(400, "text/plain", "Missing parameters");
     }
 }
 
@@ -635,11 +635,11 @@ void setupWebServer() {
     server.on("/hotspot-detect.html", HTTP_GET, handleRoot);
     
     server.begin();
-    addLog("Webserver gestartet", 0);
+    addLog("Webserver started", 0);
 }
 
 void handleWebServer() {
     server.handleClient();
 }
 
-// Implementiere die restlichen Handler-Funktionen aus der ursprünglichen main.cpp
+// Implement the remaining handler functions from the original main.cpp
