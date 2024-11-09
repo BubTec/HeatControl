@@ -34,21 +34,7 @@ const char index_html[] PROGMEM = R"rawliteral(
     <div class="container">
         <h2>Heat Controller</h2>
         <div class="config">
-            <h3>Operating Mode: %MODE_TEXT%</h3> <!-- Display the operating mode -->
-        </div>
-        <div class="config">
-            <h3>WiFi Configuration</h3>
-            <form action="/setwifi" method="post">
-                <p><label>SSID:<br><input type="text" name="ssid" value="%WIFI_SSID%" required></label></p>
-                <p><label>Password:<br><input type="password" name="pass" value="%WIFI_PASS%" required></label></p>
-                <input type="submit" value="Save WiFi Settings">
-            </form>
-        </div>
-
-        <div class="config">
-            <h3>System Log</h3>
-            <div class="log-container" id="logContainer">%SYSTEM_LOG%</div>
-            <button onclick="clearLog()">Clear Log</button>
+            <h3>Operating Mode: %MODE_TEXT%</h3>
         </div>
 
         <div class="config">
@@ -73,6 +59,21 @@ const char index_html[] PROGMEM = R"rawliteral(
                 </div>
                 <button onclick="window.location.href='/temperature_control?circuit=2'">Set Temperature</button>
             </div>
+        </div>
+
+        <div class="config">
+            <h3>WiFi Configuration</h3>
+            <form action="/setwifi" method="post">
+                <p><label>SSID:<br><input type="text" name="ssid" value="%WIFI_SSID%" required></label></p>
+                <p><label>Password:<br><input type="password" name="pass" value="%WIFI_PASS%" required></label></p>
+                <input type="submit" value="Save WiFi Settings">
+            </form>
+        </div>
+
+        <div class="config">
+            <h3>System Log</h3>
+            <div class="log-container" id="logContainer">%SYSTEM_LOG%</div>
+            <button onclick="clearLog()">Clear Log</button>
         </div>
     </div>
 

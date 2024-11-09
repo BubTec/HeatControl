@@ -39,8 +39,7 @@ This setup allows for precise temperature control during dives, ensuring diver c
 
 ### Detailed Schematic
 
-#### Power Supply
-```
+#### Power Supply```
    5V Power Supply
       ┌─────────────┐
       │   5V    GND │
@@ -109,7 +108,7 @@ This setup allows for precise temperature control during dives, ensuring diver c
         ┌─────────┤ 5V       │
         │         │          │
         │   10kΩ  │          │
-        ├──┳──────┤ D5       │
+        ├──┳──────┤ SCK      │
         │  │      │          │
    1000µF│  │     │          │
         │  │      │          │
@@ -122,7 +121,7 @@ This setup allows for precise temperature control during dives, ensuring diver c
 - D2 (GPIO4): OneWire bus for temperature sensors
 - D4 (GPIO2): MOSFET 1 gate
 - D5 (GPIO1): MOSFET 2 gate
-- D5 (GPIO14): Mode pin for operation mode switching
+- SCK (GPIO14): Mode pin for operation mode switching
 - 5V: Power supply
 - GND: Ground
 
