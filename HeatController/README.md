@@ -84,7 +84,7 @@ This setup allows for precise temperature control during dives, ensuring diver c
                      Wemos D1
                   ┌──────────┐
                   │          │           IRLZ44N
-        ┌────────►│ D4      │              ┌──────┐
+        ┌────────►│ D4       │              ┌──────┐
         │         │          │      Gate ──►│G     │
         │         │          │              │      │ Drain
         │         │          │              │  D   ├───► Heizung 1 (-)
