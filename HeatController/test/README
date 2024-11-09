@@ -1,3 +1,4 @@
+
 This directory is intended for PlatformIO Test Runner and project tests.
 
 Unit Testing is a software testing method by which individual units of
@@ -8,26 +9,3 @@ in the development cycle.
 
 More information about PlatformIO Unit Testing:
 - https://docs.platformio.org/en/latest/advanced/unit-testing/index.html
-
-## Project Description
-
-This system is designed for divers using heated drysuits. It manages and controls the heating elements connected to a 12V battery supply. The system can control multiple heating zones, such as:
-- Main body heating
-- Heated gloves
-
-Temperature sensors are strategically placed:
-- One sensor on the chest area
-- One sensor on the hand
-
-This setup allows for precise temperature control and monitoring during dives, ensuring diver comfort and safety in cold water conditions.
-
-## Testing Environment
-
-The testing setup includes verification of:
-- 12V power supply management
-- Temperature sensor readings (chest and hand sensors)
-- Heating element control for multiple zones (main heating and gloves)
-- Safety cutoffs and temperature limits
-- Battery voltage monitoring
-
-Please ensure all safety-related tests are performed thoroughly before deployment in diving conditions.
