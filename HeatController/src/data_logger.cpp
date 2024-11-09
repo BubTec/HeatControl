@@ -1,22 +1,20 @@
 #include "data_logger.h"
 #include "globals.h"
-#include "logger.h"
+#include <LittleFS.h>
 
 unsigned long lastDataLog = 0;
 
 void setupDataLogger() {
-    if (!SPIFFS.begin()) {
-        addLog("SPIFFS Initialisierung fehlgeschlagen!", 2);
+    if (!LittleFS.begin()) {
+        Serial.println("Failed to mount file system");
         return;
     }
     
-    // Prüfe ob Logdatei existiert, wenn nicht erstelle Header
-    if (!SPIFFS.exists(LOG_FILE)) {
-        File f = SPIFFS.open(LOG_FILE, "w");
+    // Create log file if it doesn't exist
+    if (!LittleFS.exists(LOG_FILE)) {
+        File f = LittleFS.open(LOG_FILE, "w");
         if (f) {
-            f.println("timestamp,temp1,temp2,pwm1,pwm2");
             f.close();
-            addLog("Neue Logdatei erstellt", 0);
         }
     }
 }
@@ -25,35 +23,39 @@ void logData() {
     if (millis() - lastDataLog < LOG_INTERVAL) return;
     lastDataLog = millis();
     
-    File f = SPIFFS.open(LOG_FILE, "a");
+    File f = LittleFS.open(LOG_FILE, "a");
     if (f) {
-        // Schreibe Zeitstempel (Sekunden seit Start), Temperaturen und PWM
-        f.printf("%lu,%.1f,%.1f,%d,%d\n", 
-            millis()/1000, 
-            currentTemp1, 
-            currentTemp2, 
-            (int)((float)currentPWM1/MAX_PWM * 100),
-            (int)((float)currentPWM2/MAX_PWM * 100)
-        );
+        // Get current timestamp
+        time_t now = time(nullptr);
+        
+        // Format: timestamp,temp1,temp2,pwm1,pwm2
+        f.printf("%lld,%.1f,%.1f,%d,%d\n", 
+                 now, 
+                 currentTemp1, 
+                 currentTemp2,
+                 currentPWM1,
+                 currentPWM2);
         f.close();
         
-        // Prüfe Dateigröße und rotiere wenn nötig
-        if (SPIFFS.exists(LOG_FILE)) {
-            File f = SPIFFS.open(LOG_FILE, "r");
-            if (f.size() > MAX_LOG_FILE_SIZE) {
-                // Behalte nur die letzten 75% der Daten
-                String newContent;
-                f.seek(f.size() / 4);  // Überspringe erstes Viertel
-                while (f.available()) {
-                    newContent += (char)f.read();
+        // Check file size and rotate if necessary
+        if (LittleFS.exists(LOG_FILE)) {
+            File f = LittleFS.open(LOG_FILE, "r");
+            if (f) {
+                if (f.size() > MAX_LOG_FILE_SIZE) {
+                    // Read the second half of the file
+                    f.seek(f.size() / 2);
+                    String remainingData = f.readString();
+                    f.close();
+                    
+                    // Write the second half back to the file
+                    f = LittleFS.open(LOG_FILE, "w");
+                    if (f) {
+                        f.print(remainingData);
+                        f.close();
+                    }
+                } else {
+                    f.close();
                 }
-                f.close();
-                
-                f = SPIFFS.open(LOG_FILE, "w");
-                f.println("timestamp,temp1,temp2,pwm1,pwm2");
-                f.print(newContent);
-                f.close();
-                addLog("Logdatei rotiert", 0);
             }
         }
     }
@@ -61,8 +63,8 @@ void logData() {
 
 String getLogData(uint32_t hours) {
     String data = "[";
-    if (SPIFFS.exists(LOG_FILE)) {
-        File f = SPIFFS.open(LOG_FILE, "r");
+    if (LittleFS.exists(LOG_FILE)) {
+        File f = LittleFS.open(LOG_FILE, "r");
         
         // Überspringe Header
         String line = f.readStringUntil('\n');
@@ -97,13 +99,11 @@ String getLogData(uint32_t hours) {
 }
 
 void clearLogData() {
-    if (SPIFFS.exists(LOG_FILE)) {
-        SPIFFS.remove(LOG_FILE);
-        File f = SPIFFS.open(LOG_FILE, "w");
+    if (LittleFS.exists(LOG_FILE)) {
+        LittleFS.remove(LOG_FILE);
+        File f = LittleFS.open(LOG_FILE, "w");
         if (f) {
-            f.println("timestamp,temp1,temp2,pwm1,pwm2");
             f.close();
-            addLog("Logdatei zurückgesetzt", 0);
         }
     }
 }

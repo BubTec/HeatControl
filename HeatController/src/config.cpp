@@ -1,17 +1,20 @@
 #include "config.h"
 #include "logger.h"
+#include <user_interface.h>  // Für system_rtc_mem_write
 
 RTCData rtcData;
 Config config;
 
 void loadConfig() {
     EEPROM.begin(EEPROM_SIZE);
-    EEPROM.get(0, config);
-    EEPROM.end();
     
-    // Check only Magic Number
-    if (config.magic != EEPROM_MAGIC) {
+    // Read the magic byte first
+    byte magic = EEPROM.read(0);
+    
+    if (magic != EEPROM_MAGIC) {
         Serial.println("First initialization - setting defaults");
+        memset(&config, 0, sizeof(Config));  // Clear the entire structure
+        
         strncpy(config.ssid, "HeatControl", sizeof(config.ssid));
         strncpy(config.password, "HeatControl", sizeof(config.password));
         config.targetTemp1 = 22.0;
@@ -25,25 +28,43 @@ void loadConfig() {
         config.lastMode = MAGIC_NORMAL;
         config.magic = EEPROM_MAGIC;
         saveConfig();
+    } else {
+        // Read the config byte by byte
+        EEPROM.get(0, config);  // Use EEPROM.get to read the entire structure
     }
+    
+    EEPROM.end();
     
     // Debug output of loaded configuration
     Serial.println("Loaded configuration:");
     Serial.printf("SSID: %s\n", config.ssid);
     Serial.printf("Temp1: %.1f°C\n", config.targetTemp1);
     Serial.printf("Temp2: %.1f°C\n", config.targetTemp2);
+    Serial.printf("Kp1: %.1f\n", config.Kp1);
+    Serial.printf("Ki1: %.3f\n", config.Ki1);
+    Serial.printf("Kd1: %.1f\n", config.Kd1);
+    Serial.printf("Kp2: %.1f\n", config.Kp2);
+    Serial.printf("Ki2: %.3f\n", config.Ki2);
+    Serial.printf("Kd2: %.1f\n", config.Kd2);
     
     rtcData.magic = config.lastMode;
-    system_rtc_mem_write(64, &rtcData, sizeof(rtcData));
+    if (!system_rtc_mem_write(64, &rtcData, sizeof(rtcData))) {
+        Serial.println("Failed to write to RTC memory");
+    }
 }
 
 void saveConfig() {
-    config.magic = EEPROM_MAGIC;
     EEPROM.begin(EEPROM_SIZE);
-    EEPROM.put(0, config);
-    EEPROM.commit();
+    
+    // Write the config byte by byte
+    EEPROM.put(0, config);  // Use EEPROM.put to write the entire structure
+    
+    if (EEPROM.commit()) {
+        Serial.println("Configuration saved successfully");
+    } else {
+        Serial.println("Error saving configuration");
+    }
     EEPROM.end();
-    Serial.println("Configuration saved");
 }
 
 void checkOperationMode() {

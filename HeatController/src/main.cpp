@@ -1,3 +1,4 @@
+#include <Arduino.h>
 #include "config.h"
 #include "wifi_manager.h"
 #include "heating_control.h"

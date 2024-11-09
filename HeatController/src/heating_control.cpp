@@ -1,149 +1,127 @@
 #include "heating_control.h"
-#include "logger.h"
+#include "globals.h"
+#include "config.h"
 
-// Pins
-#define ONE_WIRE_BUS 2
-#define MOSFET1_PIN 4
-#define MOSFET2_PIN 5
+// Pin-Definitionen
+const int HEATER_1_PIN = D1;  // Pin für Heizkreis 1
+const int HEATER_2_PIN = D2;  // Pin für Heizkreis 2
 
-#define TEMP_HISTORY_SIZE 6
-#define CONTROL_INTERVAL 10000
+// Temperatur-Hysterese (°C)
+const float TEMP_HYSTERESIS = 0.5;
 
-// Keep only local variables
-float integral1 = 0;
-float integral2 = 0;
-float tempHistory1[TEMP_HISTORY_SIZE] = {0};
-float tempHistory2[TEMP_HISTORY_SIZE] = {0};
-int historyIndex = 0;
-unsigned long lastControlTime = 0;
-
-// OneWire Setup
-OneWire oneWire(ONE_WIRE_BUS);
-DallasTemperature sensors(&oneWire);
-DeviceAddress sensor1, sensor2;
+// Funktionsdeklarationen
+void heaterOn(int circuit);
+void heaterOff(int circuit);
 
 void setupHeating() {
-    pinMode(MOSFET1_PIN, OUTPUT);
-    pinMode(MOSFET2_PIN, OUTPUT);
+    // Pins als Ausgänge konfigurieren
+    pinMode(HEATER_1_PIN, OUTPUT);
+    pinMode(HEATER_2_PIN, OUTPUT);
     
-    analogWriteFreq(1000);
-    analogWriteRange(1023);
+    // Heizungen initial ausschalten (LOW = AUS bei MOSFETs)
+    digitalWrite(HEATER_1_PIN, LOW);
+    digitalWrite(HEATER_2_PIN, LOW);
     
-    sensors.begin();
-    
-    if(sensors.getDeviceCount() < 2) {
-        addLog("Not enough temperature sensors found!", 1);
-    } else {
-        sensors.getAddress(sensor1, 0);
-        sensors.getAddress(sensor2, 1);
-        sensors.setResolution(sensor1, 12);
-        sensors.setResolution(sensor2, 12);
-        addLog("Temperature sensors initialized", 0);
-    }
+    addLog("Heating system initialized", 0);
 }
 
-void handleHeating() {
-    unsigned long currentMillis = millis();
-    if (currentMillis - lastControlTime >= CONTROL_INTERVAL) {
-        lastControlTime = currentMillis;
-        updateHeating();
+// Grundlegende Funktionen zum Ein-/Ausschalten der Heizungen
+void heaterOn(int circuit) {
+    int pin = (circuit == 1) ? HEATER_1_PIN : HEATER_2_PIN;
+    digitalWrite(pin, HIGH);  // HIGH = AN bei MOSFETs
+    
+    // PWM-Werte für Web-Interface aktualisieren
+    if (circuit == 1) {
+        currentPWM1 = MAX_PWM;
+    } else {
+        currentPWM2 = MAX_PWM;
     }
+    
+    char logMsg[64];
+    snprintf(logMsg, sizeof(logMsg), "Heater %d turned ON", circuit);
+    addLog(logMsg, 0);
 }
 
-void updateHeating() {
-    if(sensors.getDeviceCount() > 0) {
-        sensors.requestTemperatures();
-        
-        // Heating Circuit 1
-        float temp1 = sensors.getTempC(sensor1);
-        if(temp1 != DEVICE_DISCONNECTED_C) {
-            currentTemp1 = temp1;
-            if(rtcData.magic == MAGIC_HEATER_ON) {
-                currentPWM1 = MAX_PWM;
-            } else {
-                currentPWM1 = (int)calculateHeatingPower1(currentTemp1);
-            }
-            analogWrite(MOSFET1_PIN, currentPWM1);
-            char logMsg[64];
-            snprintf(logMsg, sizeof(logMsg), "HC1: %.1f°C -> %d%% PWM", currentTemp1, (int)((float)currentPWM1/MAX_PWM * 100));
-            addLog(logMsg, 0);
-        } else {
-            addLog("Heating Circuit 1: Sensor error!", 2);
-            currentPWM1 = 0;
-            analogWrite(MOSFET1_PIN, 0);
-        }
-        
-        // Heating Circuit 2
-        if(sensors.getDeviceCount() > 1) {
-            float temp2 = sensors.getTempC(sensor2);
-            if(temp2 != DEVICE_DISCONNECTED_C) {
-                currentTemp2 = temp2;
-                if(rtcData.magic == MAGIC_HEATER_ON) {
-                    currentPWM2 = MAX_PWM;
-                } else {
-                    currentPWM2 = (int)calculateHeatingPower2(currentTemp2);
-                }
-                analogWrite(MOSFET2_PIN, currentPWM2);
-                char logMsg[64];
-                snprintf(logMsg, sizeof(logMsg), "HC2: %.1f°C -> %d%% PWM", currentTemp2, (int)((float)currentPWM2/MAX_PWM * 100));
-                addLog(logMsg, 0);
-            } else {
-                addLog("Heating Circuit 2: Sensor error!", 2);
-                currentPWM2 = 0;
-                analogWrite(MOSFET2_PIN, 0);
-            }
-        }
-    } else {
-        addLog("No sensors found!", 2);
+void heaterOff(int circuit) {
+    int pin = (circuit == 1) ? HEATER_1_PIN : HEATER_2_PIN;
+    digitalWrite(pin, LOW);  // LOW = AUS bei MOSFETs
+    
+    // PWM-Werte für Web-Interface aktualisieren
+    if (circuit == 1) {
         currentPWM1 = 0;
+    } else {
         currentPWM2 = 0;
-        analogWrite(MOSFET1_PIN, 0);
-        analogWrite(MOSFET2_PIN, 0);
     }
     
-    historyIndex = (historyIndex + 1) % TEMP_HISTORY_SIZE;
+    char logMsg[64];
+    snprintf(logMsg, sizeof(logMsg), "Heater %d turned OFF", circuit);
+    addLog(logMsg, 0);
 }
 
-float calculateHeatingPower1(float currentTemp) {
-    float error = TARGET_TEMP1 - currentTemp;
+// Hauptsteuerungsfunktion
+void handleHeating() {
+    // Debug-Ausgaben für Temperaturen und Zielwerte
+    Serial.println("\n=== Heating Control Status ===");
+    Serial.printf("Current Temp 1: %.2f°C (Target: %.2f°C)\n", currentTemp1, TARGET_TEMP1);
+    Serial.printf("Current Temp 2: %.2f°C (Target: %.2f°C)\n", currentTemp2, TARGET_TEMP2);
+    Serial.printf("Operation Mode: %s\n", (rtcData.magic == MAGIC_HEATER_ON) ? "FULL POWER" : "NORMAL");
     
-    if (abs(error) < 5.0) {
-        integral1 += error * (CONTROL_INTERVAL / 1000.0);
+    // Temperaturen aktualisieren
+    updateTemperatures();
+    
+    // Betriebsmodus prüfen
+    if (rtcData.magic == MAGIC_HEATER_ON) {
+        Serial.println("FULL POWER Mode activated!");
+        heaterOn(1);
+        heaterOn(2);
+        return;
     }
     
-    integral1 = constrain(integral1, -30, 30);
+    // NORMAL Modus - temperaturabhängige Steuerung
+    Serial.println("Normal temperature control mode:");
     
-    float output = (config.Kp1 * error) + (config.Ki1 * integral1) - (config.Kd1 * 
-        (currentTemp - tempHistory1[(historyIndex + TEMP_HISTORY_SIZE - 1) % TEMP_HISTORY_SIZE]) / 
-        (CONTROL_INTERVAL / 1000.0));
-    
-    output = constrain(output, MIN_PWM, MAX_PWM);
-    
-    if (output >= MAX_PWM || output <= MIN_PWM) {
-        integral1 *= 0.9;
+    // Heizkreis 1
+    Serial.printf("Circuit 1: %.2f < %.2f - %.2f ?\n", 
+                 currentTemp1, TARGET_TEMP1, TEMP_HYSTERESIS);
+    if (currentTemp1 < (TARGET_TEMP1 - TEMP_HYSTERESIS)) {
+        Serial.println("Circuit 1: Too cold -> turning ON");
+        heaterOn(1);
+    }
+    else if (currentTemp1 > (TARGET_TEMP1 + TEMP_HYSTERESIS)) {
+        Serial.println("Circuit 1: Too warm -> turning OFF");
+        heaterOff(1);
     }
     
-    return output;
+    // Heizkreis 2
+    Serial.printf("Circuit 2: %.2f < %.2f - %.2f ?\n", 
+                 currentTemp2, TARGET_TEMP2, TEMP_HYSTERESIS);
+    if (currentTemp2 < (TARGET_TEMP2 - TEMP_HYSTERESIS)) {
+        Serial.println("Circuit 2: Too cold -> turning ON");
+        heaterOn(2);
+    }
+    else if (currentTemp2 > (TARGET_TEMP2 + TEMP_HYSTERESIS)) {
+        Serial.println("Circuit 2: Too warm -> turning OFF");
+        heaterOff(2);
+    }
 }
 
-float calculateHeatingPower2(float currentTemp) {
-    float error = TARGET_TEMP2 - currentTemp;
-    
-    if (abs(error) < 5.0) {
-        integral2 += error * (CONTROL_INTERVAL / 1000.0);
-    }
-    
-    integral2 = constrain(integral2, -30, 30);
-    
-    float output = (config.Kp2 * error) + (config.Ki2 * integral2) - (config.Kd2 * 
-        (currentTemp - tempHistory2[(historyIndex + TEMP_HISTORY_SIZE - 1) % TEMP_HISTORY_SIZE]) / 
-        (CONTROL_INTERVAL / 1000.0));
-    
-    output = constrain(output, MIN_PWM, MAX_PWM);
-    
-    if (output >= MAX_PWM || output <= MIN_PWM) {
-        integral2 *= 0.9;
-    }
-    
-    return output;
+float readTemperatureSensor1() {
+    float temp = 21.0;  // Beispielwert
+    Serial.printf("Temperature Sensor 1 reading: %.2f°C\n", temp);
+    return temp;
+}
+
+float readTemperatureSensor2() {
+    float temp = 21.0;  // Beispielwert
+    Serial.printf("Temperature Sensor 2 reading: %.2f°C\n", temp);
+    return temp;
+}
+
+void updateTemperatures() {
+    currentTemp1 = readTemperatureSensor1();
+    currentTemp2 = readTemperatureSensor2();
+}
+
+void controlHeating() {
+    handleHeating();  // Verwendet die existierende Implementation
 }

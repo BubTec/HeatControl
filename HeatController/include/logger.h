@@ -1,9 +1,7 @@
 #pragma once
-
-#include "config.h"
+#include <Arduino.h>
 
 void addLog(const char* message, uint8_t type);
-void handleGetLog();
-void handleClearLog();
 String getLog();
-void clearLog(); 
+void handleGetLog();
+void handleClearLog(); 

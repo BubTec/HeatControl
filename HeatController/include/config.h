@@ -1,44 +1,36 @@
 #pragma once
-
 #include <Arduino.h>
 #include <EEPROM.h>
-#include <user_interface.h>  // For RTC Memory access
+#include "globals.h"  // Für RTCData-Struktur
 
-// Defines for operating modes
-#define MAGIC_HEATER_ON 0xBE
-#define MAGIC_NORMAL 0xEF
-#define EEPROM_SIZE 512
-#define EEPROM_MAGIC 0xAB
-#define MODE_PIN D5  // Select a free pin
+// Zieltemperaturen (nicht mehr const, da sie geändert werden können)
+extern float TARGET_TEMP1;  // Zieltemperatur für Heizkreis 1
+extern float TARGET_TEMP2;  // Zieltemperatur für Heizkreis 2
 
-// RTC Data structure
-struct RTCData {
-    uint32_t magic;
-    uint32_t bootCount;
-};
+// Konstanten
+const int MAX_PWM = 1023;          // Maximaler PWM-Wert
+const uint16_t MAGIC_HEATER_ON = 0xAA55;  // Magic Number für "Heizung dauerhaft an"
+const uint16_t MAGIC_NORMAL = 0x1234;     // Magic Number für normalen Betrieb
+const uint16_t EEPROM_MAGIC = 0xABCD;     // Magic Number für EEPROM-Validierung
+const int EEPROM_SIZE = 512;              // Größe des EEPROM-Speichers
+const int MODE_PIN = D5;                  // Pin für Moduswechsel
 
-extern RTCData rtcData;
-
-// Config structure
+// Konfigurationsstruktur
 struct Config {
-    char ssid[33];
-    char password[65];
+    uint16_t magic;
+    char ssid[32];
+    char password[64];
     float targetTemp1;
     float targetTemp2;
-    float Kp1;
-    float Ki1;
-    float Kd1;
-    float Kp2;
-    float Ki2;
-    float Kd2;
-    uint32_t lastMode;
-    byte magic;
+    float Kp1, Ki1, Kd1;  // PID-Parameter für Heizkreis 1
+    float Kp2, Ki2, Kd2;  // PID-Parameter für Heizkreis 2
+    uint16_t lastMode;
 };
 
-extern Config config;
-
-// Function declarations
+// Funktionsdeklarationen
 void loadConfig();
 void saveConfig();
-void checkOperationMode();
 void resetConfig();
+void checkOperationMode();
+
+extern Config config;
