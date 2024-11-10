@@ -17,11 +17,18 @@ HeatControl is a Wemos D1 Mini 4-based heating control system that manages multi
 ## Hardware Requirements
 - Wemos D1 Mini 4
 - DS18B20 Temperature Sensors
-- 4-Channel Relay Module
-- Power Supply (5V)
+- 2x MOSFETs
+- Step-down converter module (to 5V)
+- 1000µF capacitor
+- Various resistors
 
 ## Pinout Diagram
 ![Wemos D1 Mini Pinout](documentation/PinOut.jpg)
+
+## GUI
+![Web Interface](documentation/GUI.png)
+
+The GUI provides an intuitive interface for users to monitor and control the heating system. It displays the current temperature readings from each zone, allows users to set desired temperature thresholds, and provides buttons to activate or deactivate heating zones. The interface is designed to be user-friendly, ensuring that users can easily navigate and make adjustments as needed.
 
 ### Connections
 - Temperature Sensors (DS18B20): GPIO 2 (ONE_WIRE_BUS)
