@@ -18,30 +18,30 @@
 #define HTTP_ANY     0x7F
 #endif
 
-// Pin Definitionen
+// Pin definitions
 #define ONE_WIRE_BUS 2
 #define MOSFET_PIN_1 4
 #define MOSFET_PIN_2 5
 #define INPUT_PIN 14
 
-// Globale Variablen
+// Global variables
 float targetTemp1 = 23.0;
 float targetTemp2 = 23.0;
 float currentTemp1 = 0.0;
 float currentTemp2 = 0.0;
-bool swapAssignment = false; // Variable für die Zuordnung
-bool powerMode = false;  // Speichert den beim Start gewählten Modus
+bool swapAssignment = false; // Variable for sensor assignment
+bool powerMode = false;      // Stores the mode selected at startup
 
-// Objekte initialisieren
+// Initialize objects
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
 AsyncWebServer server(80);
 
-// WLAN-Einstellungen
-String activeSSID = "HeatControl";     // Aktive SSID
-String activePassword = "HeatControl"; // Aktives Passwort
+// WiFi settings
+String activeSSID = "HeatControl";     // Active SSID
+String activePassword = "HeatControl"; // Active password
 
-// EEPROM Adressen
+// EEPROM addresses
 #define EEPROM_INIT_ADDR 0
 #define EEPROM_TEMP1_ADDR 1
 #define EEPROM_TEMP2_ADDR (EEPROM_TEMP1_ADDR + sizeof(float))
@@ -49,14 +49,14 @@ String activePassword = "HeatControl"; // Aktives Passwort
 #define EEPROM_PASS_ADDR (EEPROM_SSID_ADDR + 32)
 #define EEPROM_SWAP_ADDR (EEPROM_PASS_ADDR + 32)
 
-// Vorwärtsdeklaration der Funktion
+// Forward declaration of functions
 void saveWiFiCredentials(const String& ssid, const String& password);
 
-// Funktion zum Laden der WLAN-Anmeldedaten
+// Function to load WiFi credentials
 void loadWiFiCredentials() {
     EEPROM.begin(512);
     
-    // Prüfe ob der EEPROM initialisiert wurde
+    // Check if EEPROM is initialized
     byte initFlag = EEPROM.read(EEPROM_INIT_ADDR);
     if(initFlag != 0xAA) {
         Serial.println("First time setup - using defaults");
@@ -69,19 +69,19 @@ void loadWiFiCredentials() {
     char storedSSID[32] = {0};
     char storedPassword[32] = {0};
     
-    // Lese SSID
+    // Read SSID
     for (int i = 0; i < 31; i++) {
         storedSSID[i] = EEPROM.read(EEPROM_SSID_ADDR + i);
     }
     
-    // Lese Passwort
+    // Read password
     for (int i = 0; i < 31; i++) {
         storedPassword[i] = EEPROM.read(EEPROM_PASS_ADDR + i);
     }
     
     EEPROM.end();
 
-    // Debug-Ausgabe
+    // Debug output
     Serial.println("\nLoaded WiFi credentials:");
     Serial.print("SSID: "); Serial.println(storedSSID);
     Serial.print("Password length: "); Serial.println(strlen(storedPassword));
@@ -97,23 +97,23 @@ void loadWiFiCredentials() {
     }
 }
 
-// Funktion zum Speichern der WLAN-Anmeldedaten
+// Function to save WiFi credentials
 void saveWiFiCredentials(const String& ssid, const String& password) {
-    if(ssid.length() == 0) return;  // Verhindere leere SSID
+    if(ssid.length() == 0) return;  // Prevent empty SSID
     
     EEPROM.begin(512);
     
-    // Lösche den Bereich
+    // Clear the area
     for(int i = 0; i < 64; i++) {
         EEPROM.write(EEPROM_SSID_ADDR + i, 0);
     }
     
-    // Schreibe SSID
+    // Write SSID
     for(size_t i = 0; i < ssid.length() && i < 31; i++) {
         EEPROM.write(EEPROM_SSID_ADDR + i, ssid[i]);
     }
     
-    // Schreibe Passwort
+    // Write password
     for(size_t i = 0; i < password.length() && i < 31; i++) {
         EEPROM.write(EEPROM_PASS_ADDR + i, password[i]);
     }
@@ -129,7 +129,7 @@ void saveWiFiCredentials(const String& ssid, const String& password) {
     EEPROM.end();
 }
 
-// HTML Template - ersetze den bestehenden Template-Code mit diesem:
+// HTML Template - replace the existing template code with this:
 const char index_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE HTML>
 <html>
@@ -195,7 +195,7 @@ const char index_html[] PROGMEM = R"rawliteral(
       background-color: #c0392b;
     }
 
-    /* Neue Styles für die Temperatursteuerung */
+    /* New styles for temperature control */
     .temp-control {
       display: flex;
       align-items: center;
@@ -364,15 +364,15 @@ const char index_html[] PROGMEM = R"rawliteral(
 
 // Template Processor
 String processor(const String& var) {
-    // Aktuelle Temperaturen für die Anzeige
+    // Current temperatures for display
     float displayTemp1 = swapAssignment ? currentTemp2 : currentTemp1;
     float displayTemp2 = swapAssignment ? currentTemp1 : currentTemp2;
     
-    // Zieltemperaturen für die Eingabefelder
-    // Wichtig: Diese müssen in der gleichen Reihenfolge bleiben, 
-    // unabhängig vom Swap-Status
-    float displayTarget1 = targetTemp1;  // Immer die erste Zieltemperatur
-    float displayTarget2 = targetTemp2;  // Immer die zweite Zieltemperatur
+    // Target temperatures for input fields
+    // Important: These must remain in the same order,
+    // regardless of the swap status
+    float displayTarget1 = targetTemp1;  // Always the first target temperature
+    float displayTarget2 = targetTemp2;  // Always the second target temperature
 
     if(var == "TEMP1") return String(displayTarget1);
     if(var == "TEMP2") return String(displayTarget2);
@@ -384,7 +384,7 @@ String processor(const String& var) {
     if(var == "MOSFET1_STATUS_CLASS") return digitalRead(MOSFET_PIN_1) == HIGH ? "status-on" : "status-off";
     if(var == "MOSFET2_STATUS_CLASS") return digitalRead(MOSFET_PIN_2) == HIGH ? "status-on" : "status-off";
     
-    // WLAN-Einstellungen
+    // WiFi settings
     if(var == "WIFI_SSID") {
         EEPROM.begin(512);
         char storedSSID[32] = {0};
@@ -393,7 +393,7 @@ String processor(const String& var) {
         }
         EEPROM.end();
         
-        // Prüfe ob die gelesene SSID gültig ist
+        // Check if the read SSID is valid
         if (strlen(storedSSID) == 0 || storedSSID[0] == 255) {
             return String("HeatControl");
         }
@@ -407,14 +407,14 @@ String processor(const String& var) {
         }
         EEPROM.end();
         
-        // Prüfe ob das gelesene Passwort gültig ist
+        // Check if the read password is valid
         if (strlen(storedPassword) == 0 || storedPassword[0] == 255) {
             return String("HeatControl");
         }
         return String(storedPassword);
     }
     if(var == "MODE") {
-        // Zeige den beim Start festgelegten Modus an, nicht den aktuellen Pin-Status
+        // Show the mode selected at startup, not the current pin status
         return powerMode ? "Power Mode" : "Normal Mode";
     }
 
@@ -429,13 +429,13 @@ public:
     bool canHandle(AsyncWebServerRequest *request) {
         String host = request->host();
         Serial.print("Request Host: "); Serial.println(host);
-        return true;  // Handle alle Anfragen
+        return true;  // Handle all requests
     }
 
     void handleRequest(AsyncWebServerRequest *request) {
         Serial.print("Handling request for: "); Serial.println(request->url());
         
-        // Für Android
+        // For Android
         if (request->url().indexOf("generate_204") >= 0) {
             AsyncWebServerResponse *response = request->beginResponse(302, "text/plain", "");
             response->addHeader("Location", "http://4.3.2.1");
@@ -443,7 +443,7 @@ public:
             return;
         }
         
-        // Für iOS
+        // For iOS
         if (request->url().indexOf("hotspot-detect") >= 0) {
             AsyncWebServerResponse *response = request->beginResponse(302, "text/plain", "");
             response->addHeader("Location", "http://4.3.2.1");
@@ -451,7 +451,7 @@ public:
             return;
         }
 
-        // Für Windows
+        // For Windows
         if (request->url().indexOf("ncsi.txt") >= 0) {
             request->send(200, "text/plain", "Microsoft NCSI");
             return;
@@ -462,14 +462,14 @@ public:
             return;
         }
 
-        // Alle anderen Anfragen zur Hauptseite umleiten
+        // Redirect all other requests to the main page
         AsyncWebServerResponse *response = request->beginResponse(302, "text/plain", "");
         response->addHeader("Location", "http://4.3.2.1");
         request->send(response);
     }
 };
 
-// Verbesserte Hilfsfunktionen
+// Improved helper functions
 void writeFloat(int addr, float value) {
     EEPROM.begin(512);
     byte* p = (byte*)(void*)&value;
@@ -497,19 +497,19 @@ float readFloat(int addr) {
     return value;
 }
 
-// Verbesserte Temperatur-Funktionen
+// Improved temperature functions
 void loadTemperatures() {
     Serial.println("\n=== Loading Temperatures ===");
     EEPROM.begin(512);
     
-    // Lade Temp1
+    // Load Temp1
     float temp1;
     byte* p1 = (byte*)(void*)&temp1;
     for (unsigned int i = 0; i < sizeof(float); i++) {
         *p1++ = EEPROM.read(EEPROM_TEMP1_ADDR + i);
     }
     
-    // Lade Temp2
+    // Load Temp2
     float temp2;
     byte* p2 = (byte*)(void*)&temp2;
     for (unsigned int i = 0; i < sizeof(float); i++) {
@@ -518,7 +518,7 @@ void loadTemperatures() {
     
     EEPROM.end();
 
-    // Validiere und setze die Werte
+    // Validate and set the values
     if (isnan(temp1) || temp1 < 10.0 || temp1 > 45.0) {
         targetTemp1 = 23.0;
         Serial.println("Invalid Temp1, using default");
@@ -540,13 +540,13 @@ void saveTemperatures() {
     Serial.println("\n=== Saving Temperatures ===");
     EEPROM.begin(512);
     
-    // Speichere Temp1
+    // Save Temp1
     byte* p1 = (byte*)(void*)&targetTemp1;
     for (unsigned int i = 0; i < sizeof(float); i++) {
         EEPROM.write(EEPROM_TEMP1_ADDR + i, *p1++);
     }
     
-    // Speichere Temp2
+    // Save Temp2
     byte* p2 = (byte*)(void*)&targetTemp2;
     for (unsigned int i = 0; i < sizeof(float); i++) {
         EEPROM.write(EEPROM_TEMP2_ADDR + i, *p2++);
@@ -560,7 +560,7 @@ void saveTemperatures() {
     EEPROM.end();
 }
 
-// Verbesserte Sensor-Zuordnungs-Funktionen
+// Improved sensor assignment functions
 void loadAssignment() {
     EEPROM.begin(512);
     byte value = EEPROM.read(EEPROM_SWAP_ADDR);
@@ -582,12 +582,12 @@ void saveAssignment() {
 }
 
 void swapSensorMOSFET() {
-    swapAssignment = !swapAssignment; // Tausche die Zuordnung
-    saveAssignment(); // Speichere die neue Zuordnung
+    swapAssignment = !swapAssignment; // Swap the assignment
+    saveAssignment(); // Save the new assignment
 }
 
-unsigned long previousMillis = 0; // Speichert die letzte Zeit, zu der die Temperatur aktualisiert wurde
-const long interval = 1000; // Intervall für die Aktualisierung (1 Sekunden)
+unsigned long previousMillis = 0; // Stores the last time the temperature was updated
+const long interval = 1000; // Interval for updating (1 second)
 
 DNSServer dnsServer;
 
@@ -595,20 +595,20 @@ void setup() {
     Serial.begin(115200);
     delay(1000);
     
-    // Initialisiere EEPROM und lade die Temperaturen
+    // Initialize EEPROM and load temperatures
     EEPROM.begin(512);
     loadTemperatures();
     
-    // Initialisiere Sensoren und Pins
+    // Initialize sensors and pins
     sensors.begin();
     pinMode(MOSFET_PIN_1, OUTPUT);
     pinMode(MOSFET_PIN_2, OUTPUT);
     pinMode(INPUT_PIN, INPUT);
     
-    // Lese den Power-Modus EINMAL beim Start
+    // Read the power mode ONCE at startup
     powerMode = (digitalRead(INPUT_PIN) == HIGH);
     if (powerMode) {
-        // Wenn Power-Modus aktiv ist, schalte beide Heizungen direkt ein
+        // If power mode is active, turn both heaters on directly
         digitalWrite(MOSFET_PIN_1, HIGH);
         digitalWrite(MOSFET_PIN_2, HIGH);
         Serial.println("Power Mode activated - Both heaters will stay ON");
@@ -616,10 +616,10 @@ void setup() {
         Serial.println("Normal Mode activated - Temperature control active");
     }
 
-    // Lade die gespeicherten WLAN-Credentials
+    // Load the saved WiFi credentials
     loadWiFiCredentials();
     
-    // WLAN Access Point einrichten
+    // Set up WiFi as an access point
     WiFi.mode(WIFI_AP);
     WiFi.persistent(false);
     WiFi.disconnect();
@@ -633,11 +633,11 @@ void setup() {
     Serial.print("Using Password length: ");
     Serial.println(activePassword.length());
 
-    // DNS Server konfigurieren
+    // Configure DNS server
     dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
     dnsServer.start(53, "*", IPAddress(4,3,2,1));
 
-    // Debug-Info für verbundene Clients
+    // Debug info for connected clients
     WiFi.onSoftAPModeStationConnected([](const WiFiEventSoftAPModeStationConnected& evt) {
         Serial.println("=== Client Connected to AP ===");
         Serial.print("MAC: ");
@@ -648,9 +648,9 @@ void setup() {
         Serial.println();
     });
 
-    // In der setup() Funktion, ersetze die Route-Registrierungen:
+    // In the setup() function, replace the route registrations:
 
-    // Root Route und POST-Routen VOR dem Captive Portal Handler
+    // Root route and POST routes BEFORE the Captive Portal Handler
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
         request->send_P(200, "text/html", index_html, processor);
     });
@@ -695,7 +695,7 @@ void setup() {
             if(newSSID.length() > 0) {
                 saveWiFiCredentials(newSSID, newPassword);
                 
-                // Sende Bestätigungsseite
+                // Send confirmation page
                 String html = "<!DOCTYPE HTML><html><head>";
                 html += "<meta charset='UTF-8'>";
                 html += "<style>body{font-family:Arial;text-align:center;background:#1a1a1a;color:white;padding:20px;}</style>";
@@ -707,7 +707,7 @@ void setup() {
                 
                 request->send(200, "text/html", html);
                 
-                // Verzögerter Neustart
+                // Delayed restart
                 delay(1000);
                 ESP.restart();
             }
@@ -718,7 +718,7 @@ void setup() {
     server.on("/restart", HTTP_POST, [](AsyncWebServerRequest *request){
         Serial.println("Restart request received");
         
-        // Sende Bestätigungsseite
+        // Send confirmation page
         String html = "<!DOCTYPE HTML><html><head>";
         html += "<meta charset='UTF-8'>";
         html += "<style>body{font-family:Arial;text-align:center;background:#1a1a1a;color:white;padding:20px;}</style>";
@@ -728,21 +728,21 @@ void setup() {
         
         request->send(200, "text/html", html);
         
-        // Verzögerter Neustart
+        // Delayed restart
         delay(1000);
         ESP.restart();
     });
 
-    // Captive Portal Handler DANACH
+    // Captive Portal Handler AFTER
     server.addHandler(new CaptiveRequestHandler());
 
-    // Server starten
+    // Start the server
     DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
     DefaultHeaders::Instance().addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     DefaultHeaders::Instance().addHeader("Connection", "keep-alive");
     server.begin();
     
-    Serial.println("Webserver gestartet");
+    Serial.println("Webserver started");
 
     loadAssignment();
 }
@@ -754,14 +754,14 @@ void loop() {
     if (currentMillis - previousMillis >= interval) {
         previousMillis = currentMillis;
         
-        // Aktualisiere die Temperaturen für die Anzeige
+        // Update temperatures for display
         sensors.requestTemperatures();
         currentTemp1 = sensors.getTempCByIndex(0);
         currentTemp2 = sensors.getTempCByIndex(1);
         
-        // Im Power-Modus nichts weiter tun, da die Heizungen bereits eingeschaltet sind
+        // Do nothing in Power Mode, since the heaters are already on
         if (!powerMode) {
-            // Normale Temperatursteuerung nur wenn NICHT im Power-Modus
+            // Normal temperature control only if NOT in Power Mode
             if (swapAssignment) {
                 if (currentTemp2 < targetTemp1) {
                     digitalWrite(MOSFET_PIN_1, HIGH);
