@@ -9,6 +9,10 @@ HeatControl is a Wemos D1 Mini 4-based heating control system that manages multi
 - Relay control for each heating zone
 - Web interface for monitoring and control
 - Temperature threshold settings per zone
+- Two operation modes:
+  - Normal mode: Standard heating control
+  - Boost mode: Enhanced heating performance
+- Automatic activation of boost mode after power cycle
 
 ## Hardware Requirements
 - Wemos D1 Mini 4
@@ -17,20 +21,18 @@ HeatControl is a Wemos D1 Mini 4-based heating control system that manages multi
 - Power Supply (5V)
 
 ## Pinout Diagram
-![Wemos D1 Mini Pinout](docs/wemos_d1_mini_pinout.png)
+![Wemos D1 Mini Pinout](documentation/wemos_d1_mini_pinout.png)
 
 ### Connections
-- Temperature Sensors (DS18B20): GPIO 4
-- Relay 1: GPIO 16
-- Relay 2: GPIO 17
-- Relay 3: GPIO 18
-- Relay 4: GPIO 19
+- Temperature Sensors (DS18B20): GPIO 2 (ONE_WIRE_BUS)
+- MOSFET 1: GPIO 4 (MOSFET_PIN_1) 
+- MOSFET 2: GPIO 5 (MOSFET_PIN_2)
+- Input Pin: GPIO 14 (INPUT_PIN)
 
 ## Installation
 1. Clone this repository
 2. Open the project in PlatformIO
-3. Configure your WiFi credentials in the code
-4. Upload to your Wemos D1 Mini 4
+3. Upload to your Wemos D1 Mini 4
 
 ## Usage
 1. Power up the Wemos D1 Mini 4
