@@ -1,51 +1,72 @@
 # HeatControl
 
 ## Description
-HeatControl is a Wemos D1 Mini 4-based heating control system that manages multiple heating zones. It uses temperature sensors to monitor and control heating elements through relays.
+HeatControl is a dual-zone heating control system based on the Wemos D1 Mini 4. It provides precise temperature control through DS18B20 sensors and MOSFET-driven outputs, with a web-based interface for monitoring and control.
 
 ## Features
-- Control of up to 2 heating zones
-- DS18B20 temperature sensor support
-- Relay control for each heating zone
-- Web interface for monitoring and control
-- Temperature threshold settings per zone
+- Dual zone temperature control
+- Web interface with real-time monitoring
+- Adjustable temperature thresholds (10-45°C)
+- Persistent settings stored in EEPROM
 - Two operation modes:
-  - Normal mode: Standard heating control
-  - Boost mode: Enhanced heating performance
-- Automatic activation of boost mode after power cycle
+  - Normal: Temperature-based control
+  - Boost: Full power mode (activated via GPIO)
+- Swappable sensor assignments
+- Captive portal for easy WiFi configuration
+- Mobile-friendly responsive design
 
-## Hardware Requirements
+## Hardware
+### Requirements
 - Wemos D1 Mini 4
-- DS18B20 Temperature Sensors
-- 2x MOSFETs
-- Step-down converter module (to 5V)
+- 2x DS18B20 Temperature Sensors
+- 2x MOSFETs (for heating control)
+- Step-down converter (15V to 5V)
 - 1000µF capacitor
-- Various resistors
-
-## Pinout Diagram
-![Wemos D1 Mini Pinout](documentation/PinOut.jpg)
-
-## GUI
-![Web Interface](documentation/GUI.png)
-
-The GUI provides an intuitive interface for users to monitor and control the heating system. It displays the current temperature readings from each zone, allows users to set desired temperature thresholds, and provides buttons to activate or deactivate heating zones. The interface is designed to be user-friendly, ensuring that users can easily navigate and make adjustments as needed.
+- Pull-up resistors (4.7kΩ for DS18B20)
+- Current limiting resistors
 
 ### Connections
-- Temperature Sensors (DS18B20): GPIO 2 (ONE_WIRE_BUS)
+- DS18B20 Sensors: GPIO 2 (ONE_WIRE_BUS)
 - MOSFET 1: GPIO 4 (MOSFET_PIN_1) 
 - MOSFET 2: GPIO 5 (MOSFET_PIN_2)
-- Input Pin: GPIO 14 (INPUT_PIN)
+- Mode Switch: GPIO 14 (INPUT_PIN)
+
+## Interface
+### Pinout
+![Wemos D1 Mini Pinout](documentation/PinOut.jpg)
+
+### Web Interface
+![Web Interface](documentation/GUI.png)
+
+The web interface provides:
+- Real-time temperature readings
+- Individual temperature threshold controls
+- Heating status indicators
+- Sensor assignment options
+- WiFi configuration
+- System restart function
 
 ## Installation
 1. Clone this repository
-2. Open the project in PlatformIO
-3. Upload to your Wemos D1 Mini 4
+2. Open project in PlatformIO
+3. Upload to Wemos D1 Mini 4
+4. Connect to "HeatControl" WiFi network
+   - Default SSID: HeatControl
+   - Default Password: HeatControl
 
-## Usage
-1. Power up the Wemos D1 Mini 4
-2. Connect to the device's web interface
-3. Set your desired temperature thresholds
-4. Monitor and control your heating zones
+## Operation
+1. Power up the device
+2. Connect to the WiFi network
+3. Access web interface (IP: 4.3.2.1)
+4. Configure temperature thresholds
+5. Monitor heating zones
+
+### Operating Modes
+- **Normal Mode**: Automatic temperature control based on thresholds
+- **Boost Mode**: Maximum power output (GPIO 14 HIGH)
 
 ## Contributing
-Contributions are welcome! Please submit a pull request for any improvements or bug fixes.
+Contributions are welcome! Please submit pull requests for any improvements.
+
+## License
+This project is licensed under the MIT License - see the LICENSE file for details.
