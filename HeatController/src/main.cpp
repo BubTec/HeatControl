@@ -30,6 +30,7 @@ float targetTemp2 = 23.0;
 float currentTemp1 = 0.0;
 float currentTemp2 = 0.0;
 bool swapAssignment = false; // Variable für die Zuordnung
+bool powerMode = false;  // Speichert den beim Start gewählten Modus
 
 // Objekte initialisieren
 OneWire oneWire(ONE_WIRE_BUS);
@@ -326,6 +327,10 @@ const char index_html[] PROGMEM = R"rawliteral(
       </div>
       <input type="submit" value="Save WiFi">
     </form>
+
+    <form action="/restart" method="POST" class="box">
+      <input type="submit" value="Restart ESP">
+    </form>
   </div>
 
   <script>
@@ -409,9 +414,8 @@ String processor(const String& var) {
         return String(storedPassword);
     }
     if(var == "MODE") {
-        // Modus basierend auf dem INPUT_PIN anzeigen
-        int inputValue = digitalRead(INPUT_PIN);
-        return inputValue == LOW ? "Normal Mode" : "Power Mode";
+        // Zeige den beim Start festgelegten Modus an, nicht den aktuellen Pin-Status
+        return powerMode ? "Power Mode" : "Normal Mode";
     }
 
     return String();
@@ -600,6 +604,17 @@ void setup() {
     pinMode(MOSFET_PIN_1, OUTPUT);
     pinMode(MOSFET_PIN_2, OUTPUT);
     pinMode(INPUT_PIN, INPUT);
+    
+    // Lese den Power-Modus EINMAL beim Start
+    powerMode = (digitalRead(INPUT_PIN) == HIGH);
+    if (powerMode) {
+        // Wenn Power-Modus aktiv ist, schalte beide Heizungen direkt ein
+        digitalWrite(MOSFET_PIN_1, HIGH);
+        digitalWrite(MOSFET_PIN_2, HIGH);
+        Serial.println("Power Mode activated - Both heaters will stay ON");
+    } else {
+        Serial.println("Normal Mode activated - Temperature control active");
+    }
 
     // Lade die gespeicherten WLAN-Credentials
     loadWiFiCredentials();
@@ -700,6 +715,24 @@ void setup() {
         request->redirect("/");
     });
 
+    server.on("/restart", HTTP_POST, [](AsyncWebServerRequest *request){
+        Serial.println("Restart request received");
+        
+        // Sende Bestätigungsseite
+        String html = "<!DOCTYPE HTML><html><head>";
+        html += "<meta charset='UTF-8'>";
+        html += "<style>body{font-family:Arial;text-align:center;background:#1a1a1a;color:white;padding:20px;}</style>";
+        html += "</head><body>";
+        html += "<h2>Restarting ESP...</h2>";
+        html += "</body></html>";
+        
+        request->send(200, "text/html", html);
+        
+        // Verzögerter Neustart
+        delay(1000);
+        ESP.restart();
+    });
+
     // Captive Portal Handler DANACH
     server.addHandler(new CaptiveRequestHandler());
 
@@ -721,43 +754,38 @@ void loop() {
     if (currentMillis - previousMillis >= interval) {
         previousMillis = currentMillis;
         
+        // Aktualisiere die Temperaturen für die Anzeige
         sensors.requestTemperatures();
         currentTemp1 = sensors.getTempCByIndex(0);
         currentTemp2 = sensors.getTempCByIndex(1);
         
-        if (swapAssignment) {
-            // If swapped: Sensor 1 controls MOSFET 2, Sensor 2 controls MOSFET 1
-            if (currentTemp2 < targetTemp1) {  // Sensor 2 -> Heating 1
-                digitalWrite(MOSFET_PIN_1, HIGH);
-                // Serial.println("Heating 1 ON - Temperature too low (Sensor 2)");
-            } else {
-                digitalWrite(MOSFET_PIN_1, LOW);
-                // Serial.println("Heating 1 OFF - Target temperature reached (Sensor 2)");
-            }
+        // Im Power-Modus nichts weiter tun, da die Heizungen bereits eingeschaltet sind
+        if (!powerMode) {
+            // Normale Temperatursteuerung nur wenn NICHT im Power-Modus
+            if (swapAssignment) {
+                if (currentTemp2 < targetTemp1) {
+                    digitalWrite(MOSFET_PIN_1, HIGH);
+                } else {
+                    digitalWrite(MOSFET_PIN_1, LOW);
+                }
 
-            if (currentTemp1 < targetTemp2) {  // Sensor 1 -> Heating 2
-                digitalWrite(MOSFET_PIN_2, HIGH);
-                // Serial.println("Heating 2 ON - Temperature too low (Sensor 1)");
+                if (currentTemp1 < targetTemp2) {
+                    digitalWrite(MOSFET_PIN_2, HIGH);
+                } else {
+                    digitalWrite(MOSFET_PIN_2, LOW);
+                }
             } else {
-                digitalWrite(MOSFET_PIN_2, LOW);
-                // Serial.println("Heating 2 OFF - Target temperature reached (Sensor 1)");
-            }
-        } else {
-            // Normal: Sensor 1 controls MOSFET 1, Sensor 2 controls MOSFET 2
-            if (currentTemp1 < targetTemp1) {  // Sensor 1 -> Heating 1
-                digitalWrite(MOSFET_PIN_1, HIGH);
-                // Serial.println("Heating 1 ON - Temperature too low (Sensor 1)");
-            } else {
-                digitalWrite(MOSFET_PIN_1, LOW);
-                // Serial.println("Heating 1 OFF - Target temperature reached (Sensor 1)");
-            }
+                if (currentTemp1 < targetTemp1) {
+                    digitalWrite(MOSFET_PIN_1, HIGH);
+                } else {
+                    digitalWrite(MOSFET_PIN_1, LOW);
+                }
 
-            if (currentTemp2 < targetTemp2) {  // Sensor 2 -> Heating 2
-                digitalWrite(MOSFET_PIN_2, HIGH);
-                // Serial.println("Heating 2 ON - Temperature too low (Sensor 2)");
-            } else {
-                digitalWrite(MOSFET_PIN_2, LOW);
-                // Serial.println("Heating 2 OFF - Target temperature reached (Sensor 2)");
+                if (currentTemp2 < targetTemp2) {
+                    digitalWrite(MOSFET_PIN_2, HIGH);
+                } else {
+                    digitalWrite(MOSFET_PIN_2, LOW);
+                }
             }
         }
     }
