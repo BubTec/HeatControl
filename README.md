@@ -21,7 +21,7 @@ HeatControl is a Wemos D1 Mini 4-based heating control system that manages multi
 - Power Supply (5V)
 
 ## Pinout Diagram
-![Wemos D1 Mini Pinout](documentation/wemos_d1_mini_pinout.png)
+![Wemos D1 Mini Pinout](documentation/PinOut.jpg)
 
 ### Connections
 - Temperature Sensors (DS18B20): GPIO 2 (ONE_WIRE_BUS)
