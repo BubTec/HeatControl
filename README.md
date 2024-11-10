@@ -1,4 +1,4 @@
-# HeatControl
+# ![HeatControl Logo](documentation/LOGO.png)
 
 ## Description
 HeatControl is a dual-zone heating control system based on the Wemos D1 Mini 4. It provides precise temperature control through DS18B20 sensors and MOSFET-driven outputs, with a web-based interface for monitoring and control.
