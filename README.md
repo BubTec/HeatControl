@@ -36,7 +36,7 @@ HeatControl is a dual-zone heating control system based on the Wemos D1 Mini 4. 
 ![Wemos D1 Mini Pinout](documentation/PinOut.jpg)
 
 ### Web Interface
-<img src="documentation/GUI.png" alt="Web Interface" width="600"/>
+<img src="documentation/GUI.png" alt="Web Interface" width="300"/>
 
 The web interface provides:
 - Real-time temperature readings
