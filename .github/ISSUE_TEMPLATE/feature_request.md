@@ -1,8 +1,8 @@
 ---
 name: Feature request
 about: Suggest an idea for this project
-title: ''
-labels: ''
+title: '[FEATURE] "YOUR TITLE" - PRIO 1-10'
+labels: enhancement
 assignees: ''
 
 ---
