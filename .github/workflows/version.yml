@@ -4,10 +4,13 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - '[GIT ROOT]/HeatController/version.txt'  # Ignoriere diese Datei, um Schleifen zu verhindern
 
 jobs:
   increment-version:
     runs-on: ubuntu-latest
+    if: github.actor != 'github-actions[bot]'  # Verhindert das erneute Ausführen durch GitHub Actions Commits
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -15,7 +18,6 @@ jobs:
       - name: Read and increment version
         id: read_version
         run: |
-          # Prüfen, ob die Datei existiert, andernfalls Version auf 0.1 setzen
           if [ -f "[GIT ROOT]/HeatController/version.txt" ]; then
             current_version=$(cat [GIT ROOT]/HeatController/version.txt)
             echo "Current version is $current_version"
@@ -24,7 +26,25 @@ jobs:
             echo "No version file found. Starting at 0.1."
           fi
 
-          # Inkrementieren der Minor-Version
           major=$(echo "$current_version" | cut -d '.' -f 1)
           minor=$(echo "$current_version" | cut -d '.' -f 2)
-     
+          new_minor=$((minor + 1))
+          new_version="${major}.${new_minor}"
+          echo "New version is $new_version"
+          echo "new_version=$new_version" >> $GITHUB_ENV
+
+      - name: Update version file
+        run: |
+          echo "${{ env.new_version }}" > [GIT ROOT]/HeatController/version.txt
+
+      - name: Commit updated version
+        run: |
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git add [GIT ROOT]/HeatController/version.txt
+          git commit -m "Increment version to ${{ env.new_version }}"
+        continue-on-error: true
+
+      - name: Push changes
+        run: |
+          git push https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/n3roGit/HeatControl.git main
