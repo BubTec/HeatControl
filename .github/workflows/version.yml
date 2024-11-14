@@ -35,4 +35,5 @@ jobs:
         run: |
           git add "$VERSION_FILE"
           git commit -m "Increment version to $(cat $VERSION_FILE)"
-          git push
+          # Use the GitHub token in the push URL to authenticate
+          git push "https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" HEAD:${{ github.ref }}
