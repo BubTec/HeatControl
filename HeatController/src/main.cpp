@@ -6,7 +6,7 @@
 #include <DNSServer.h>
 #include <EEPROM.h>
 
-// Function declarations (REMOVE GERMAN COMMENT)
+// Function declarations
 float readFloat(int addr);
 String formatRuntime(unsigned long seconds, bool showSeconds);
 void saveRuntime();
@@ -169,8 +169,8 @@ void saveWiFiCredentials(const String& ssid, const String& password) {
     EEPROM.end();
 }
 
-// HTML Template - replace the existing template code with this:
-const char index_html[] PROGMEM = R"rawliteral(
+// HTML Template - Teil 1
+const char index_html_p1[] PROGMEM = R"rawliteral(
 <!DOCTYPE HTML>
 <html>
 <head>
@@ -178,6 +178,10 @@ const char index_html[] PROGMEM = R"rawliteral(
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>HeatControl</title>
   <style>
+)rawliteral";
+
+// HTML Template - Style Teil
+const char index_html_style[] PROGMEM = R"rawliteral(
     html { 
       font-family: Arial; 
       text-align: center; 
@@ -198,6 +202,7 @@ const char index_html[] PROGMEM = R"rawliteral(
     .container {
       max-width: 600px;
       margin: 0 auto;
+      padding: 0 20px;
     }
     .box {
       background-color: #333;
@@ -234,14 +239,18 @@ const char index_html[] PROGMEM = R"rawliteral(
     input[type="submit"]:hover {
       background-color: #c0392b;
     }
-
-    /* New styles for temperature control */
     .temp-control {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      margin: 15px 0;
+    }
+    .temp-buttons-display {
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 15px;
-      margin: 15px 0;
+      margin-bottom: 15px;
     }
     .temp-button {
       width: 50px;
@@ -261,42 +270,44 @@ const char index_html[] PROGMEM = R"rawliteral(
     }
     .temp-display {
       font-size: 1.4rem;
-      min-width: 120px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
+      min-width: 80px;
+      text-align: center;
+    }
+    .slider-container {
+      width: 100%;
+      padding: 0;
+      box-sizing: border-box;
     }
     .slider {
       -webkit-appearance: none;
-      width: 120px;
+      width: 100%;
       height: 8px;
       border-radius: 4px;
       background: #444;
       outline: none;
-      margin-top: 10px;
+      margin: 0 auto;
     }
     .slider::-webkit-slider-thumb {
       -webkit-appearance: none;
       appearance: none;
-      width: 24px;
-      height: 24px;
+      width: 32px;
+      height: 32px;
       border-radius: 50%;
       background: #e74c3c;
       cursor: pointer;
     }
     .slider::-moz-range-thumb {
-      width: 24px;
-      height: 24px;
+      width: 32px;
+      height: 32px;
       border-radius: 50%;
       background: #e74c3c;
       cursor: pointer;
+      border: none;
     }
-    .slider::-webkit-slider-thumb:hover {
-      background: #c0392b;
-    }
-    .slider::-moz-range-thumb:hover {
-      background: #c0392b;
-    }
+)rawliteral";
+
+// HTML Template - Teil 2 (Body)
+const char index_html_p2[] PROGMEM = R"rawliteral(
   </style>
 </head>
 <body>
@@ -305,47 +316,63 @@ const char index_html[] PROGMEM = R"rawliteral(
     <div class="box">
       Mode: %MODE%
     </div>
-    
-    <form action="/setTemp" method="POST">
+)rawliteral";
+
+// HTML Template - Teil 3 (Forms)
+const char index_html_p3[] PROGMEM = R"rawliteral(
+    <form action="/setTemp" method="POST" id="tempForm">
       <div class="box">
         <h3>Heating 1</h3>
         <div id="currentTemp1Display">Current: %CURRENT1%°C</div>
         <div class="temp-control">
-          <button type="button" class="temp-button" onclick="adjustTemp('temp1', -0.5)">-</button>
-          <div class="temp-display">
-            <span id="targetTemp1Display">%TEMP1%</span>°C
+          <div class="temp-buttons-display">
+            <button type="button" class="temp-button" onclick="adjustTemp('temp1', -0.5)">-</button>
+            <div class="temp-display">
+              <span id="targetTemp1Display">%TEMP1%</span>°C
+            </div>
+            <button type="button" class="temp-button" onclick="adjustTemp('temp1', 0.5)">+</button>
+          </div>
+          <div class="slider-container">
             <input type="range" class="slider" id="temp1Slider" 
                    min="10" max="45" step="0.5" value="%TEMP1%"
                    oninput="updateFromSlider('temp1')">
             <input type="number" id="temp1" name="temp1" value="%TEMP1%" 
                    step="0.5" min="10" max="45" style="display: none">
           </div>
-          <button type="button" class="temp-button" onclick="adjustTemp('temp1', 0.5)">+</button>
         </div>
         <div id="status1" class="status %MOSFET1_STATUS_CLASS%">Status: %MOSFET1_STATUS%</div>
       </div>
+)rawliteral";
 
+// HTML Template - Teil 4 (Heating 2)
+const char index_html_p4[] PROGMEM = R"rawliteral(
       <div class="box">
         <h3>Heating 2</h3>
         <div id="currentTemp2Display">Current: %CURRENT2%°C</div>
         <div class="temp-control">
-          <button type="button" class="temp-button" onclick="adjustTemp('temp2', -0.5)">-</button>
-          <div class="temp-display">
-            <span id="targetTemp2Display">%TEMP2%</span>°C
+          <div class="temp-buttons-display">
+            <button type="button" class="temp-button" onclick="adjustTemp('temp2', -0.5)">-</button>
+            <div class="temp-display">
+              <span id="targetTemp2Display">%TEMP2%</span>°C
+            </div>
+            <button type="button" class="temp-button" onclick="adjustTemp('temp2', 0.5)">+</button>
+          </div>
+          <div class="slider-container">
             <input type="range" class="slider" id="temp2Slider" 
                    min="10" max="45" step="0.5" value="%TEMP2%"
                    oninput="updateFromSlider('temp2')">
             <input type="number" id="temp2" name="temp2" value="%TEMP2%" 
                    step="0.5" min="10" max="45" style="display: none">
           </div>
-          <button type="button" class="temp-button" onclick="adjustTemp('temp2', 0.5)">+</button>
         </div>
         <div id="status2" class="status %MOSFET2_STATUS_CLASS%">Status: %MOSFET2_STATUS%</div>
       </div>
-
       <input type="submit" value="Save Settings">
     </form>
+)rawliteral";
 
+// HTML Template - Teil 5 (Additional Forms)
+const char index_html_p5[] PROGMEM = R"rawliteral(
     <form action="/swapSensors" method="POST" class="box">
       <label>
         <input type="checkbox" name="swap" %SWAP_CHECKED%>
@@ -369,9 +396,12 @@ const char index_html[] PROGMEM = R"rawliteral(
     </form>
 
     <form action="/restart" method="POST" class="box">
-      <input type="submit" value="Restart ESP">
+      <input type="submit" value="Restart">
     </form>
+)rawliteral";
 
+// HTML Template - Teil 6 (Runtime and Script)
+const char index_html_p6[] PROGMEM = R"rawliteral(
     <div class="box">
       <h3>System Runtime</h3>
       <div>Total: %TOTAL_RUNTIME%</div>
@@ -384,31 +414,33 @@ const char index_html[] PROGMEM = R"rawliteral(
   </div>
 
   <script>
+)rawliteral";
+
+// HTML Template - Teil 7 (JavaScript)
+const char index_html_p7[] PROGMEM = R"rawliteral(
     function updateStatus() {
         fetch('/status')
             .then(response => response.json())
             .then(data => {
-                // Aktuelle Temperaturen aktualisieren
-                document.getElementById('currentTemp1Display').textContent = 
+                document.getElementById('currentTemp1Display').innerHTML = 
                     'Current: ' + data.current1.toFixed(1) + '°C';
-                document.getElementById('currentTemp2Display').textContent = 
+                document.getElementById('currentTemp2Display').innerHTML = 
                     'Current: ' + data.current2.toFixed(1) + '°C';
                 
-                // Status aktualisieren
                 const status1 = document.getElementById('status1');
                 const status2 = document.getElementById('status2');
                 
-                status1.textContent = 'Status: ' + (data.h1 ? 'ON' : 'OFF');
+                status1.innerHTML = 'Status: ' + (data.h1 ? 'ON' : 'OFF');
                 status1.className = 'status ' + (data.h1 ? 'status-on' : 'status-off');
                 
-                status2.textContent = 'Status: ' + (data.h2 ? 'ON' : 'OFF');
+                status2.innerHTML = 'Status: ' + (data.h2 ? 'ON' : 'OFF');
                 status2.className = 'status ' + (data.h2 ? 'status-on' : 'status-off');
                 
-                // Neue Runtime Updates
-                document.querySelector('.box:last-child div:nth-child(2)').textContent = 
-                    'Total: ' + data.totalRuntime;
-                document.querySelector('.box:last-child div:nth-child(3)').textContent = 
-                    'Current: ' + data.currentRuntime;
+                const runtimeBox = document.querySelector('.box:last-child');
+                if (runtimeBox) {
+                    runtimeBox.children[1].innerHTML = 'Total: ' + data.totalRuntime;
+                    runtimeBox.children[2].innerHTML = 'Current: ' + data.currentRuntime;
+                }
             })
             .catch(error => console.error('Update failed:', error));
     }
@@ -420,9 +452,10 @@ const char index_html[] PROGMEM = R"rawliteral(
         
         let newValue = parseFloat(input.value) + change;
         newValue = Math.min(Math.max(newValue, 10), 45);
+        newValue = parseFloat(newValue.toFixed(1));
         
-        input.value = newValue.toFixed(1);
-        display.textContent = newValue.toFixed(1);
+        input.value = newValue;
+        display.innerHTML = newValue;
         slider.value = newValue;
     }
 
@@ -431,8 +464,9 @@ const char index_html[] PROGMEM = R"rawliteral(
         const input = document.getElementById(id);
         const display = document.getElementById('target' + id.charAt(0).toUpperCase() + id.slice(1) + 'Display');
         
-        input.value = slider.value;
-        display.textContent = slider.value;
+        const value = parseFloat(slider.value);
+        input.value = value;
+        display.innerHTML = value;
     }
 
     setInterval(updateStatus, 2000);
@@ -869,7 +903,35 @@ void setup() {
 
     // Routen in dieser Reihenfolge registrieren
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-        request->send_P(200, "text/html", index_html, processor);
+        String html;
+        html.reserve(8192); // Reserviere genügend Speicher
+        
+        html += FPSTR(index_html_p1);
+        html += FPSTR(index_html_style);
+        html += FPSTR(index_html_p2);
+        html += FPSTR(index_html_p3);
+        html += FPSTR(index_html_p4);
+        html += FPSTR(index_html_p5);
+        html += FPSTR(index_html_p6);
+        html += FPSTR(index_html_p7);
+        
+        // Ersetze Platzhalter
+        html.replace("%MODE%", powerMode ? "Power Mode" : "Normal Mode");
+        html.replace("%TEMP1%", String(targetTemp1));
+        html.replace("%TEMP2%", String(targetTemp2));
+        html.replace("%CURRENT1%", String(currentTemp1));
+        html.replace("%CURRENT2%", String(currentTemp2));
+        html.replace("%SWAP_CHECKED%", swapAssignment ? "checked" : "");
+        html.replace("%MOSFET1_STATUS%", digitalRead(MOSFET_PIN_1) == HIGH ? "ON" : "OFF");
+        html.replace("%MOSFET2_STATUS%", digitalRead(MOSFET_PIN_2) == HIGH ? "ON" : "OFF");
+        html.replace("%MOSFET1_STATUS_CLASS%", digitalRead(MOSFET_PIN_1) == HIGH ? "status-on" : "status-off");
+        html.replace("%MOSFET2_STATUS_CLASS%", digitalRead(MOSFET_PIN_2) == HIGH ? "status-on" : "status-off");
+        html.replace("%WIFI_SSID%", activeSSID);
+        html.replace("%WIFI_PASSWORD%", activePassword);
+        html.replace("%TOTAL_RUNTIME%", formatRuntime(savedRuntimeMinutes * 60, false));
+        html.replace("%CURRENT_RUNTIME%", formatRuntime((millis() - startTime) / 1000, true));
+        
+        request->send(200, "text/html", html);
     });
 
     server.on("/status", HTTP_GET, [](AsyncWebServerRequest *request){
