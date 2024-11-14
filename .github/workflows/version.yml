@@ -3,7 +3,7 @@ name: Increment Version
 on:
   push:
     branches:
-      - main  # Specify the branch you want to trigger on, update if needed
+      - main
 
 jobs:
   increment_version:
@@ -28,10 +28,17 @@ jobs:
             VERSION=$((VERSION + 1))
             echo "$VERSION" > "$VERSION_FILE"
           fi
-
+          
       - name: Commit and push changes
-        uses: github-actions-x/commit@v2.9
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: main
-          commit_message: "Increment version to $(cat HeatController/version.txt)"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Check git status to confirm changes
+          git status
+          
+          # Stage and commit the version file update
+          git add HeatController/version.txt
+          git commit -m "Increment version to $(cat HeatController/version.txt)"
+          
+          # Push changes to the main branch with token authentication
+          git push "https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" HEAD:main
