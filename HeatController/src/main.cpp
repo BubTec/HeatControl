@@ -6,13 +6,11 @@
 #include <DNSServer.h>
 #include <EEPROM.h>
 
-// Funktionsdeklarationen (HIER NEU EINFÜGEN)
+// Function declarations (REMOVE GERMAN COMMENT)
 float readFloat(int addr);
-String formatRuntime(unsigned long seconds);
+String formatRuntime(unsigned long seconds, bool showSeconds);
 void saveRuntime();
 void saveAndRestart();
-unsigned long startTime = 0;
-unsigned long savedTotalRuntime = 0;
 
 // HTTP Method definitions
 #ifndef HTTP_GET
@@ -50,14 +48,24 @@ AsyncWebServer server(80);
 String activeSSID = "HeatControl";     // Active SSID
 String activePassword = "HeatControl"; // Active password
 
-// EEPROM addresses
+// EEPROM layout definitions
+#define EEPROM_SIZE 512
+
+// WiFi configuration addresses
 #define EEPROM_INIT_ADDR 0
-#define EEPROM_TEMP1_ADDR 1
-#define EEPROM_TEMP2_ADDR (EEPROM_TEMP1_ADDR + sizeof(float))
-#define EEPROM_SSID_ADDR (EEPROM_TEMP2_ADDR + sizeof(float))
-#define EEPROM_PASS_ADDR (EEPROM_SSID_ADDR + 32)
-#define EEPROM_SWAP_ADDR (EEPROM_PASS_ADDR + 32)
-#define EEPROM_RUNTIME_ADDR (EEPROM_SWAP_ADDR + 1)
+#define EEPROM_SSID_ADDR 1
+#define EEPROM_PASS_ADDR 33  // SSID can be up to 32 chars
+
+// Temperature configuration addresses
+#define EEPROM_TEMP1_ADDR 65
+#define EEPROM_TEMP2_ADDR 69
+#define EEPROM_SWAP_ADDR 73
+
+// Runtime storage (place it after all other configurations)
+#define EEPROM_RUNTIME_ADDR 200  // Safe area after all other configs
+
+// Format specifiers for uint32_t
+#define PRINTF_UINT32 "%u"  // Use %u instead of %lu for uint32_t
 
 // Forward declaration of functions
 void saveWiFiCredentials(const String& ssid, const String& password);
@@ -468,11 +476,10 @@ String processor(const String& var) {
         return powerMode ? "Power Mode" : "Normal Mode";
     }
     if(var == "TOTAL_RUNTIME") {
-        unsigned long totalSeconds = savedTotalRuntime + (millis() / 1000);
-        return formatRuntime(totalSeconds);
+        return formatRuntime(savedRuntimeMinutes * 60, false);  // false = keine Sekunden anzeigen
     }
     if(var == "CURRENT_RUNTIME") {
-        return formatRuntime(millis() / 1000);
+        return formatRuntime((millis() - startTime) / 1000, true);  // mit Sekunden
     }
 
     return String();
@@ -484,18 +491,18 @@ public:
     virtual ~CaptiveRequestHandler() {}
 
     bool canHandle(AsyncWebServerRequest *request) {
-        // Nur bestimmte Anfragen behandeln
+        // Handle only specific requests (instead of "Nur bestimmte Anfragen behandeln")
         String host = request->host();
         if (host.indexOf("connectivitycheck.gstatic.com") >= 0 ||
             host.indexOf("apple.com") >= 0 ||
             host.indexOf("msftconnecttest.com") >= 0) {
             return true;
         }
-        return false;  // Andere Anfragen normal verarbeiten lassen
+        return false;  // Process other requests normally
     }
 
     void handleRequest(AsyncWebServerRequest *request) {
-        // Schnelle Weiterleitung für Captive Portal Checks
+        // Quick redirect for Captive Portal checks (instead of "Schnelle Weiterleitung...")
         AsyncWebServerResponse *response = request->beginResponse(302, "text/plain", "");
         response->addHeader("Location", "http://4.3.2.1");
         request->send(response);
@@ -570,7 +577,6 @@ void loadTemperatures() {
 }
 
 void saveTemperatures() {
-    Serial.println("\n=== Saving Temperatures ===");
     EEPROM.begin(512);
     
     // Save Temp1
@@ -586,7 +592,7 @@ void saveTemperatures() {
     }
     
     if(EEPROM.commit()) {
-        Serial.printf("Saved - T1: %.1f°C, T2: %.1f°C\n", targetTemp1, targetTemp2);
+        Serial.printf("Temperatures saved - T1: %.1f°C, T2: %.1f°C\n", targetTemp1, targetTemp2);
     } else {
         Serial.println("Error saving temperatures!");
     }
@@ -625,32 +631,126 @@ const long interval = 1000; // Interval for updating (1 second)
 DNSServer dnsServer;
 
 void handleStartupSignal(bool isPowerMode) {
-    if (isPowerMode) {
-        // Power Mode Signal: 2x pulse
-        digitalWrite(SIGNAL_PIN, LOW);   // Active
-        delay(1000);
-        digitalWrite(SIGNAL_PIN, HIGH);  // Inactive
-        delay(1000);
-        digitalWrite(SIGNAL_PIN, LOW);   // Active
-        delay(1000);
-        digitalWrite(SIGNAL_PIN, HIGH);  // Inactive
-    } else {
-        // Normal Mode Signal: 1x pulse
-        digitalWrite(SIGNAL_PIN, LOW);   // Active
-        delay(1000);
-        digitalWrite(SIGNAL_PIN, HIGH);  // Inactive
+    static unsigned long signalStartTime = 0;
+    static uint8_t signalState = 0;
+    
+    signalStartTime = millis();  // Set start time
+    
+    while(true) {  // Execute signal sequence
+        unsigned long currentTime = millis();
+        unsigned long elapsedTime = currentTime - signalStartTime;
+        
+        if(isPowerMode) {
+            // Power Mode: 2x Pulses (LOW-HIGH-LOW-HIGH)
+            switch(signalState) {
+                case 0:  // First pulse start (LOW)
+                    digitalWrite(SIGNAL_PIN, LOW);
+                    if(elapsedTime >= 1000) {
+                        signalState = 1;
+                        signalStartTime = currentTime;
+                    }
+                    break;
+                    
+                case 1:  // First pulse end (HIGH)
+                    digitalWrite(SIGNAL_PIN, HIGH);
+                    if(elapsedTime >= 1000) {
+                        signalState = 2;
+                        signalStartTime = currentTime;
+                    }
+                    break;
+                    
+                case 2:  // Second pulse start (LOW)
+                    digitalWrite(SIGNAL_PIN, LOW);
+                    if(elapsedTime >= 1000) {
+                        signalState = 3;
+                        signalStartTime = currentTime;
+                    }
+                    break;
+                    
+                case 3:  // Second pulse end (HIGH)
+                    digitalWrite(SIGNAL_PIN, HIGH);
+                    if(elapsedTime >= 1000) {
+                        return;  // Sequence completed
+                    }
+                    break;
+            }
+        } else {
+            // Normal Mode: 1x Pulse (LOW-HIGH)
+            switch(signalState) {
+                case 0:  // Single pulse start (LOW)
+                    digitalWrite(SIGNAL_PIN, LOW);
+                    if(elapsedTime >= 1000) {
+                        signalState = 1;
+                        signalStartTime = currentTime;
+                    }
+                    break;
+                    
+                case 1:  // Single pulse end (HIGH)
+                    digitalWrite(SIGNAL_PIN, HIGH);
+                    if(elapsedTime >= 1000) {
+                        return;  // Sequence completed
+                    }
+                    break;
+            }
+        }
+        
+        yield();  // Important for ESP8266: Feed the watchdog
     }
 }
 
-// Globale Variable für die gespeicherte Gesamt-Runtime
-void saveRuntime() {
-    // Aktuelle Session-Runtime in Sekunden
-    unsigned long currentSessionRuntime = millis() / 1000;
-    // Speichere die Summe aus gespeicherter Gesamt-Runtime und aktueller Session
-    writeFloat(EEPROM_RUNTIME_ADDR, savedTotalRuntime + currentSessionRuntime);
+// Maximale Werte für uint32_t:
+// 4,294,967,295 Sekunden = ca. 136 Jahre
+
+// Verbesserte Runtime-Funktionen
+void writeRuntimeToEEPROM(uint32_t minutes) {
+    EEPROM.begin(EEPROM_SIZE);
+    uint8_t* p = (uint8_t*)&minutes;
+    for (size_t i = 0; i < sizeof(uint32_t); i++) {
+        EEPROM.write(EEPROM_RUNTIME_ADDR + i, p[i]);
+    }
+    EEPROM.commit();
+    EEPROM.end();
 }
 
-String formatRuntime(unsigned long seconds) {
+uint32_t readRuntimeFromEEPROM() {
+    uint32_t minutes = 0;
+    EEPROM.begin(EEPROM_SIZE);
+    // Read 4 bytes (uint32_t)
+    uint8_t* p = (uint8_t*)&minutes;
+    for (size_t i = 0; i < sizeof(uint32_t); i++) {
+        p[i] = EEPROM.read(EEPROM_RUNTIME_ADDR + i);
+    }
+    EEPROM.end();
+    return minutes;
+}
+
+void loadSavedRuntime() {
+    savedRuntimeMinutes = readRuntimeFromEEPROM();
+    
+    if(savedRuntimeMinutes == 0xFFFFFFFF) {
+        savedRuntimeMinutes = 0;
+        writeRuntimeToEEPROM(0);
+    }
+    
+    Serial.printf("System total runtime: %s\n", 
+                 formatRuntime(savedRuntimeMinutes * 60, true).c_str());
+}
+
+void saveRuntime() {
+    savedRuntimeMinutes++;  // Einfach eine Minute hinzufügen
+    writeRuntimeToEEPROM(savedRuntimeMinutes);
+}
+
+void Restart() {
+    Serial.println("Preparing for restart...");
+    
+    // Wait to ensure any pending operations are complete
+    delay(100);
+    
+    ESP.restart();
+}
+
+String formatRuntime(unsigned long seconds, bool showSeconds) {
     unsigned long days = seconds / 86400;
     seconds %= 86400;
     unsigned long hours = seconds / 3600;
@@ -662,23 +762,19 @@ String formatRuntime(unsigned long seconds) {
     if (days > 0) result += String(days) + "d ";
     if (hours > 0) result += String(hours) + "h ";
     if (minutes > 0) result += String(minutes) + "m ";
-    result += String(seconds) + "s";
+    if (showSeconds) result += String(seconds) + "s";
     return result;
 }
 
 void setup() {
     Serial.begin(115200);
-    startTime = millis();
+    delay(1000);
     
-    // Lade die gespeicherte Gesamt-Runtime
-    savedTotalRuntime = readFloat(EEPROM_RUNTIME_ADDR);
-    if(isnan(savedTotalRuntime)) {
-        savedTotalRuntime = 0;
-        writeFloat(EEPROM_RUNTIME_ADDR, 0);
-        Serial.println("Initialized runtime storage");
-    }
-    Serial.printf("Loaded total runtime: %s\n", 
-        formatRuntime(savedTotalRuntime).c_str());
+    Serial.println("HeatControl starting...");
+    
+    startTime = millis();
+    loadSavedRuntime();
+    lastRuntimeSave = millis();
     
     // Initialize EEPROM and load temperatures
     EEPROM.begin(512);
@@ -743,32 +839,30 @@ void setup() {
     });
 
     server.on("/status", HTTP_GET, [](AsyncWebServerRequest *request){
-        char json[256];  // Größe erhöht für zusätzliche Daten
+        char json[256];
+        uint32_t currentSessionSeconds = (millis() - startTime) / 1000;
+        
         snprintf(json, sizeof(json), 
             "{\"current1\":%.1f,\"current2\":%.1f,\"h1\":%d,\"h2\":%d,\"totalRuntime\":\"%s\",\"currentRuntime\":\"%s\"}",
             currentTemp1,
             currentTemp2,
             digitalRead(MOSFET_PIN_1),
             digitalRead(MOSFET_PIN_2),
-            formatRuntime((millis() / 1000) + readFloat(EEPROM_RUNTIME_ADDR)).c_str(),
-            formatRuntime(millis() / 1000).c_str()
+            formatRuntime(savedRuntimeMinutes * 60, false).c_str(),  // without seconds
+            formatRuntime(currentSessionSeconds, true).c_str()  // with seconds
         );
         request->send(200, "application/json", json);
     });
 
     server.on("/setTemp", HTTP_POST, [](AsyncWebServerRequest *request){
-        Serial.println("Temperature update received");
-        
         if(request->hasParam("temp1", true)) {
             String temp1Str = request->getParam("temp1", true)->value();
             targetTemp1 = temp1Str.toFloat();
-            Serial.printf("New Temp1: %.1f\n", targetTemp1);
         }
         
         if(request->hasParam("temp2", true)) {
             String temp2Str = request->getParam("temp2", true)->value();
             targetTemp2 = temp2Str.toFloat();
-            Serial.printf("New Temp2: %.1f\n", targetTemp2);
         }
         
         saveTemperatures();
@@ -810,7 +904,7 @@ void setup() {
                 
                 // Delayed restart
                 delay(1000);
-                saveAndRestart();  // Statt ESP.restart()
+                Restart();  // Statt ESP.restart()
             }
         }
         request->redirect("/");
@@ -829,20 +923,20 @@ void setup() {
         request->send(200, "text/html", html);
         
         delay(1000);
-        saveAndRestart();  // Statt ESP.restart()
+        Restart();  // Statt ESP.restart()
     });
 
     server.on("/resetRuntime", HTTP_POST, [](AsyncWebServerRequest *request){
         Serial.println("Resetting total runtime");
-        savedTotalRuntime = 0;
-        writeFloat(EEPROM_RUNTIME_ADDR, 0);
+        savedRuntimeMinutes = 0;
+        writeRuntimeToEEPROM(0);  // Statt writeFloat verwenden
         request->redirect("/");
     });
 
-    // Captive Portal Handler zum Schluss
+    // Captive Portal Handler last (instead of "zum Schluss")
     server.addHandler(new CaptiveRequestHandler());
 
-    // Server Konfiguration
+    // Server Configuration (instead of "Konfiguration")
     DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
     DefaultHeaders::Instance().addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     server.begin();
@@ -850,10 +944,14 @@ void setup() {
     Serial.println("Webserver started");
 
     loadAssignment();
+
+    Serial.printf("System ready - IP: %s, SSID: %s\n", 
+                 WiFi.softAPIP().toString().c_str(), 
+                 activeSSID.c_str());
 }
 
 void loop() {
-    // DNS Server nur alle 100ms prüfen
+    // DNS Server check every 100ms
     static unsigned long lastDnsCheck = 0;
     if (millis() - lastDnsCheck >= 100) {
         dnsServer.processNextRequest();
@@ -861,56 +959,45 @@ void loop() {
     }
 
     unsigned long currentMillis = millis();
-    if (currentMillis - previousMillis >= interval) {
-        previousMillis = currentMillis;
-        
-        // Update temperatures for display
-        sensors.requestTemperatures();
-        currentTemp1 = sensors.getTempCByIndex(0);
-        currentTemp2 = sensors.getTempCByIndex(1);
-        
-        // Do nothing in Power Mode, since the heaters are already on
-        if (!powerMode) {
-            // Normal temperature control only if NOT in Power Mode
-            if (swapAssignment) {
-                if (currentTemp2 < targetTemp1) {
-                    digitalWrite(MOSFET_PIN_1, HIGH);
-                } else {
-                    digitalWrite(MOSFET_PIN_1, LOW);
-                }
 
-                if (currentTemp1 < targetTemp2) {
-                    digitalWrite(MOSFET_PIN_2, HIGH);
-                } else {
-                    digitalWrite(MOSFET_PIN_2, LOW);
-                }
+    // Auto-save runtime every minute (60000ms)
+    if (currentMillis - lastRuntimeSave >= 60000) {
+        saveRuntime();
+        lastRuntimeSave = currentMillis;  // Update timestamp after saving
+    }
+
+    // Update temperatures for display
+    sensors.requestTemperatures();
+    currentTemp1 = sensors.getTempCByIndex(0);
+    currentTemp2 = sensors.getTempCByIndex(1);
+    
+    // Do nothing in Power Mode, since the heaters are already on
+    if (!powerMode) {
+        // Normal temperature control only if NOT in Power Mode
+        if (swapAssignment) {
+            if (currentTemp2 < targetTemp1) {
+                digitalWrite(MOSFET_PIN_1, HIGH);
             } else {
-                if (currentTemp1 < targetTemp1) {
-                    digitalWrite(MOSFET_PIN_1, HIGH);
-                } else {
-                    digitalWrite(MOSFET_PIN_1, LOW);
-                }
+                digitalWrite(MOSFET_PIN_1, LOW);
+            }
 
-                if (currentTemp2 < targetTemp2) {
-                    digitalWrite(MOSFET_PIN_2, HIGH);
-                } else {
-                    digitalWrite(MOSFET_PIN_2, LOW);
-                }
+            if (currentTemp1 < targetTemp2) {
+                digitalWrite(MOSFET_PIN_2, HIGH);
+            } else {
+                digitalWrite(MOSFET_PIN_2, LOW);
+            }
+        } else {
+            if (currentTemp1 < targetTemp1) {
+                digitalWrite(MOSFET_PIN_1, HIGH);
+            } else {
+                digitalWrite(MOSFET_PIN_1, LOW);
+            }
+
+            if (currentTemp2 < targetTemp2) {
+                digitalWrite(MOSFET_PIN_2, HIGH);
+            } else {
+                digitalWrite(MOSFET_PIN_2, LOW);
             }
         }
     }
-
-    // Runtime jede Minute speichern
-    static unsigned long lastRuntimeSave = 0;
-    if (currentMillis - lastRuntimeSave >= 60000) {  // 1 Minute = 60000ms
-        saveRuntime();
-        lastRuntimeSave = currentMillis;
-        Serial.println("Runtime auto-saved");
-    }
-}
-
-// Neue Funktion für sicheres Herunterfahren
-void saveAndRestart() {
-    saveRuntime();  // Speichere die aktuelle Runtime
-    ESP.restart();
 }
