@@ -2,8 +2,8 @@ name: Increment Version
 
 on:
   push:
-    paths-ignore:
-      - 'HeatController/version.txt'
+    branches:
+      - main  # Specify the branch you want to trigger on, update if needed
 
 jobs:
   increment_version:
@@ -30,8 +30,8 @@ jobs:
           fi
 
       - name: Commit and push changes
-        uses: ad-m/github-push-action@v0.6.0
+        uses: github-actions-x/commit@v2.9
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           branch: main
-          force: true
+          commit_message: "Increment version to $(cat HeatController/version.txt)"
