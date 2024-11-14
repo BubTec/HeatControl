@@ -1,45 +1,45 @@
-name: Version Increment
+name: Increment Version
 
 on:
   push:
     branches:
-      - main  # Specify the branch for triggering the version increment
+      - main
 
 jobs:
-  version:
+  increment-version:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out the repository
+      - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Set up Git
+      - name: Read current version
+        id: read_version
         run: |
-          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
-          git config user.name "$GITHUB_ACTOR"
-
-      - name: Increment version in version.txt
-        run: |
-          VERSION_FILE="HeatController/version.txt"
-          if [ ! -f "$VERSION_FILE" ]; then
-            echo "0.1.0" > "$VERSION_FILE"
+          if [ -f "[GIT ROOT]/HeatController/version.txt" ]; then
+            current_version=$(cat [GIT ROOT]/HeatController/version.txt)
+            echo "Current version is $current_version"
           else
-            # Read, increment, and format the version
-            VERSION=$(cat "$VERSION_FILE")
-            NEW_VERSION=$(echo "$VERSION" | awk -F. '{$NF = $NF + 1;} 1' | sed 's/ /./g')
-            echo "$NEW_VERSION" > "$VERSION_FILE"
+            current_version=0
+            echo "No version file found. Starting at 0."
           fi
-          echo "New version: $(cat $VERSION_FILE)"
+          new_version=$((current_version + 1))
+          echo "New version is $new_version"
+          echo "::set-output name=new_version::$new_version"
 
-      - name: Commit the version update
+      - name: Update version file
         run: |
-          git add HeatController/version.txt
-          git commit -m "Increment version to $(cat HeatController/version.txt)"
-          VERSION=$(cat HeatController/version.txt)
-          git tag "v${VERSION}"
+          echo "${{ steps.read_version.outputs.new_version }}" > [GIT ROOT]/HeatController/version.txt
 
-      - name: Push changes and tag
-        env:
-          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+      - name: Commit updated version
         run: |
-          git push "https://$GITHUB_ACTOR:${{ secrets.ACCESS_TOKEN }}@github.com/$GITHUB_REPOSITORY.git" --follow-tags
-          git push "https://$GITHUB_ACTOR:${{ secrets.ACCESS_TOKEN }}@github.com/$GITHUB_REPOSITORY.git" --tags
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git add [GIT ROOT]/HeatController/version.txt
+          git commit -m "Increment version to ${{ steps.read_version.outputs.new_version }}"
+        continue-on-error: true
+
+      - name: Push changes
+        uses: ad-m/github-push-action@v0.6.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: main
