@@ -1,30 +1,45 @@
-name: Increment Version
+name: Version Increment
 
 on:
   push:
     branches:
-      - main  # Specify the branch to trigger the version increment on
+      - main  # Specify the branch for triggering the version increment
 
 jobs:
-  increment_version:
+  version:
     runs-on: ubuntu-latest
-
     steps:
       - name: Check out the repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v2
 
-      - name: Increment version
-        id: version_increment
-        uses: phips28/gh-action-bump-version@v9.0.0
-        with:
-          path: 'HeatController/version.txt'  # Set the path to version.txt
-          tag-prefix: ''  # Optional: Set a tag prefix, if needed
-          skip-tag: true  # Skips tagging to avoid creating a Git tag with each increment
+      - name: Set up Git
+        run: |
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+          git config user.name "$GITHUB_ACTOR"
 
-      - name: Commit and push changes
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Increment version in version.txt
+        run: |
+          VERSION_FILE="HeatController/version.txt"
+          if [ ! -f "$VERSION_FILE" ]; then
+            echo "0.1.0" > "$VERSION_FILE"
+          else
+            # Read, increment, and format the version
+            VERSION=$(cat "$VERSION_FILE")
+            NEW_VERSION=$(echo "$VERSION" | awk -F. '{$NF = $NF + 1;} 1' | sed 's/ /./g')
+            echo "$NEW_VERSION" > "$VERSION_FILE"
+          fi
+          echo "New version: $(cat $VERSION_FILE)"
+
+      - name: Commit the version update
         run: |
           git add HeatController/version.txt
           git commit -m "Increment version to $(cat HeatController/version.txt)"
-          git push
+          VERSION=$(cat HeatController/version.txt)
+          git tag "v${VERSION}"
+
+      - name: Push changes and tag
+        env:
+          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+        run: |
+          git push "https://$GITHUB_ACTOR:${{ secrets.ACCESS_TOKEN }}@github.com/$GITHUB_REPOSITORY.git" --follow-tags
+          git push "https://$GITHUB_ACTOR:${{ secrets.ACCESS_TOKEN }}@github.com/$GITHUB_REPOSITORY.git" --tags
