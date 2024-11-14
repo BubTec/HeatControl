@@ -30,9 +30,9 @@ jobs:
           fi
 
       - name: Commit and push the new version
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git add "$VERSION_FILE"
           git commit -m "Increment version to $(cat $VERSION_FILE)"
-          git push
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          git push "https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" HEAD:${{ github.ref }}
