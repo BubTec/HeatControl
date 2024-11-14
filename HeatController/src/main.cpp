@@ -31,6 +31,11 @@ void saveAndRestart();
 #define INPUT_PIN 14
 #define SIGNAL_PIN 12
 
+// Global variables for runtime tracking
+uint32_t startTime = 0;
+uint32_t savedRuntimeMinutes = 0;
+unsigned long lastRuntimeSave = 0;
+
 // Global variables
 float targetTemp1 = 23.0;
 float targetTemp2 = 23.0;
@@ -69,6 +74,18 @@ String activePassword = "HeatControl"; // Active password
 
 // Forward declaration of functions
 void saveWiFiCredentials(const String& ssid, const String& password);
+
+// Am Anfang der Datei nach den includes
+#define MIN_FREE_SPACE 1024  // Minimum required free space in bytes
+
+// Helper function to check EEPROM space
+bool checkEEPROMSpace() {
+    if(ESP.getFreeSketchSpace() < MIN_FREE_SPACE) {
+        Serial.println("Critical: Flash memory space low");
+        return false;
+    }
+    return true;
+}
 
 // Function to load WiFi credentials
 void loadWiFiCredentials() {
@@ -117,6 +134,11 @@ void loadWiFiCredentials() {
 
 // Function to save WiFi credentials
 void saveWiFiCredentials(const String& ssid, const String& password) {
+    if(!checkEEPROMSpace()) {
+        Serial.println("Warning: Skipping WiFi credentials save due to low memory");
+        return;
+    }
+    
     if(ssid.length() == 0) return;  // Prevent empty SSID
     
     EEPROM.begin(512);
@@ -476,10 +498,10 @@ String processor(const String& var) {
         return powerMode ? "Power Mode" : "Normal Mode";
     }
     if(var == "TOTAL_RUNTIME") {
-        return formatRuntime(savedRuntimeMinutes * 60, false);  // false = keine Sekunden anzeigen
+        return formatRuntime(savedRuntimeMinutes * 60, false);  // without seconds
     }
     if(var == "CURRENT_RUNTIME") {
-        return formatRuntime((millis() - startTime) / 1000, true);  // mit Sekunden
+        return formatRuntime((millis() - startTime) / 1000, true);  // with seconds
     }
 
     return String();
@@ -577,6 +599,11 @@ void loadTemperatures() {
 }
 
 void saveTemperatures() {
+    if(!checkEEPROMSpace()) {
+        Serial.println("Warning: Skipping temperature save due to low memory");
+        return;
+    }
+    
     EEPROM.begin(512);
     
     // Save Temp1
@@ -698,11 +725,16 @@ void handleStartupSignal(bool isPowerMode) {
     }
 }
 
-// Maximale Werte für uint32_t:
-// 4,294,967,295 Sekunden = ca. 136 Jahre
+// Maximum values for uint32_t:
+// 4,294,967,295 seconds = approx. 136 years
 
-// Verbesserte Runtime-Funktionen
+// Runtime functions
 void writeRuntimeToEEPROM(uint32_t minutes) {
+    if(!checkEEPROMSpace()) {
+        Serial.println("Warning: Skipping runtime write due to low memory");
+        return;
+    }
+    
     EEPROM.begin(EEPROM_SIZE);
     uint8_t* p = (uint8_t*)&minutes;
     for (size_t i = 0; i < sizeof(uint32_t); i++) {
@@ -737,7 +769,7 @@ void loadSavedRuntime() {
 }
 
 void saveRuntime() {
-    savedRuntimeMinutes++;  // Einfach eine Minute hinzufügen
+    savedRuntimeMinutes++;  // Simply add one minute
     writeRuntimeToEEPROM(savedRuntimeMinutes);
 }
 
@@ -765,6 +797,8 @@ String formatRuntime(unsigned long seconds, bool showSeconds) {
     if (showSeconds) result += String(seconds) + "s";
     return result;
 }
+
+#define MAX_CLIENTS 4  // Maximum number of simultaneous clients
 
 void setup() {
     Serial.begin(115200);
@@ -809,7 +843,7 @@ void setup() {
     WiFi.persistent(false);
     WiFi.disconnect();
     WiFi.softAPConfig(IPAddress(4,3,2,1), IPAddress(4,3,2,1), IPAddress(255,255,255,0));
-    WiFi.softAP(activeSSID.c_str(), activePassword.c_str());
+    WiFi.softAP(activeSSID.c_str(), activePassword.c_str(), 1, false, MAX_CLIENTS);  // Channel 1, not hidden, max 4 clients
 
     Serial.print("AP IP address: ");
     Serial.println(WiFi.softAPIP());
@@ -839,7 +873,14 @@ void setup() {
     });
 
     server.on("/status", HTTP_GET, [](AsyncWebServerRequest *request){
-        char json[256];
+        // Fixed buffer size for JSON response
+        const size_t jsonCapacity = 256;  // Sufficient size for our JSON response
+        if(ESP.getFreeHeap() < jsonCapacity) {
+            request->send(503, "text/plain", "Low memory");
+            return;
+        }
+        
+        char json[256];  // Fixed size is okay since we know the lengths
         uint32_t currentSessionSeconds = (millis() - startTime) / 1000;
         
         snprintf(json, sizeof(json), 
@@ -848,8 +889,8 @@ void setup() {
             currentTemp2,
             digitalRead(MOSFET_PIN_1),
             digitalRead(MOSFET_PIN_2),
-            formatRuntime(savedRuntimeMinutes * 60, false).c_str(),  // without seconds
-            formatRuntime(currentSessionSeconds, true).c_str()  // with seconds
+            formatRuntime(savedRuntimeMinutes * 60, false).c_str(),
+            formatRuntime(currentSessionSeconds, true).c_str()
         );
         request->send(200, "application/json", json);
     });
@@ -890,21 +931,25 @@ void setup() {
             if(newSSID.length() > 0) {
                 saveWiFiCredentials(newSSID, newPassword);
                 
-                // Send confirmation page
-                String html = "<!DOCTYPE HTML><html><head>";
-                html += "<meta charset='UTF-8'>";
-                html += "<style>body{font-family:Arial;text-align:center;background:#1a1a1a;color:white;padding:20px;}</style>";
-                html += "</head><body>";
-                html += "<h2>WiFi Settings Saved</h2>";
-                html += "<p>New SSID: " + newSSID + "</p>";
-                html += "<p>Rebooting...</p>";
-                html += "</body></html>";
+                // Predefined size for HTML response (instead of "Vordefinierte Größe für HTML-Response")
+                const size_t htmlCapacity = 500;  // Sufficient for our response
+                if(ESP.getFreeHeap() < htmlCapacity) {
+                    request->send(503, "text/plain", "Low memory");
+                    return;
+                }
+                
+                String html = F("<!DOCTYPE HTML><html><head>"
+                    "<meta charset='UTF-8'>"
+                    "<style>body{font-family:Arial;text-align:center;background:#1a1a1a;color:white;padding:20px;}</style>"
+                    "</head><body>"
+                    "<h2>WiFi Settings Saved</h2>"
+                    "<p>New SSID: ");
+                html += newSSID;
+                html += F("</p><p>Rebooting...</p></body></html>");
                 
                 request->send(200, "text/html", html);
-                
-                // Delayed restart
                 delay(1000);
-                Restart();  // Statt ESP.restart()
+                Restart();
             }
         }
         request->redirect("/");
@@ -923,13 +968,13 @@ void setup() {
         request->send(200, "text/html", html);
         
         delay(1000);
-        Restart();  // Statt ESP.restart()
+        Restart();  // Instead of "Statt ESP.restart()"
     });
 
     server.on("/resetRuntime", HTTP_POST, [](AsyncWebServerRequest *request){
         Serial.println("Resetting total runtime");
         savedRuntimeMinutes = 0;
-        writeRuntimeToEEPROM(0);  // Statt writeFloat verwenden
+        writeRuntimeToEEPROM(0);  // Instead of "Statt writeFloat verwenden"
         request->redirect("/");
     });
 
@@ -951,6 +996,22 @@ void setup() {
 }
 
 void loop() {
+    static unsigned long lastMemCheck = 0;
+    if (millis() - lastMemCheck >= 30000) {  // Every 30 seconds
+        size_t freeHeap = ESP.getFreeHeap();
+        size_t freeSketchSpace = ESP.getFreeSketchSpace();
+        
+        if(freeHeap < 4096 || freeSketchSpace < MIN_FREE_SPACE) {
+            Serial.printf("Memory warning - Heap: %u bytes, Flash: %u bytes\n", 
+                         freeHeap, freeSketchSpace);
+            if(freeHeap < 2048 || freeSketchSpace < 512) {
+                Serial.println("Memory critically low - forcing restart");
+                Restart();
+            }
+        }
+        lastMemCheck = millis();
+    }
+    
     // DNS Server check every 100ms
     static unsigned long lastDnsCheck = 0;
     if (millis() - lastDnsCheck >= 100) {
