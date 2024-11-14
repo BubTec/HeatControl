@@ -29,11 +29,9 @@ jobs:
             echo "$VERSION" > "$VERSION_FILE"
           fi
 
-      - name: Commit and push the new version
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git add "$VERSION_FILE"
-          git commit -m "Increment version to $(cat $VERSION_FILE)"
-          # Use the GitHub token in the push URL to authenticate, and push explicitly to main
-          git push "https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" HEAD:main
+      - name: Commit and push changes
+        uses: ad-m/github-push-action@v0.6.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: main
+          force: true
