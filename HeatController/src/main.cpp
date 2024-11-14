@@ -23,6 +23,7 @@
 #define MOSFET_PIN_1 4
 #define MOSFET_PIN_2 5
 #define INPUT_PIN 14
+#define SIGNAL_PIN 12
 
 // Global variables
 float targetTemp1 = 23.0;
@@ -591,6 +592,24 @@ const long interval = 1000; // Interval for updating (1 second)
 
 DNSServer dnsServer;
 
+void handleStartupSignal(bool isPowerMode) {
+    if (isPowerMode) {
+        // Power Mode Signal: 2x Puls
+        digitalWrite(SIGNAL_PIN, LOW);   // Aktiv
+        delay(1000);
+        digitalWrite(SIGNAL_PIN, HIGH);  // Inaktiv
+        delay(1000);
+        digitalWrite(SIGNAL_PIN, LOW);   // Aktiv
+        delay(1000);
+        digitalWrite(SIGNAL_PIN, HIGH);  // Inaktiv
+    } else {
+        // Normal Mode Signal: 1x Puls
+        digitalWrite(SIGNAL_PIN, LOW);   // Aktiv
+        delay(1000);
+        digitalWrite(SIGNAL_PIN, HIGH);  // Inaktiv
+    }
+}
+
 void setup() {
     Serial.begin(115200);
     delay(1000);
@@ -604,15 +623,19 @@ void setup() {
     pinMode(MOSFET_PIN_1, OUTPUT);
     pinMode(MOSFET_PIN_2, OUTPUT);
     pinMode(INPUT_PIN, INPUT);
+    pinMode(SIGNAL_PIN, OUTPUT);
+    digitalWrite(SIGNAL_PIN, HIGH);  // Initialer Zustand ist jetzt HIGH (inaktiv)
     
     // Read the power mode ONCE at startup
     powerMode = (digitalRead(INPUT_PIN) == HIGH);
     if (powerMode) {
+        handleStartupSignal(true);
         // If power mode is active, turn both heaters on directly
         digitalWrite(MOSFET_PIN_1, HIGH);
         digitalWrite(MOSFET_PIN_2, HIGH);
         Serial.println("Power Mode activated - Both heaters will stay ON");
     } else {
+        handleStartupSignal(false);
         Serial.println("Normal Mode activated - Temperature control active");
     }
 
