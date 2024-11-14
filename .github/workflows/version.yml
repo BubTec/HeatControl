@@ -3,7 +3,7 @@ name: Increment Version
 on:
   push:
     branches:
-      - main
+      - main  # Specify the branch to trigger the version increment on
 
 jobs:
   increment_version:
@@ -13,38 +13,18 @@ jobs:
       - name: Check out the repository
         uses: actions/checkout@v3
 
-      - name: Set up Git
-        run: |
-          echo "Configuring Git..."
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Increment version number
-        run: |
-          echo "Starting version increment..."
-          VERSION_FILE="HeatController/version.txt"
-          if [ ! -f "$VERSION_FILE" ]; then
-            echo "1" > "$VERSION_FILE"
-            echo "version.txt created with version 1"
-          else
-            VERSION=$(cat "$VERSION_FILE")
-            VERSION=$((VERSION + 1))
-            echo "$VERSION" > "$VERSION_FILE"
-            echo "version.txt updated to $VERSION"
-          fi
-
-      - name: Check Git Status
-        run: |
-          echo "Checking Git status..."
-          git status
+      - name: Increment version
+        id: version_increment
+        uses: phips28/gh-action-bump-version@v9.0.0
+        with:
+          path: 'HeatController/version.txt'  # Set the path to version.txt
+          tag-prefix: ''  # Optional: Set a tag prefix, if needed
+          skip-tag: true  # Skips tagging to avoid creating a Git tag with each increment
 
       - name: Commit and push changes
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Staging version file..."
           git add HeatController/version.txt
-          echo "Committing changes..."
           git commit -m "Increment version to $(cat HeatController/version.txt)"
-          echo "Pushing changes..."
-          git push "https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" HEAD:main
+          git push
