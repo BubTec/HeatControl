@@ -1,0 +1,38 @@
+name: Increment Version
+
+on:
+  push:
+    paths-ignore:
+      - 'HeatController/version.txt'
+
+jobs:
+  increment_version:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v3
+
+      - name: Set up Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Increment version number
+        run: |
+          VERSION_FILE="HeatController/version.txt"
+          if [ ! -f "$VERSION_FILE" ]; then
+            echo "1" > "$VERSION_FILE"
+          else
+            VERSION=$(cat "$VERSION_FILE")
+            VERSION=$((VERSION + 1))
+            echo "$VERSION" > "$VERSION_FILE"
+          fi
+
+      - name: Commit and push the new version
+        run: |
+          git add "$VERSION_FILE"
+          git commit -m "Increment version to $(cat $VERSION_FILE)"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
