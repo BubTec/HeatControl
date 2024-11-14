@@ -395,9 +395,17 @@ const char index_html_p5[] PROGMEM = R"rawliteral(
       <input type="submit" value="Save WiFi">
     </form>
 
-    <form action="/restart" method="POST" class="box">
-      <input type="submit" value="Restart">
-    </form>
+    <div class="box">
+      <h3>Restart Options</h3>
+      <form action="/restart" method="POST" style="display: inline-block;">
+        <input type="hidden" name="mode" value="normal">
+        <input type="submit" value="Restart to Normal">
+      </form>
+      <form action="/restart" method="POST" style="display: inline-block;">
+        <input type="hidden" name="mode" value="power">
+        <input type="submit" value="Restart to Power">
+      </form>
+    </div>
 )rawliteral";
 
 // HTML Template - Teil 6 (Runtime and Script)
@@ -834,6 +842,29 @@ String formatRuntime(unsigned long seconds, bool showSeconds) {
 
 #define MAX_CLIENTS 4  // Maximum number of simultaneous clients
 
+// Nach den anderen EEPROM Definitionen, füge hinzu:
+#define EEPROM_BOOT_MODE_ADDR 300  // Neuer Bereich für temporären Boot-Modus
+#define BOOT_MODE_NORMAL 0x01
+#define BOOT_MODE_POWER 0x02
+
+// Neue Funktionen für Boot-Modus Management
+void setNextBootMode(uint8_t mode) {
+    EEPROM.begin(512);
+    EEPROM.write(EEPROM_BOOT_MODE_ADDR, mode);
+    EEPROM.commit();
+    EEPROM.end();
+}
+
+uint8_t getAndClearBootMode() {
+    EEPROM.begin(512);
+    uint8_t mode = EEPROM.read(EEPROM_BOOT_MODE_ADDR);
+    // Lösche den Wert direkt nach dem Lesen
+    EEPROM.write(EEPROM_BOOT_MODE_ADDR, 0);
+    EEPROM.commit();
+    EEPROM.end();
+    return mode;
+}
+
 void setup() {
     Serial.begin(115200);
     delay(1000);
@@ -856,16 +887,23 @@ void setup() {
     pinMode(SIGNAL_PIN, OUTPUT);
     digitalWrite(SIGNAL_PIN, HIGH);  // Initial state is HIGH (inactive)
     
-    // Read the power mode ONCE at startup
-    powerMode = (digitalRead(INPUT_PIN) == HIGH);
+    // Prüfe zuerst den gespeicherten Boot-Modus
+    uint8_t savedBootMode = getAndClearBootMode();
+    if (savedBootMode == BOOT_MODE_NORMAL) {
+        powerMode = false;
+    } else if (savedBootMode == BOOT_MODE_POWER) {
+        powerMode = true;
+    } else {
+        // Wenn kein Boot-Modus gespeichert, nutze PIN-Logik
+        powerMode = (digitalRead(INPUT_PIN) == HIGH);
+    }
+
+    // Wenn Power Mode aktiv, schalte beide Heizungen direkt ein
     if (powerMode) {
-        handleStartupSignal(true);
-        // If power mode is active, turn both heaters on directly
         digitalWrite(MOSFET_PIN_1, HIGH);
         digitalWrite(MOSFET_PIN_2, HIGH);
         Serial.println("Power Mode activated - Both heaters will stay ON");
     } else {
-        handleStartupSignal(false);
         Serial.println("Normal Mode activated - Temperature control active");
     }
 
@@ -1018,19 +1056,29 @@ void setup() {
     });
 
     server.on("/restart", HTTP_POST, [](AsyncWebServerRequest *request){
-        Serial.println("Restart request received");
+        String html = F("<!DOCTYPE HTML><html><head>"
+            "<meta charset='UTF-8'>"
+            "<style>body{font-family:Arial;text-align:center;background:#1a1a1a;color:white;padding:20px;}</style>"
+            "</head><body>");
+            
+        if (request->hasParam("mode", true)) {
+            String mode = request->getParam("mode", true)->value();
+            if (mode == "power") {
+                setNextBootMode(BOOT_MODE_POWER);
+                html += "<h2>Restarting to Power Mode...</h2>";
+            } else if (mode == "normal") {
+                setNextBootMode(BOOT_MODE_NORMAL);
+                html += "<h2>Restarting to Normal Mode...</h2>";
+            }
+        } else {
+            html += "<h2>Restarting...</h2>";
+        }
         
-        String html = "<!DOCTYPE HTML><html><head>";
-        html += "<meta charset='UTF-8'>";
-        html += "<style>body{font-family:Arial;text-align:center;background:#1a1a1a;color:white;padding:20px;}</style>";
-        html += "</head><body>";
-        html += "<h2>Restarting ESP...</h2>";
         html += "</body></html>";
-        
         request->send(200, "text/html", html);
         
         delay(1000);
-        Restart();  // Instead of "Statt ESP.restart()"
+        Restart();
     });
 
     server.on("/resetRuntime", HTTP_POST, [](AsyncWebServerRequest *request){
@@ -1094,7 +1142,7 @@ void loop() {
     currentTemp1 = sensors.getTempCByIndex(0);
     currentTemp2 = sensors.getTempCByIndex(1);
     
-    // Do nothing in Power Mode, since the heaters are already on
+    // Im Power Mode keine Temperaturkontrolle
     if (!powerMode) {
         // Normal temperature control only if NOT in Power Mode
         if (swapAssignment) {
