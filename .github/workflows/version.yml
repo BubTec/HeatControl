@@ -15,30 +15,36 @@ jobs:
 
       - name: Set up Git
         run: |
+          echo "Configuring Git..."
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Increment version number
         run: |
+          echo "Starting version increment..."
           VERSION_FILE="HeatController/version.txt"
           if [ ! -f "$VERSION_FILE" ]; then
             echo "1" > "$VERSION_FILE"
+            echo "version.txt created with version 1"
           else
             VERSION=$(cat "$VERSION_FILE")
             VERSION=$((VERSION + 1))
             echo "$VERSION" > "$VERSION_FILE"
+            echo "version.txt updated to $VERSION"
           fi
-          
+
+      - name: Check Git Status
+        run: |
+          echo "Checking Git status..."
+          git status
+
       - name: Commit and push changes
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Check git status to confirm changes
-          git status
-          
-          # Stage and commit the version file update
+          echo "Staging version file..."
           git add HeatController/version.txt
+          echo "Committing changes..."
           git commit -m "Increment version to $(cat HeatController/version.txt)"
-          
-          # Push changes to the main branch with token authentication
+          echo "Pushing changes..."
           git push "https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" HEAD:main
