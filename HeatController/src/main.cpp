@@ -6,6 +6,14 @@
 #include <DNSServer.h>
 #include <EEPROM.h>
 
+// Funktionsdeklarationen (HIER NEU EINFÜGEN)
+float readFloat(int addr);
+String formatRuntime(unsigned long seconds);
+void saveRuntime();
+void saveAndRestart();
+unsigned long startTime = 0;
+unsigned long savedTotalRuntime = 0;
+
 // HTTP Method definitions
 #ifndef HTTP_GET
 #define HTTP_GET     0x01
@@ -49,6 +57,7 @@ String activePassword = "HeatControl"; // Active password
 #define EEPROM_SSID_ADDR (EEPROM_TEMP2_ADDR + sizeof(float))
 #define EEPROM_PASS_ADDR (EEPROM_SSID_ADDR + 32)
 #define EEPROM_SWAP_ADDR (EEPROM_PASS_ADDR + 32)
+#define EEPROM_RUNTIME_ADDR (EEPROM_SWAP_ADDR + 1)
 
 // Forward declaration of functions
 void saveWiFiCredentials(const String& ssid, const String& password);
@@ -332,6 +341,16 @@ const char index_html[] PROGMEM = R"rawliteral(
     <form action="/restart" method="POST" class="box">
       <input type="submit" value="Restart ESP">
     </form>
+
+    <div class="box">
+      <h3>System Runtime</h3>
+      <div>Total: %TOTAL_RUNTIME%</div>
+      <div>Current: %CURRENT_RUNTIME%</div>
+      <form action="/resetRuntime" method="POST" style="margin-top: 10px;">
+        <input type="submit" value="Reset Total Runtime" 
+               onclick="return confirm('Are you sure you want to reset the total runtime?');">
+      </form>
+    </div>
   </div>
 
   <script>
@@ -354,6 +373,12 @@ const char index_html[] PROGMEM = R"rawliteral(
                 
                 status2.textContent = 'Status: ' + (data.h2 ? 'ON' : 'OFF');
                 status2.className = 'status ' + (data.h2 ? 'status-on' : 'status-off');
+                
+                // Neue Runtime Updates
+                document.querySelector('.box:last-child div:nth-child(2)').textContent = 
+                    'Total: ' + data.totalRuntime;
+                document.querySelector('.box:last-child div:nth-child(3)').textContent = 
+                    'Current: ' + data.currentRuntime;
             })
             .catch(error => console.error('Update failed:', error));
     }
@@ -441,6 +466,13 @@ String processor(const String& var) {
     if(var == "MODE") {
         // Show the mode selected at startup, not the current pin status
         return powerMode ? "Power Mode" : "Normal Mode";
+    }
+    if(var == "TOTAL_RUNTIME") {
+        unsigned long totalSeconds = savedTotalRuntime + (millis() / 1000);
+        return formatRuntime(totalSeconds);
+    }
+    if(var == "CURRENT_RUNTIME") {
+        return formatRuntime(millis() / 1000);
     }
 
     return String();
@@ -610,9 +642,43 @@ void handleStartupSignal(bool isPowerMode) {
     }
 }
 
+// Globale Variable für die gespeicherte Gesamt-Runtime
+void saveRuntime() {
+    // Aktuelle Session-Runtime in Sekunden
+    unsigned long currentSessionRuntime = millis() / 1000;
+    // Speichere die Summe aus gespeicherter Gesamt-Runtime und aktueller Session
+    writeFloat(EEPROM_RUNTIME_ADDR, savedTotalRuntime + currentSessionRuntime);
+}
+
+String formatRuntime(unsigned long seconds) {
+    unsigned long days = seconds / 86400;
+    seconds %= 86400;
+    unsigned long hours = seconds / 3600;
+    seconds %= 3600;
+    unsigned long minutes = seconds / 60;
+    seconds %= 60;
+    
+    String result = "";
+    if (days > 0) result += String(days) + "d ";
+    if (hours > 0) result += String(hours) + "h ";
+    if (minutes > 0) result += String(minutes) + "m ";
+    result += String(seconds) + "s";
+    return result;
+}
+
 void setup() {
     Serial.begin(115200);
-    delay(1000);
+    startTime = millis();
+    
+    // Lade die gespeicherte Gesamt-Runtime
+    savedTotalRuntime = readFloat(EEPROM_RUNTIME_ADDR);
+    if(isnan(savedTotalRuntime)) {
+        savedTotalRuntime = 0;
+        writeFloat(EEPROM_RUNTIME_ADDR, 0);
+        Serial.println("Initialized runtime storage");
+    }
+    Serial.printf("Loaded total runtime: %s\n", 
+        formatRuntime(savedTotalRuntime).c_str());
     
     // Initialize EEPROM and load temperatures
     EEPROM.begin(512);
@@ -677,13 +743,15 @@ void setup() {
     });
 
     server.on("/status", HTTP_GET, [](AsyncWebServerRequest *request){
-        char json[128];
+        char json[256];  // Größe erhöht für zusätzliche Daten
         snprintf(json, sizeof(json), 
-            "{\"current1\":%.1f,\"current2\":%.1f,\"h1\":%d,\"h2\":%d}",
+            "{\"current1\":%.1f,\"current2\":%.1f,\"h1\":%d,\"h2\":%d,\"totalRuntime\":\"%s\",\"currentRuntime\":\"%s\"}",
             currentTemp1,
             currentTemp2,
             digitalRead(MOSFET_PIN_1),
-            digitalRead(MOSFET_PIN_2)
+            digitalRead(MOSFET_PIN_2),
+            formatRuntime((millis() / 1000) + readFloat(EEPROM_RUNTIME_ADDR)).c_str(),
+            formatRuntime(millis() / 1000).c_str()
         );
         request->send(200, "application/json", json);
     });
@@ -742,7 +810,7 @@ void setup() {
                 
                 // Delayed restart
                 delay(1000);
-                ESP.restart();
+                saveAndRestart();  // Statt ESP.restart()
             }
         }
         request->redirect("/");
@@ -751,7 +819,6 @@ void setup() {
     server.on("/restart", HTTP_POST, [](AsyncWebServerRequest *request){
         Serial.println("Restart request received");
         
-        // Send confirmation page
         String html = "<!DOCTYPE HTML><html><head>";
         html += "<meta charset='UTF-8'>";
         html += "<style>body{font-family:Arial;text-align:center;background:#1a1a1a;color:white;padding:20px;}</style>";
@@ -761,9 +828,15 @@ void setup() {
         
         request->send(200, "text/html", html);
         
-        // Delayed restart
         delay(1000);
-        ESP.restart();
+        saveAndRestart();  // Statt ESP.restart()
+    });
+
+    server.on("/resetRuntime", HTTP_POST, [](AsyncWebServerRequest *request){
+        Serial.println("Resetting total runtime");
+        savedTotalRuntime = 0;
+        writeFloat(EEPROM_RUNTIME_ADDR, 0);
+        request->redirect("/");
     });
 
     // Captive Portal Handler zum Schluss
@@ -826,4 +899,18 @@ void loop() {
             }
         }
     }
+
+    // Runtime jede Minute speichern
+    static unsigned long lastRuntimeSave = 0;
+    if (currentMillis - lastRuntimeSave >= 60000) {  // 1 Minute = 60000ms
+        saveRuntime();
+        lastRuntimeSave = currentMillis;
+        Serial.println("Runtime auto-saved");
+    }
+}
+
+// Neue Funktion für sicheres Herunterfahren
+void saveAndRestart() {
+    saveRuntime();  // Speichere die aktuelle Runtime
+    ESP.restart();
 }
