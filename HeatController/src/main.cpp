@@ -270,11 +270,11 @@ const char index_html[] PROGMEM = R"rawliteral(
     <form action="/setTemp" method="POST">
       <div class="box">
         <h3>Heating 1</h3>
-        <div>Current: %CURRENT1%°C</div>
+        <div id="currentTemp1Display">Current: %CURRENT1%°C</div>
         <div class="temp-control">
           <button type="button" class="temp-button" onclick="adjustTemp('temp1', -0.5)">-</button>
           <div class="temp-display">
-            <span id="temp1Display">%TEMP1%</span>°C
+            <span id="targetTemp1Display">%TEMP1%</span>°C
             <input type="range" class="slider" id="temp1Slider" 
                    min="10" max="45" step="0.5" value="%TEMP1%"
                    oninput="updateFromSlider('temp1')">
@@ -283,16 +283,16 @@ const char index_html[] PROGMEM = R"rawliteral(
           </div>
           <button type="button" class="temp-button" onclick="adjustTemp('temp1', 0.5)">+</button>
         </div>
-        <div class="status %MOSFET1_STATUS_CLASS%">Status: %MOSFET1_STATUS%</div>
+        <div id="status1" class="status %MOSFET1_STATUS_CLASS%">Status: %MOSFET1_STATUS%</div>
       </div>
 
       <div class="box">
         <h3>Heating 2</h3>
-        <div>Current: %CURRENT2%°C</div>
+        <div id="currentTemp2Display">Current: %CURRENT2%°C</div>
         <div class="temp-control">
           <button type="button" class="temp-button" onclick="adjustTemp('temp2', -0.5)">-</button>
           <div class="temp-display">
-            <span id="temp2Display">%TEMP2%</span>°C
+            <span id="targetTemp2Display">%TEMP2%</span>°C
             <input type="range" class="slider" id="temp2Slider" 
                    min="10" max="45" step="0.5" value="%TEMP2%"
                    oninput="updateFromSlider('temp2')">
@@ -301,7 +301,7 @@ const char index_html[] PROGMEM = R"rawliteral(
           </div>
           <button type="button" class="temp-button" onclick="adjustTemp('temp2', 0.5)">+</button>
         </div>
-        <div class="status %MOSFET2_STATUS_CLASS%">Status: %MOSFET2_STATUS%</div>
+        <div id="status2" class="status %MOSFET2_STATUS_CLASS%">Status: %MOSFET2_STATUS%</div>
       </div>
 
       <input type="submit" value="Save Settings">
@@ -335,29 +335,53 @@ const char index_html[] PROGMEM = R"rawliteral(
   </div>
 
   <script>
+    function updateStatus() {
+        fetch('/status')
+            .then(response => response.json())
+            .then(data => {
+                // Aktuelle Temperaturen aktualisieren
+                document.getElementById('currentTemp1Display').textContent = 
+                    'Current: ' + data.current1.toFixed(1) + '°C';
+                document.getElementById('currentTemp2Display').textContent = 
+                    'Current: ' + data.current2.toFixed(1) + '°C';
+                
+                // Status aktualisieren
+                const status1 = document.getElementById('status1');
+                const status2 = document.getElementById('status2');
+                
+                status1.textContent = 'Status: ' + (data.h1 ? 'ON' : 'OFF');
+                status1.className = 'status ' + (data.h1 ? 'status-on' : 'status-off');
+                
+                status2.textContent = 'Status: ' + (data.h2 ? 'ON' : 'OFF');
+                status2.className = 'status ' + (data.h2 ? 'status-on' : 'status-off');
+            })
+            .catch(error => console.error('Update failed:', error));
+    }
+
     function adjustTemp(id, change) {
-      const input = document.getElementById(id);
-      const display = document.getElementById(id + 'Display');
-      const slider = document.getElementById(id + 'Slider');
-      let value = parseFloat(input.value);
-      value += change;
-      
-      if (value >= 10 && value <= 45) {
-        input.value = value.toFixed(1);
-        display.textContent = value.toFixed(1);
-        slider.value = value;
-      }
+        const input = document.getElementById(id);
+        const display = document.getElementById('target' + id.charAt(0).toUpperCase() + id.slice(1) + 'Display');
+        const slider = document.getElementById(id + 'Slider');
+        
+        let newValue = parseFloat(input.value) + change;
+        newValue = Math.min(Math.max(newValue, 10), 45);
+        
+        input.value = newValue.toFixed(1);
+        display.textContent = newValue.toFixed(1);
+        slider.value = newValue;
     }
 
     function updateFromSlider(id) {
-      const slider = document.getElementById(id + 'Slider');
-      const input = document.getElementById(id);
-      const display = document.getElementById(id + 'Display');
-      let value = parseFloat(slider.value);
-      
-      input.value = value.toFixed(1);
-      display.textContent = value.toFixed(1);
+        const slider = document.getElementById(id + 'Slider');
+        const input = document.getElementById(id);
+        const display = document.getElementById('target' + id.charAt(0).toUpperCase() + id.slice(1) + 'Display');
+        
+        input.value = slider.value;
+        display.textContent = slider.value;
     }
+
+    setInterval(updateStatus, 2000);
+    updateStatus();
   </script>
 </body>
 </html>
@@ -428,42 +452,18 @@ public:
     virtual ~CaptiveRequestHandler() {}
 
     bool canHandle(AsyncWebServerRequest *request) {
+        // Nur bestimmte Anfragen behandeln
         String host = request->host();
-        Serial.print("Request Host: "); Serial.println(host);
-        return true;  // Handle all requests
+        if (host.indexOf("connectivitycheck.gstatic.com") >= 0 ||
+            host.indexOf("apple.com") >= 0 ||
+            host.indexOf("msftconnecttest.com") >= 0) {
+            return true;
+        }
+        return false;  // Andere Anfragen normal verarbeiten lassen
     }
 
     void handleRequest(AsyncWebServerRequest *request) {
-        Serial.print("Handling request for: "); Serial.println(request->url());
-        
-        // For Android
-        if (request->url().indexOf("generate_204") >= 0) {
-            AsyncWebServerResponse *response = request->beginResponse(302, "text/plain", "");
-            response->addHeader("Location", "http://4.3.2.1");
-            request->send(response);
-            return;
-        }
-        
-        // For iOS
-        if (request->url().indexOf("hotspot-detect") >= 0) {
-            AsyncWebServerResponse *response = request->beginResponse(302, "text/plain", "");
-            response->addHeader("Location", "http://4.3.2.1");
-            request->send(response);
-            return;
-        }
-
-        // For Windows
-        if (request->url().indexOf("ncsi.txt") >= 0) {
-            request->send(200, "text/plain", "Microsoft NCSI");
-            return;
-        }
-
-        if (request->url() == "/") {
-            request->send_P(200, "text/html", index_html, processor);
-            return;
-        }
-
-        // Redirect all other requests to the main page
+        // Schnelle Weiterleitung für Captive Portal Checks
         AsyncWebServerResponse *response = request->beginResponse(302, "text/plain", "");
         response->addHeader("Location", "http://4.3.2.1");
         request->send(response);
@@ -594,19 +594,19 @@ DNSServer dnsServer;
 
 void handleStartupSignal(bool isPowerMode) {
     if (isPowerMode) {
-        // Power Mode Signal: 2x Puls
-        digitalWrite(SIGNAL_PIN, LOW);   // Aktiv
+        // Power Mode Signal: 2x pulse
+        digitalWrite(SIGNAL_PIN, LOW);   // Active
         delay(1000);
-        digitalWrite(SIGNAL_PIN, HIGH);  // Inaktiv
+        digitalWrite(SIGNAL_PIN, HIGH);  // Inactive
         delay(1000);
-        digitalWrite(SIGNAL_PIN, LOW);   // Aktiv
+        digitalWrite(SIGNAL_PIN, LOW);   // Active
         delay(1000);
-        digitalWrite(SIGNAL_PIN, HIGH);  // Inaktiv
+        digitalWrite(SIGNAL_PIN, HIGH);  // Inactive
     } else {
-        // Normal Mode Signal: 1x Puls
-        digitalWrite(SIGNAL_PIN, LOW);   // Aktiv
+        // Normal Mode Signal: 1x pulse
+        digitalWrite(SIGNAL_PIN, LOW);   // Active
         delay(1000);
-        digitalWrite(SIGNAL_PIN, HIGH);  // Inaktiv
+        digitalWrite(SIGNAL_PIN, HIGH);  // Inactive
     }
 }
 
@@ -624,7 +624,7 @@ void setup() {
     pinMode(MOSFET_PIN_2, OUTPUT);
     pinMode(INPUT_PIN, INPUT);
     pinMode(SIGNAL_PIN, OUTPUT);
-    digitalWrite(SIGNAL_PIN, HIGH);  // Initialer Zustand ist jetzt HIGH (inaktiv)
+    digitalWrite(SIGNAL_PIN, HIGH);  // Initial state is HIGH (inactive)
     
     // Read the power mode ONCE at startup
     powerMode = (digitalRead(INPUT_PIN) == HIGH);
@@ -671,11 +671,21 @@ void setup() {
         Serial.println();
     });
 
-    // In the setup() function, replace the route registrations:
-
-    // Root route and POST routes BEFORE the Captive Portal Handler
+    // Routen in dieser Reihenfolge registrieren
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
         request->send_P(200, "text/html", index_html, processor);
+    });
+
+    server.on("/status", HTTP_GET, [](AsyncWebServerRequest *request){
+        char json[128];
+        snprintf(json, sizeof(json), 
+            "{\"current1\":%.1f,\"current2\":%.1f,\"h1\":%d,\"h2\":%d}",
+            currentTemp1,
+            currentTemp2,
+            digitalRead(MOSFET_PIN_1),
+            digitalRead(MOSFET_PIN_2)
+        );
+        request->send(200, "application/json", json);
     });
 
     server.on("/setTemp", HTTP_POST, [](AsyncWebServerRequest *request){
@@ -756,13 +766,12 @@ void setup() {
         ESP.restart();
     });
 
-    // Captive Portal Handler AFTER
+    // Captive Portal Handler zum Schluss
     server.addHandler(new CaptiveRequestHandler());
 
-    // Start the server
+    // Server Konfiguration
     DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
     DefaultHeaders::Instance().addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-    DefaultHeaders::Instance().addHeader("Connection", "keep-alive");
     server.begin();
     
     Serial.println("Webserver started");
@@ -771,8 +780,13 @@ void setup() {
 }
 
 void loop() {
-    dnsServer.processNextRequest();
-    
+    // DNS Server nur alle 100ms prüfen
+    static unsigned long lastDnsCheck = 0;
+    if (millis() - lastDnsCheck >= 100) {
+        dnsServer.processNextRequest();
+        lastDnsCheck = millis();
+    }
+
     unsigned long currentMillis = millis();
     if (currentMillis - previousMillis >= interval) {
         previousMillis = currentMillis;
