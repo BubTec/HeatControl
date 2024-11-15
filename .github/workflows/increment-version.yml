@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'HeatController/**'
+      - '!HeatController/version.txt'
 
 jobs:
   increment-version:
