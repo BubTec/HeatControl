@@ -35,6 +35,23 @@ jobs:
         clang-tidy HeatController/**/*.cpp -- -std=c++17
 
     - name: Format Check with Clang-Format
+      id: clang-format
+      continue-on-error: true
       run: |
         clang-format -i HeatController/**/*.cpp
-        git diff --exit-code # Fail if formatting is not applied
+        if git diff --exit-code; then
+          echo "status=success" >> $GITHUB_OUTPUT
+        else
+          echo "status=failure" >> $GITHUB_OUTPUT
+          exit 1
+        fi
+
+    - name: Update Clang Status Badge
+      uses: schneegans/dynamic-badges-action@v1.6.0
+      with:
+        auth: ${{ secrets.GIST_SECRET }}
+        gistID: # Du musst hier deine Gist ID einfügen
+        filename: clang-status.json
+        label: Clang-chk
+        message: ${{ steps.clang-format.outputs.status == 'success' && 'OK' || 'FAILED' }}
+        color: ${{ steps.clang-format.outputs.status == 'success' && 'success' || 'critical' }}
