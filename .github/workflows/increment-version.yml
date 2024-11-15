@@ -4,42 +4,32 @@ on:
   push:
     branches:
       - main
-    paths:
-      - 'HeatController/**'
-      - '!HeatController/version.txt'
 
 jobs:
   increment-version:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          
-      - name: Get current version
-        id: version
-        run: |
-          VERSION=$(cat HeatController/version.txt)
-          echo "Current version: $VERSION"
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-          
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
       - name: Increment version
+        id: increment_version
+        uses: mathieudutour/github-tag-action@v5.6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          release_branches: main
+          default_bump: patch  # Inkrementiere die PATCH-Version
+          tag_prefix: ''       # Kein Präfix vor der Version (z.B., kein "v")
+
+      - name: Update version file
         run: |
-          IFS='.' read -ra ADDR <<< "${{ env.VERSION }}"
-          ((ADDR[2]++))
-          NEW_VERSION="${ADDR[0]}.${ADDR[1]}.${ADDR[2]}"
-          echo $NEW_VERSION > HeatController/version.txt
-          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
-          
-      - name: Commit and push
+          # Schreibe die neue Version in version.txt
+          echo "${{ steps.increment_version.outputs.new_tag }}" > HeatController/version.txt
+
+      - name: Commit updated version
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git add HeatController/version.txt
-          git commit -m "Increment version to ${{ env.NEW_VERSION }}"
-          git push
-          
-      - name: Create Tag
-        run: |
-          git tag ${{ env.NEW_VERSION }}
-          git push origin ${{ env.NEW_VERSION }}
+          git commit -m "Update version to ${{ steps.increment_version.outputs.new_tag }}"
+          git push origin main
