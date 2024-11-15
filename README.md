@@ -1,6 +1,6 @@
 # ![HeatControl Logo](documentation/LOGO.png)
 
-![Version](https://img.shields.io/badge/dynamic/raw?url=https%3A%2F%2Fraw.githubusercontent.com%2Fn3roGit%2FHeatControl%2Frefs%2Fheads%2Fmain%2FHeatController%2Fversion.txt&label=Version&prefix=v&query=%24)
+![Version](https://img.shields.io/badge/dynamic/raw?url=https%3A%2F%2Fraw.githubusercontent.com%2Fn3roGit%2FHeatControl%2Fmain%2Fversion.txt&label=Version&prefix=v&query=%24)
 
 ## Description
 HeatControl is a dual-zone heating control system designed for drysuit diving, based on the Wemos D1 Mini 4. The system is worn inside the drysuit, eliminating the need for waterproof housing. It provides precise temperature control through DS18B20 sensors and MOSFET-driven outputs, with a web-based interface for monitoring and control. The sensors are typically placed on the chest and back of the hand when heating both suit and gloves. If divers feel cold during the dive despite preset temperatures, they can activate a power boost mode by briefly interrupting and reconnecting the power supply, which enables continuous heating.
