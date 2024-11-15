@@ -887,18 +887,21 @@ void setup() {
     pinMode(SIGNAL_PIN, OUTPUT);
     digitalWrite(SIGNAL_PIN, HIGH);  // Initial state is HIGH (inactive)
     
-    // Prüfe zuerst den gespeicherten Boot-Modus
+    // Check the saved boot mode first
     uint8_t savedBootMode = getAndClearBootMode();
     if (savedBootMode == BOOT_MODE_NORMAL) {
         powerMode = false;
     } else if (savedBootMode == BOOT_MODE_POWER) {
         powerMode = true;
     } else {
-        // Wenn kein Boot-Modus gespeichert, nutze PIN-Logik
+        // If no boot mode is saved, use pin logic
         powerMode = (digitalRead(INPUT_PIN) == HIGH);
     }
 
-    // Wenn Power Mode aktiv, schalte beide Heizungen direkt ein
+    // Call the handleStartupSignal function here
+    handleStartupSignal(powerMode);
+
+    // If Power Mode is active, turn on both heaters directly
     if (powerMode) {
         digitalWrite(MOSFET_PIN_1, HIGH);
         digitalWrite(MOSFET_PIN_2, HIGH);
