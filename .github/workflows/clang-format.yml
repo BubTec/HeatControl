@@ -21,14 +21,13 @@ jobs:
     - name: Check out code
       uses: actions/checkout@v3
 
-    - name: Set up C++ Compiler
-      uses: llvm/llvm-project@v1
-      with:
-        clang-version: "16"
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang-tidy clang-format cppcheck
 
     - name: Run Cppcheck
       run: |
-        sudo apt-get install cppcheck -y
         cppcheck --enable=all --inconclusive --error-exitcode=1 HeatController/
 
     - name: Run Clang-Tidy
@@ -37,6 +36,5 @@ jobs:
 
     - name: Format Check with Clang-Format
       run: |
-        sudo apt-get install clang-format -y
         clang-format -i HeatController/**/*.cpp
         git diff --exit-code # Fail if formatting is not applied
