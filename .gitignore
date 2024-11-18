@@ -47,3 +47,10 @@ Thumbs.db
 # Ignore other files
 *.log
 *.tmp
+
+# PlatformIO specific
+/HeatController/.pio
+/HeatController/.vscode/.browse.c_cpp.db*
+/HeatController/.vscode/c_cpp_properties.json
+/HeatController/.vscode/launch.json
+/HeatController/.vscode/ipch
