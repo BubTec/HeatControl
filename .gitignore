@@ -54,3 +54,5 @@ Thumbs.db
 /HeatController/.vscode/c_cpp_properties.json
 /HeatController/.vscode/launch.json
 /HeatController/.vscode/ipch
+# not needed stuff
+/HeatController/.gitignore
