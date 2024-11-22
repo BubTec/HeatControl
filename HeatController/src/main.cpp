@@ -712,33 +712,33 @@ void handleStartupSignal(bool isPowerMode) {
         if(isPowerMode) {
             // Power Mode: 2x Pulses (LOW-HIGH-LOW-HIGH)
             switch(signalState) {
-                case 0:  // First pulse start (LOW)
-                    digitalWrite(SIGNAL_PIN, LOW);
-                    if(elapsedTime >= 1000) {
+                case 0:  // First pulse start (HIGH)
+                    digitalWrite(SIGNAL_PIN, HIGH);
+                    if(elapsedTime >= 1000) {  // HIGH for 1 second
                         signalState = 1;
                         signalStartTime = currentTime;
                     }
                     break;
                     
-                case 1:  // First pulse end (HIGH)
-                    digitalWrite(SIGNAL_PIN, HIGH);
-                    if(elapsedTime >= 1000) {
+                case 1:  // First pulse end (LOW)
+                    digitalWrite(SIGNAL_PIN, LOW);
+                    if(elapsedTime >= 500) {   // LOW for 500ms
                         signalState = 2;
                         signalStartTime = currentTime;
                     }
                     break;
                     
-                case 2:  // Second pulse start (LOW)
-                    digitalWrite(SIGNAL_PIN, LOW);
-                    if(elapsedTime >= 1000) {
+                case 2:  // Second pulse start (HIGH)
+                    digitalWrite(SIGNAL_PIN, HIGH);
+                    if(elapsedTime >= 1000) {  // HIGH for 1 second
                         signalState = 3;
                         signalStartTime = currentTime;
                     }
                     break;
                     
-                case 3:  // Second pulse end (HIGH)
-                    digitalWrite(SIGNAL_PIN, HIGH);
-                    if(elapsedTime >= 1000) {
+                case 3:  // Second pulse end (LOW)
+                    digitalWrite(SIGNAL_PIN, LOW);
+                    if(elapsedTime >= 500) {   // LOW for 500ms
                         return;  // Sequence completed
                     }
                     break;
@@ -746,17 +746,17 @@ void handleStartupSignal(bool isPowerMode) {
         } else {
             // Normal Mode: 1x Pulse (LOW-HIGH)
             switch(signalState) {
-                case 0:  // Single pulse start (LOW)
-                    digitalWrite(SIGNAL_PIN, LOW);
-                    if(elapsedTime >= 1000) {
+                case 0:  // Single pulse start (HIGH)
+                    digitalWrite(SIGNAL_PIN, HIGH);
+                    if(elapsedTime >= 1000) {  // HIGH for 1 second
                         signalState = 1;
                         signalStartTime = currentTime;
                     }
                     break;
                     
-                case 1:  // Single pulse end (HIGH)
-                    digitalWrite(SIGNAL_PIN, HIGH);
-                    if(elapsedTime >= 1000) {
+                case 1:  // Single pulse end (LOW)
+                    digitalWrite(SIGNAL_PIN, LOW);
+                    if(elapsedTime >= 500) {   // LOW for 500ms
                         return;  // Sequence completed
                     }
                     break;
@@ -885,7 +885,7 @@ void setup() {
     pinMode(MOSFET_PIN_2, OUTPUT);
     pinMode(INPUT_PIN, INPUT);
     pinMode(SIGNAL_PIN, OUTPUT);
-    digitalWrite(SIGNAL_PIN, HIGH);  // Initial state is HIGH (inactive)
+    digitalWrite(SIGNAL_PIN, LOW);  // Initial state is LOW (inactive)
     
     // Check the saved boot mode first
     uint8_t savedBootMode = getAndClearBootMode();
