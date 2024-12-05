@@ -555,7 +555,7 @@ public:
     virtual ~CaptiveRequestHandler() {}
 
     bool canHandle(AsyncWebServerRequest *request) {
-        // Handle only specific requests (instead of "Nur bestimmte Anfragen behandeln")
+        // Handle only specific requests
         String host = request->host();
         if (host.indexOf("connectivitycheck.gstatic.com") >= 0 ||
             host.indexOf("apple.com") >= 0 ||
@@ -566,7 +566,7 @@ public:
     }
 
     void handleRequest(AsyncWebServerRequest *request) {
-        // Quick redirect for Captive Portal checks (instead of "Schnelle Weiterleitung...")
+        // Quick redirect for Captive Portal checks
         AsyncWebServerResponse *response = request->beginResponse(302, "text/plain", "");
         response->addHeader("Location", "http://4.3.2.1");
         request->send(response);
@@ -1034,7 +1034,7 @@ void setup() {
             if(newSSID.length() > 0) {
                 saveWiFiCredentials(newSSID, newPassword);
                 
-                // Predefined size for HTML response (instead of "Vordefinierte Größe für HTML-Response")
+                // Predefined size for HTML response
                 const size_t htmlCapacity = 500;  // Sufficient for our response
                 if(ESP.getFreeHeap() < htmlCapacity) {
                     request->send(503, "text/plain", "Low memory");
@@ -1087,14 +1087,14 @@ void setup() {
     server.on("/resetRuntime", HTTP_POST, [](AsyncWebServerRequest *request){
         Serial.println("Resetting total runtime");
         savedRuntimeMinutes = 0;
-        writeRuntimeToEEPROM(0);  // Instead of "Statt writeFloat verwenden"
+        writeRuntimeToEEPROM(0);
         request->redirect("/");
     });
 
-    // Captive Portal Handler last (instead of "zum Schluss")
+    // Captive Portal Handler last
     server.addHandler(new CaptiveRequestHandler());
 
-    // Server Configuration (instead of "Konfiguration")
+    // Server Configuration
     DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
     DefaultHeaders::Instance().addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     server.begin();
