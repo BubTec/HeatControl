@@ -26,8 +26,8 @@ void saveAndRestart();
 
 // Pin definitions
 #define ONE_WIRE_BUS 2
-#define MOSFET_PIN_1 4
-#define MOSFET_PIN_2 5
+#define SSR_PIN_1 4      // First SSR control pin (RLB3034)
+#define SSR_PIN_2 5      // Second SSR control pin (RLB3034)
 #define INPUT_PIN 14
 #define SIGNAL_PIN 12
 
@@ -501,10 +501,10 @@ String processor(const String& var) {
     if(var == "CURRENT1") return String(displayTemp1);
     if(var == "CURRENT2") return String(displayTemp2);
     if(var == "SWAP_CHECKED") return swapAssignment ? "checked" : "";
-    if(var == "MOSFET1_STATUS") return digitalRead(MOSFET_PIN_1) == HIGH ? "ON" : "OFF";
-    if(var == "MOSFET2_STATUS") return digitalRead(MOSFET_PIN_2) == HIGH ? "ON" : "OFF";
-    if(var == "MOSFET1_STATUS_CLASS") return digitalRead(MOSFET_PIN_1) == HIGH ? "status-on" : "status-off";
-    if(var == "MOSFET2_STATUS_CLASS") return digitalRead(MOSFET_PIN_2) == HIGH ? "status-on" : "status-off";
+    if(var == "MOSFET1_STATUS") return digitalRead(SSR_PIN_1) == HIGH ? "ON" : "OFF";
+    if(var == "MOSFET2_STATUS") return digitalRead(SSR_PIN_2) == HIGH ? "ON" : "OFF";
+    if(var == "MOSFET1_STATUS_CLASS") return digitalRead(SSR_PIN_1) == HIGH ? "status-on" : "status-off";
+    if(var == "MOSFET2_STATUS_CLASS") return digitalRead(SSR_PIN_2) == HIGH ? "status-on" : "status-off";
     
     // WiFi settings
     if(var == "WIFI_SSID") {
@@ -881,8 +881,8 @@ void setup() {
     
     // Initialize sensors and pins
     sensors.begin();
-    pinMode(MOSFET_PIN_1, OUTPUT);
-    pinMode(MOSFET_PIN_2, OUTPUT);
+    pinMode(SSR_PIN_1, OUTPUT);
+    pinMode(SSR_PIN_2, OUTPUT);
     pinMode(INPUT_PIN, INPUT);
     pinMode(SIGNAL_PIN, OUTPUT);
     digitalWrite(SIGNAL_PIN, LOW);  // Initial state is LOW (inactive)
@@ -903,8 +903,8 @@ void setup() {
 
     // If Power Mode is active, turn on both heaters directly
     if (powerMode) {
-        digitalWrite(MOSFET_PIN_1, HIGH);
-        digitalWrite(MOSFET_PIN_2, HIGH);
+        digitalWrite(SSR_PIN_1, HIGH);
+        digitalWrite(SSR_PIN_2, HIGH);
         Serial.println("Power Mode activated - Both heaters will stay ON");
     } else {
         Serial.println("Normal Mode activated - Temperature control active");
@@ -963,10 +963,10 @@ void setup() {
         html.replace("%CURRENT1%", String(currentTemp1));
         html.replace("%CURRENT2%", String(currentTemp2));
         html.replace("%SWAP_CHECKED%", swapAssignment ? "checked" : "");
-        html.replace("%MOSFET1_STATUS%", digitalRead(MOSFET_PIN_1) == HIGH ? "ON" : "OFF");
-        html.replace("%MOSFET2_STATUS%", digitalRead(MOSFET_PIN_2) == HIGH ? "ON" : "OFF");
-        html.replace("%MOSFET1_STATUS_CLASS%", digitalRead(MOSFET_PIN_1) == HIGH ? "status-on" : "status-off");
-        html.replace("%MOSFET2_STATUS_CLASS%", digitalRead(MOSFET_PIN_2) == HIGH ? "status-on" : "status-off");
+        html.replace("%MOSFET1_STATUS%", digitalRead(SSR_PIN_1) == HIGH ? "ON" : "OFF");
+        html.replace("%MOSFET2_STATUS%", digitalRead(SSR_PIN_2) == HIGH ? "ON" : "OFF");
+        html.replace("%MOSFET1_STATUS_CLASS%", digitalRead(SSR_PIN_1) == HIGH ? "status-on" : "status-off");
+        html.replace("%MOSFET2_STATUS_CLASS%", digitalRead(SSR_PIN_2) == HIGH ? "status-on" : "status-off");
         html.replace("%WIFI_SSID%", activeSSID);
         html.replace("%WIFI_PASSWORD%", activePassword);
         html.replace("%TOTAL_RUNTIME%", formatRuntime(savedRuntimeMinutes * 60, false));
@@ -990,8 +990,8 @@ void setup() {
             "{\"current1\":%.1f,\"current2\":%.1f,\"h1\":%d,\"h2\":%d,\"totalRuntime\":\"%s\",\"currentRuntime\":\"%s\"}",
             currentTemp1,
             currentTemp2,
-            digitalRead(MOSFET_PIN_1),
-            digitalRead(MOSFET_PIN_2),
+            digitalRead(SSR_PIN_1),
+            digitalRead(SSR_PIN_2),
             formatRuntime(savedRuntimeMinutes * 60, false).c_str(),
             formatRuntime(currentSessionSeconds, true).c_str()
         );
@@ -1150,27 +1150,27 @@ void loop() {
         // Normal temperature control only if NOT in Power Mode
         if (swapAssignment) {
             if (currentTemp2 < targetTemp1) {
-                digitalWrite(MOSFET_PIN_1, HIGH);
+                digitalWrite(SSR_PIN_1, HIGH);
             } else {
-                digitalWrite(MOSFET_PIN_1, LOW);
+                digitalWrite(SSR_PIN_1, LOW);
             }
 
             if (currentTemp1 < targetTemp2) {
-                digitalWrite(MOSFET_PIN_2, HIGH);
+                digitalWrite(SSR_PIN_2, HIGH);
             } else {
-                digitalWrite(MOSFET_PIN_2, LOW);
+                digitalWrite(SSR_PIN_2, LOW);
             }
         } else {
             if (currentTemp1 < targetTemp1) {
-                digitalWrite(MOSFET_PIN_1, HIGH);
+                digitalWrite(SSR_PIN_1, HIGH);
             } else {
-                digitalWrite(MOSFET_PIN_1, LOW);
+                digitalWrite(SSR_PIN_1, LOW);
             }
 
             if (currentTemp2 < targetTemp2) {
-                digitalWrite(MOSFET_PIN_2, HIGH);
+                digitalWrite(SSR_PIN_2, HIGH);
             } else {
-                digitalWrite(MOSFET_PIN_2, LOW);
+                digitalWrite(SSR_PIN_2, LOW);
             }
         }
     }
