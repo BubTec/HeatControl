@@ -695,7 +695,9 @@ void swapSensorMOSFET() {
 }
 
 unsigned long previousMillis = 0; // Stores the last time the temperature was updated
-const long interval = 5000; // Interval for updating (5 seconds)
+unsigned long lastHeaterLog = 0;  // For heater status logging
+const long interval = 1000; // Interval for updating (1 seconds)
+const long LOG_INTERVAL = 5000; // Log interval (5 seconds)
 
 DNSServer dnsServer;
 
@@ -1147,49 +1149,55 @@ void loop() {
     currentTemp1 = sensors.getTempCByIndex(0);
     currentTemp2 = sensors.getTempCByIndex(1);
     
-    // Check for sensor errors (temperatures below -20°C indicate sensor failure)
-    if (currentTemp1 < -20) {
+    bool shouldLog = (currentMillis - lastHeaterLog >= LOG_INTERVAL);
+    
+    // Check for sensor errors and control heaters independently
+    bool sensor1Error = (currentTemp1 < -20);
+    bool sensor2Error = (currentTemp2 < -20);
+    
+    // Control Heater 1
+    if (powerMode) {
+        digitalWrite(SSR_PIN_1, LOW);  // Force ON in power mode
+        if (shouldLog) Serial.println("Heater 1 ON (Power Mode)");
+    } else if (sensor1Error) {
         digitalWrite(SSR_PIN_1, LOW);  // Force ON if sensor error
-        Serial.printf("Heater 1 ON (Sensor error: %.1f°C)\n", currentTemp1);
-    } else if (currentTemp2 < -20) {
-        digitalWrite(SSR_PIN_2, LOW);  // Force ON if sensor error
-        Serial.printf("Heater 2 ON (Sensor error: %.1f°C)\n", currentTemp2);
-    }
-    // Im Power Mode keine Temperaturkontrolle
-    else if (!powerMode) {
-        // Normal temperature control only if NOT in Power Mode
-        if (swapAssignment) {
-            if (currentTemp2 < targetTemp1) {
-                digitalWrite(SSR_PIN_1, LOW);  // Inverted logic
-                Serial.printf("Heater 1 ON (%.1f < %.1f)\n", currentTemp2, targetTemp1);
-            } else {
-                digitalWrite(SSR_PIN_1, HIGH); // Inverted logic
-                Serial.printf("Heater 1 OFF (%.1f >= %.1f)\n", currentTemp2, targetTemp1);
-            }
-
-            if (currentTemp1 < targetTemp2) {
-                digitalWrite(SSR_PIN_2, LOW);  // Inverted logic
-                Serial.printf("Heater 2 ON (%.1f < %.1f)\n", currentTemp1, targetTemp2);
-            } else {
-                digitalWrite(SSR_PIN_2, HIGH); // Inverted logic
-                Serial.printf("Heater 2 OFF (%.1f >= %.1f)\n", currentTemp1, targetTemp2);
-            }
+        if (shouldLog) Serial.printf("Heater 1 ON (Sensor error: %.1f°C)\n", currentTemp1);
+    } else {
+        // Normal temperature control for Heater 1
+        float controlTemp = swapAssignment ? currentTemp2 : currentTemp1;
+        float targetTemp = targetTemp1;
+        
+        if (controlTemp < targetTemp) {
+            digitalWrite(SSR_PIN_1, LOW);  // Inverted logic - ON
+            if (shouldLog) Serial.printf("Heater 1 ON (%.1f < %.1f)\n", controlTemp, targetTemp);
         } else {
-            if (currentTemp1 < targetTemp1) {
-                digitalWrite(SSR_PIN_1, LOW);  // Inverted logic
-                Serial.printf("Heater 1 ON (%.1f < %.1f)\n", currentTemp1, targetTemp1);
-            } else {
-                digitalWrite(SSR_PIN_1, HIGH); // Inverted logic
-                Serial.printf("Heater 1 OFF (%.1f >= %.1f)\n", currentTemp1, targetTemp1);
-            }
-
-            if (currentTemp2 < targetTemp2) {
-                digitalWrite(SSR_PIN_2, LOW);  // Inverted logic
-                Serial.printf("Heater 2 ON (%.1f < %.1f)\n", currentTemp2, targetTemp2);
-            } else {
-                digitalWrite(SSR_PIN_2, HIGH); // Inverted logic
-                Serial.printf("Heater 2 OFF (%.1f >= %.1f)\n", currentTemp2, targetTemp2);
-            }
+            digitalWrite(SSR_PIN_1, HIGH); // Inverted logic - OFF
+            if (shouldLog) Serial.printf("Heater 1 OFF (%.1f >= %.1f)\n", controlTemp, targetTemp);
         }
+    }
+    
+    // Control Heater 2
+    if (powerMode) {
+        digitalWrite(SSR_PIN_2, LOW);  // Force ON in power mode
+        if (shouldLog) Serial.println("Heater 2 ON (Power Mode)");
+    } else if (sensor2Error) {
+        digitalWrite(SSR_PIN_2, LOW);  // Force ON if sensor error
+        if (shouldLog) Serial.printf("Heater 2 ON (Sensor error: %.1f°C)\n", currentTemp2);
+    } else {
+        // Normal temperature control for Heater 2
+        float controlTemp = swapAssignment ? currentTemp1 : currentTemp2;
+        float targetTemp = targetTemp2;
+        
+        if (controlTemp < targetTemp) {
+            digitalWrite(SSR_PIN_2, LOW);  // Inverted logic - ON
+            if (shouldLog) Serial.printf("Heater 2 ON (%.1f < %.1f)\n", controlTemp, targetTemp);
+        } else {
+            digitalWrite(SSR_PIN_2, HIGH); // Inverted logic - OFF
+            if (shouldLog) Serial.printf("Heater 2 OFF (%.1f >= %.1f)\n", controlTemp, targetTemp);
+        }
+    }
+    
+    if (shouldLog) {
+        lastHeaterLog = currentMillis;
     }
 }
