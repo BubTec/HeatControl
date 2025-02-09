@@ -1147,8 +1147,16 @@ void loop() {
     currentTemp1 = sensors.getTempCByIndex(0);
     currentTemp2 = sensors.getTempCByIndex(1);
     
+    // Check for sensor errors (temperatures below -20°C indicate sensor failure)
+    if (currentTemp1 < -20) {
+        digitalWrite(SSR_PIN_1, LOW);  // Force ON if sensor error
+        Serial.printf("Heater 1 ON (Sensor error: %.1f°C)\n", currentTemp1);
+    } else if (currentTemp2 < -20) {
+        digitalWrite(SSR_PIN_2, LOW);  // Force ON if sensor error
+        Serial.printf("Heater 2 ON (Sensor error: %.1f°C)\n", currentTemp2);
+    }
     // Im Power Mode keine Temperaturkontrolle
-    if (!powerMode) {
+    else if (!powerMode) {
         // Normal temperature control only if NOT in Power Mode
         if (swapAssignment) {
             if (currentTemp2 < targetTemp1) {
