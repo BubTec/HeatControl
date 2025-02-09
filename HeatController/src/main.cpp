@@ -501,10 +501,10 @@ String processor(const String& var) {
     if(var == "CURRENT1") return String(displayTemp1);
     if(var == "CURRENT2") return String(displayTemp2);
     if(var == "SWAP_CHECKED") return swapAssignment ? "checked" : "";
-    if(var == "MOSFET1_STATUS") return digitalRead(SSR_PIN_1) == HIGH ? "ON" : "OFF";
-    if(var == "MOSFET2_STATUS") return digitalRead(SSR_PIN_2) == HIGH ? "ON" : "OFF";
-    if(var == "MOSFET1_STATUS_CLASS") return digitalRead(SSR_PIN_1) == HIGH ? "status-on" : "status-off";
-    if(var == "MOSFET2_STATUS_CLASS") return digitalRead(SSR_PIN_2) == HIGH ? "status-on" : "status-off";
+    if(var == "MOSFET1_STATUS") return digitalRead(SSR_PIN_1) == LOW ? "ON" : "OFF";
+    if(var == "MOSFET2_STATUS") return digitalRead(SSR_PIN_2) == LOW ? "ON" : "OFF";
+    if(var == "MOSFET1_STATUS_CLASS") return digitalRead(SSR_PIN_1) == LOW ? "status-on" : "status-off";
+    if(var == "MOSFET2_STATUS_CLASS") return digitalRead(SSR_PIN_2) == LOW ? "status-on" : "status-off";
     
     // WiFi settings
     if(var == "WIFI_SSID") {
@@ -695,7 +695,7 @@ void swapSensorMOSFET() {
 }
 
 unsigned long previousMillis = 0; // Stores the last time the temperature was updated
-const long interval = 1000; // Interval for updating (1 second)
+const long interval = 5000; // Interval for updating (5 seconds)
 
 DNSServer dnsServer;
 
@@ -965,10 +965,10 @@ void setup() {
         html.replace("%CURRENT1%", String(currentTemp1));
         html.replace("%CURRENT2%", String(currentTemp2));
         html.replace("%SWAP_CHECKED%", swapAssignment ? "checked" : "");
-        html.replace("%MOSFET1_STATUS%", digitalRead(SSR_PIN_1) == HIGH ? "ON" : "OFF");
-        html.replace("%MOSFET2_STATUS%", digitalRead(SSR_PIN_2) == HIGH ? "ON" : "OFF");
-        html.replace("%MOSFET1_STATUS_CLASS%", digitalRead(SSR_PIN_1) == HIGH ? "status-on" : "status-off");
-        html.replace("%MOSFET2_STATUS_CLASS%", digitalRead(SSR_PIN_2) == HIGH ? "status-on" : "status-off");
+        html.replace("%MOSFET1_STATUS%", digitalRead(SSR_PIN_1) == LOW ? "ON" : "OFF");
+        html.replace("%MOSFET2_STATUS%", digitalRead(SSR_PIN_2) == LOW ? "ON" : "OFF");
+        html.replace("%MOSFET1_STATUS_CLASS%", digitalRead(SSR_PIN_1) == LOW ? "status-on" : "status-off");
+        html.replace("%MOSFET2_STATUS_CLASS%", digitalRead(SSR_PIN_2) == LOW ? "status-on" : "status-off");
         html.replace("%WIFI_SSID%", activeSSID);
         html.replace("%WIFI_PASSWORD%", activePassword);
         html.replace("%TOTAL_RUNTIME%", formatRuntime(savedRuntimeMinutes * 60, false));
