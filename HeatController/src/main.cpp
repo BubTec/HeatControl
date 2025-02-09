@@ -1153,26 +1153,34 @@ void loop() {
         if (swapAssignment) {
             if (currentTemp2 < targetTemp1) {
                 digitalWrite(SSR_PIN_1, LOW);  // Inverted logic
+                Serial.printf("Heater 1 ON (%.1f < %.1f)\n", currentTemp2, targetTemp1);
             } else {
                 digitalWrite(SSR_PIN_1, HIGH); // Inverted logic
+                Serial.printf("Heater 1 OFF (%.1f >= %.1f)\n", currentTemp2, targetTemp1);
             }
 
             if (currentTemp1 < targetTemp2) {
                 digitalWrite(SSR_PIN_2, LOW);  // Inverted logic
+                Serial.printf("Heater 2 ON (%.1f < %.1f)\n", currentTemp1, targetTemp2);
             } else {
                 digitalWrite(SSR_PIN_2, HIGH); // Inverted logic
+                Serial.printf("Heater 2 OFF (%.1f >= %.1f)\n", currentTemp1, targetTemp2);
             }
         } else {
             if (currentTemp1 < targetTemp1) {
                 digitalWrite(SSR_PIN_1, LOW);  // Inverted logic
+                Serial.printf("Heater 1 ON (%.1f < %.1f)\n", currentTemp1, targetTemp1);
             } else {
                 digitalWrite(SSR_PIN_1, HIGH); // Inverted logic
+                Serial.printf("Heater 1 OFF (%.1f >= %.1f)\n", currentTemp1, targetTemp1);
             }
 
             if (currentTemp2 < targetTemp2) {
                 digitalWrite(SSR_PIN_2, LOW);  // Inverted logic
+                Serial.printf("Heater 2 ON (%.1f < %.1f)\n", currentTemp2, targetTemp2);
             } else {
                 digitalWrite(SSR_PIN_2, HIGH); // Inverted logic
+                Serial.printf("Heater 2 OFF (%.1f >= %.1f)\n", currentTemp2, targetTemp2);
             }
         }
     }
