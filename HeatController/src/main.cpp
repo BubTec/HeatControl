@@ -903,10 +903,12 @@ void setup() {
 
     // If Power Mode is active, turn on both heaters directly
     if (powerMode) {
-        digitalWrite(SSR_PIN_1, HIGH);
-        digitalWrite(SSR_PIN_2, HIGH);
+        digitalWrite(SSR_PIN_1, LOW);  // Inverted logic - ON
+        digitalWrite(SSR_PIN_2, LOW);  // Inverted logic - ON
         Serial.println("Power Mode activated - Both heaters will stay ON");
     } else {
+        digitalWrite(SSR_PIN_1, HIGH); // Inverted logic - OFF
+        digitalWrite(SSR_PIN_2, HIGH); // Inverted logic - OFF
         Serial.println("Normal Mode activated - Temperature control active");
     }
 
@@ -1150,27 +1152,27 @@ void loop() {
         // Normal temperature control only if NOT in Power Mode
         if (swapAssignment) {
             if (currentTemp2 < targetTemp1) {
-                digitalWrite(SSR_PIN_1, HIGH);
+                digitalWrite(SSR_PIN_1, LOW);  // Inverted logic
             } else {
-                digitalWrite(SSR_PIN_1, LOW);
+                digitalWrite(SSR_PIN_1, HIGH); // Inverted logic
             }
 
             if (currentTemp1 < targetTemp2) {
-                digitalWrite(SSR_PIN_2, HIGH);
+                digitalWrite(SSR_PIN_2, LOW);  // Inverted logic
             } else {
-                digitalWrite(SSR_PIN_2, LOW);
+                digitalWrite(SSR_PIN_2, HIGH); // Inverted logic
             }
         } else {
             if (currentTemp1 < targetTemp1) {
-                digitalWrite(SSR_PIN_1, HIGH);
+                digitalWrite(SSR_PIN_1, LOW);  // Inverted logic
             } else {
-                digitalWrite(SSR_PIN_1, LOW);
+                digitalWrite(SSR_PIN_1, HIGH); // Inverted logic
             }
 
             if (currentTemp2 < targetTemp2) {
-                digitalWrite(SSR_PIN_2, HIGH);
+                digitalWrite(SSR_PIN_2, LOW);  // Inverted logic
             } else {
-                digitalWrite(SSR_PIN_2, LOW);
+                digitalWrite(SSR_PIN_2, HIGH); // Inverted logic
             }
         }
     }
