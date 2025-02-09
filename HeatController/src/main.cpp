@@ -992,8 +992,8 @@ void setup() {
             "{\"current1\":%.1f,\"current2\":%.1f,\"h1\":%d,\"h2\":%d,\"totalRuntime\":\"%s\",\"currentRuntime\":\"%s\"}",
             currentTemp1,
             currentTemp2,
-            digitalRead(SSR_PIN_1),
-            digitalRead(SSR_PIN_2),
+            digitalRead(SSR_PIN_1) == LOW ? 1 : 0,  // Inverted logic
+            digitalRead(SSR_PIN_2) == LOW ? 1 : 0,  // Inverted logic
             formatRuntime(savedRuntimeMinutes * 60, false).c_str(),
             formatRuntime(currentSessionSeconds, true).c_str()
         );
