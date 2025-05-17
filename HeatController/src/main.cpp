@@ -13,16 +13,7 @@ void saveRuntime();
 void saveAndRestart();
 
 // HTTP Method definitions
-#ifndef HTTP_GET
-#define HTTP_GET     0x01
-#define HTTP_POST    0x02
-#define HTTP_DELETE  0x04
-#define HTTP_PUT     0x08
-#define HTTP_PATCH   0x10
-#define HTTP_HEAD    0x20
-#define HTTP_OPTIONS 0x40
-#define HTTP_ANY     0x7F
-#endif
+
 
 // Pin definitions
 #define ONE_WIRE_BUS 2
@@ -89,7 +80,7 @@ bool checkEEPROMSpace() {
 
 // Function to load WiFi credentials
 void loadWiFiCredentials() {
-    EEPROM.begin(512);
+    EEPROM.begin(EEPROM_SIZE);
     
     // Check if EEPROM is initialized
     byte initFlag = EEPROM.read(EEPROM_INIT_ADDR);
@@ -141,7 +132,7 @@ void saveWiFiCredentials(const String& ssid, const String& password) {
     
     if(ssid.length() == 0) return;  // Prevent empty SSID
     
-    EEPROM.begin(512);
+    EEPROM.begin(EEPROM_SIZE);
     
     // Clear the area
     for(int i = 0; i < 64; i++) {
@@ -508,7 +499,7 @@ String processor(const String& var) {
     
     // WiFi settings
     if(var == "WIFI_SSID") {
-        EEPROM.begin(512);
+        EEPROM.begin(EEPROM_SIZE);
         char storedSSID[32] = {0};
         for (int i = 0; i < 32; i++) {
             storedSSID[i] = EEPROM.read(EEPROM_SSID_ADDR + i);
@@ -522,7 +513,7 @@ String processor(const String& var) {
         return String(storedSSID);
     }
     if(var == "WIFI_PASSWORD") {
-        EEPROM.begin(512);
+        EEPROM.begin(EEPROM_SIZE);
         char storedPassword[32] = {0};
         for (int i = 0; i < 32; i++) {
             storedPassword[i] = EEPROM.read(EEPROM_PASS_ADDR + i);
@@ -575,7 +566,7 @@ public:
 
 // Improved helper functions
 void writeFloat(int addr, float value) {
-    EEPROM.begin(512);
+    EEPROM.begin(EEPROM_SIZE);
     byte* p = (byte*)(void*)&value;
     for (unsigned int i = 0; i < sizeof(value); i++) {
         EEPROM.write(addr + i, *p++);
@@ -591,7 +582,7 @@ void writeFloat(int addr, float value) {
 }
 
 float readFloat(int addr) {
-    EEPROM.begin(512);
+    EEPROM.begin(EEPROM_SIZE);
     float value;
     byte* p = (byte*)(void*)&value;
     for (unsigned int i = 0; i < sizeof(value); i++) {
@@ -604,7 +595,7 @@ float readFloat(int addr) {
 // Improved temperature functions
 void loadTemperatures() {
     Serial.println("\n=== Loading Temperatures ===");
-    EEPROM.begin(512);
+    EEPROM.begin(EEPROM_SIZE);
     
     // Load Temp1
     float temp1;
@@ -646,7 +637,7 @@ void saveTemperatures() {
         return;
     }
     
-    EEPROM.begin(512);
+    EEPROM.begin(EEPROM_SIZE);
     
     // Save Temp1
     byte* p1 = (byte*)(void*)&targetTemp1;
@@ -670,7 +661,7 @@ void saveTemperatures() {
 
 // Improved sensor assignment functions
 void loadAssignment() {
-    EEPROM.begin(512);
+    EEPROM.begin(EEPROM_SIZE);
     byte value = EEPROM.read(EEPROM_SWAP_ADDR);
     swapAssignment = (value == 1);
     EEPROM.end();
@@ -678,7 +669,7 @@ void loadAssignment() {
 }
 
 void saveAssignment() {
-    EEPROM.begin(512);
+    EEPROM.begin(EEPROM_SIZE);
     Serial.printf("Saving swap assignment: %s\n", swapAssignment ? "true" : "false");
     EEPROM.write(EEPROM_SWAP_ADDR, swapAssignment ? 1 : 0);
     if(EEPROM.commit()) {
@@ -851,14 +842,14 @@ String formatRuntime(unsigned long seconds, bool showSeconds) {
 
 // Neue Funktionen für Boot-Modus Management
 void setNextBootMode(uint8_t mode) {
-    EEPROM.begin(512);
+    EEPROM.begin(EEPROM_SIZE);
     EEPROM.write(EEPROM_BOOT_MODE_ADDR, mode);
     EEPROM.commit();
     EEPROM.end();
 }
 
 uint8_t getAndClearBootMode() {
-    EEPROM.begin(512);
+    EEPROM.begin(EEPROM_SIZE);
     uint8_t mode = EEPROM.read(EEPROM_BOOT_MODE_ADDR);
     // Lösche den Wert direkt nach dem Lesen
     EEPROM.write(EEPROM_BOOT_MODE_ADDR, 0);
@@ -878,7 +869,7 @@ void setup() {
     lastRuntimeSave = millis();
     
     // Initialize EEPROM and load temperatures
-    EEPROM.begin(512);
+    EEPROM.begin(EEPROM_SIZE);
     loadTemperatures();
     
     // Initialize sensors and pins
