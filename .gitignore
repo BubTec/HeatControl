@@ -16,10 +16,6 @@
 *.dylib
 *.dll
 
-# Fortran module files
-*.mod
-*.smod
-
 # Compiled Static libraries
 *.lai
 *.la
@@ -31,28 +27,35 @@
 *.out
 *.app
 
-# Ignore build files
+# Build directories
 /build/
 /bin/
 /obj/
 
-# Ignore IDE files
-*.vscode/
-*.idea/
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 
-# Ignore system files
+# System
 .DS_Store
 Thumbs.db
 
-# Ignore other files
+# Logs and temp
 *.log
 *.tmp
 
-# PlatformIO specific
-/HeatController/.pio
-/HeatController/.vscode/.browse.c_cpp.db*
-/HeatController/.vscode/c_cpp_properties.json
-/HeatController/.vscode/launch.json
-/HeatController/.vscode/ipch
-# not needed stuff
-/HeatController/.gitignore
+# PlatformIO
+.pio/
+.pioenvs/
+.piolibdeps/
+.clang_complete
+ccls-cache/
+
+# Generated source (embedded web files etc.)
+src/generated/
+
+# Optional: uncomment if data/ is built from websrc/ and should not be committed
+# /data/
