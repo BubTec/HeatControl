@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HeatControl</title>
+  <style>
+    html {
+      font-family: Arial, Helvetica, sans-serif;
+      text-align: center;
+      background-color: #1a1a1a;
+      color: white;
+    }
+    body {
+      margin: 0;
+      padding: 20px;
+    }
+    .header {
+      background-color: #e5e5e5;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      padding: 8px;
+    }
+    .logo {
+      width: 100%;
+      max-width: 640px;
+      height: auto;
+    }
+    .container {
+      max-width: 700px;
+      margin: 0 auto;
+      padding: 0 14px;
+    }
+    .box {
+      background-color: #333;
+      padding: 18px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+    .status {
+      display: inline-block;
+      padding: 5px 14px;
+      border-radius: 4px;
+      margin: 8px 0;
+      font-weight: bold;
+    }
+    .status-on { background-color: #e74c3c; }
+    .status-off { background-color: #666; }
+    input[type="number"], input[type="text"], input[type="password"] {
+      background-color: #444;
+      border: 1px solid #666;
+      color: white;
+      padding: 8px;
+      border-radius: 4px;
+      width: 120px;
+      margin: 5px;
+    }
+    input[type="submit"], button {
+      background-color: #e74c3c;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 10px;
+    }
+    input[type="submit"]:hover, button:hover {
+      background-color: #c0392b;
+    }
+    .temp-control {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      margin: 15px 0;
+    }
+    .temp-buttons-display {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 15px;
+      margin-bottom: 12px;
+    }
+    .temp-button {
+      width: 50px;
+      height: 50px;
+      font-size: 1.8rem;
+      background-color: #e74c3c;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      padding: 0;
+      line-height: 50px;
+      touch-action: manipulation;
+    }
+    .temp-display {
+      font-size: 1.4rem;
+      min-width: 80px;
+      text-align: center;
+    }
+    .slider-container {
+      width: 100%;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    .slider {
+      width: 100%;
+      height: 8px;
+      border-radius: 4px;
+      background: #444;
+      outline: none;
+      margin: 0 auto;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+    .slider::-webkit-slider-thumb {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #e74c3c;
+      cursor: pointer;
+    }
+    .slider::-moz-range-thumb {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #e74c3c;
+      cursor: pointer;
+      border: none;
+    }
+    .muted {
+      color: #bdbdbd;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <img class="logo" src="/LOGO.png" alt="HeatControl logo">
+  </div>
+  <div class="container">
+    <div class="box">
+      Mode: <span id="modeDisplay">-</span><br>
+      <span class="muted">AP IP: 4.3.2.1</span>
+    </div>
+
+    <form action="/setTemp" method="POST" id="tempForm">
+      <div class="box">
+        <h3>Heating 1</h3>
+        <div id="currentTemp1Display">Current: 0.0 C</div>
+        <div class="temp-control">
+          <div class="temp-buttons-display">
+            <button type="button" class="temp-button" onclick="adjustTemp('temp1', -0.5)">-</button>
+            <div class="temp-display"><span id="targetTemp1Display">23.0</span>C</div>
+            <button type="button" class="temp-button" onclick="adjustTemp('temp1', 0.5)">+</button>
+          </div>
+          <div class="slider-container">
+            <input type="range" class="slider" id="temp1Slider" min="10" max="45" step="0.5" value="23.0"
+                   oninput="updateFromSlider('temp1')">
+            <input type="number" id="temp1" name="temp1" value="23.0" step="0.5" min="10" max="45" style="display:none;">
+          </div>
+        </div>
+        <div id="status1" class="status status-off">Status: OFF</div>
+      </div>
+
+      <div class="box">
+        <h3>Heating 2</h3>
+        <div id="currentTemp2Display">Current: 0.0 C</div>
+        <div class="temp-control">
+          <div class="temp-buttons-display">
+            <button type="button" class="temp-button" onclick="adjustTemp('temp2', -0.5)">-</button>
+            <div class="temp-display"><span id="targetTemp2Display">23.0</span>C</div>
+            <button type="button" class="temp-button" onclick="adjustTemp('temp2', 0.5)">+</button>
+          </div>
+          <div class="slider-container">
+            <input type="range" class="slider" id="temp2Slider" min="10" max="45" step="0.5" value="23.0"
+                   oninput="updateFromSlider('temp2')">
+            <input type="number" id="temp2" name="temp2" value="23.0" step="0.5" min="10" max="45" style="display:none;">
+          </div>
+        </div>
+        <div id="status2" class="status status-off">Status: OFF</div>
+      </div>
+
+      <input type="submit" value="Save Settings">
+    </form>
+
+    <form action="/swapSensors" method="POST" class="box">
+      <label>
+        <input type="checkbox" id="swapCheckbox" name="swap">
+        Swap Sensors
+      </label>
+      <br>
+      <input type="submit" value="Update">
+    </form>
+
+    <form action="/setWiFi" method="POST" class="box">
+      <h3>WiFi Settings</h3>
+      <div>
+        <label>SSID<br><input type="text" id="ssid" name="ssid" value="HeatControl"></label>
+      </div>
+      <div>
+        <label>Password<br><input type="password" id="password" name="password" value=""></label>
+      </div>
+      <input type="submit" value="Save WiFi">
+    </form>
+
+    <div class="box">
+      <h3>Restart Options</h3>
+      <form action="/restart" method="POST" style="display:inline-block;">
+        <input type="hidden" name="mode" value="normal">
+        <input type="submit" value="Restart to Normal">
+      </form>
+      <form action="/restart" method="POST" style="display:inline-block;">
+        <input type="hidden" name="mode" value="power">
+        <input type="submit" value="Restart to Power">
+      </form>
+    </div>
+
+    <div class="box">
+      <h3>System Runtime</h3>
+      <div id="runtimeTotal">Total: 0m</div>
+      <div id="runtimeCurrent">Current: 0s</div>
+      <form action="/resetRuntime" method="POST" style="margin-top:10px;">
+        <input type="submit" value="Reset Total Runtime" onclick="return confirm('Reset total runtime?');">
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const USER_EDIT_HOLD_MS = 6000;
+    let userEditingUntilMs = 0;
+
+    function markUserEditing() {
+      userEditingUntilMs = Date.now() + USER_EDIT_HOLD_MS;
+    }
+
+    function isUserEditing() {
+      return Date.now() < userEditingUntilMs;
+    }
+
+    function clampTemp(value) {
+      return Math.min(Math.max(value, 10), 45);
+    }
+
+    function updateTempDisplays(id, value) {
+      const input = document.getElementById(id);
+      const slider = document.getElementById(id + 'Slider');
+      const display = document.getElementById('target' + id.charAt(0).toUpperCase() + id.slice(1) + 'Display');
+      const fixed = Number(value).toFixed(1);
+      input.value = fixed;
+      slider.value = fixed;
+      display.textContent = fixed;
+    }
+
+    function adjustTemp(id, change) {
+      markUserEditing();
+      const input = document.getElementById(id);
+      const current = Number(input.value || 23);
+      updateTempDisplays(id, clampTemp(current + change));
+    }
+
+    function updateFromSlider(id) {
+      markUserEditing();
+      const slider = document.getElementById(id + 'Slider');
+      updateTempDisplays(id, clampTemp(Number(slider.value)));
+    }
+
+    function updateStatus() {
+      fetch('/status')
+        .then(response => response.json())
+        .then(data => {
+          document.getElementById('modeDisplay').textContent = data.mode || '-';
+          document.getElementById('currentTemp1Display').textContent = 'Current: ' + Number(data.current1 || 0).toFixed(1) + ' C';
+          document.getElementById('currentTemp2Display').textContent = 'Current: ' + Number(data.current2 || 0).toFixed(1) + ' C';
+
+          if (!isUserEditing()) {
+            updateTempDisplays('temp1', Number(data.target1 || 23));
+            updateTempDisplays('temp2', Number(data.target2 || 23));
+          }
+
+          const status1 = document.getElementById('status1');
+          const status2 = document.getElementById('status2');
+          const h1On = !!data.h1;
+          const h2On = !!data.h2;
+          status1.textContent = 'Status: ' + (h1On ? 'ON' : 'OFF');
+          status2.textContent = 'Status: ' + (h2On ? 'ON' : 'OFF');
+          status1.className = 'status ' + (h1On ? 'status-on' : 'status-off');
+          status2.className = 'status ' + (h2On ? 'status-on' : 'status-off');
+
+          if (!isUserEditing()) {
+            document.getElementById('swapCheckbox').checked = !!data.swap;
+            if (typeof data.ssid === 'string') document.getElementById('ssid').value = data.ssid;
+            if (typeof data.password === 'string') document.getElementById('password').value = data.password;
+          }
+
+          if (typeof data.totalRuntime === 'string') {
+            document.getElementById('runtimeTotal').textContent = 'Total: ' + data.totalRuntime;
+          }
+          if (typeof data.currentRuntime === 'string') {
+            document.getElementById('runtimeCurrent').textContent = 'Current: ' + data.currentRuntime;
+          }
+        })
+        .catch(() => {});
+    }
+
+    document.getElementById('swapCheckbox').addEventListener('change', markUserEditing);
+    document.getElementById('ssid').addEventListener('input', markUserEditing);
+    document.getElementById('password').addEventListener('input', markUserEditing);
+    document.getElementById('temp1Slider').addEventListener('change', markUserEditing);
+    document.getElementById('temp2Slider').addEventListener('change', markUserEditing);
+    document.getElementById('temp1Slider').addEventListener('click', markUserEditing);
+    document.getElementById('temp2Slider').addEventListener('click', markUserEditing);
+
+    setInterval(updateStatus, 2000);
+    updateStatus();
+  </script>
+</body>
+</html>
