@@ -111,6 +111,9 @@ jobs:
             echo "All build artifacts found successfully."
           fi
 
+      - name: Run Unit Tests (native mocks)
+        run: pio test -e native
+
       - name: Determine and increment version
         id: version
         run: |

@@ -1,8 +1,31 @@
 #include "control.h"
 
 #include "app_state.h"
+#include "control_logic.h"
 
 namespace HeatControl {
+
+namespace {
+
+class ArduinoGpio : public logic::IGpio {
+ public:
+  void writePin(int pin, int level) override {
+    digitalWrite(pin, level == PIN_LOW ? LOW : HIGH);
+  }
+
+  int readPin(int pin) const override {
+    return digitalRead(pin) == LOW ? PIN_LOW : PIN_HIGH;
+  }
+};
+
+class DallasSensorsAdapter : public logic::ITemperatureSensors {
+ public:
+  void requestTemperatures() override { sensors.requestTemperatures(); }
+
+  float getTempCByIndex(int index) override { return sensors.getTempCByIndex(index); }
+};
+
+}  // namespace
 
 void startupSignal(bool isPowerMode) {
   const int pulseCount = isPowerMode ? 2 : 1;
@@ -15,30 +38,24 @@ void startupSignal(bool isPowerMode) {
 }
 
 bool isSensorError(float temperatureC) {
-  return temperatureC == DEVICE_DISCONNECTED_C || temperatureC < -20.0F || temperatureC > 125.0F;
+  return logic::isSensorError(static_cast<float>(temperatureC));
 }
 
 void controlHeater(int pin, bool forceOn, float currentTemp, float targetTemp) {
-  if (forceOn || isSensorError(currentTemp) || currentTemp < targetTemp) {
-    digitalWrite(pin, LOW);   // Inverted logic: LOW = ON
-  } else {
-    digitalWrite(pin, HIGH);  // Inverted logic: HIGH = OFF
-  }
+  ArduinoGpio gpio;
+  logic::controlHeater(gpio, pin, forceOn, currentTemp, targetTemp);
 }
 
 String heaterStateText(int pin) {
-  return digitalRead(pin) == LOW ? "ON" : "OFF";
+  ArduinoGpio gpio;
+  return logic::heaterStateTextFromLevel(gpio.readPin(pin));
 }
 
 void updateSensorsAndHeaters() {
-  sensors.requestTemperatures();
-  currentTemp1 = sensors.getTempCByIndex(0);
-  currentTemp2 = sensors.getTempCByIndex(1);
-
-  const float controlTemp1 = swapAssignment ? currentTemp2 : currentTemp1;
-  const float controlTemp2 = swapAssignment ? currentTemp1 : currentTemp2;
-  controlHeater(SSR_PIN_1, powerMode, controlTemp1, targetTemp1);
-  controlHeater(SSR_PIN_2, powerMode, controlTemp2, targetTemp2);
+  ArduinoGpio gpio;
+  DallasSensorsAdapter tempSensors;
+  logic::updateSensorsAndHeaters(tempSensors, gpio, powerMode, swapAssignment, targetTemp1, targetTemp2, currentTemp1,
+                                 currentTemp2, SSR_PIN_1, SSR_PIN_2);
 }
 
 }  // namespace HeatControl
