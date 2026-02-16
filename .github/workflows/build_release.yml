@@ -1,0 +1,199 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - main
+      - production_repo
+    paths:
+      - "src/**"
+      - "websrc/**"
+      - "tools/**"
+      - "buildprocess/**"
+      - ".github/workflows/build_release.yml"
+      - "platformio.ini"
+      - "embed_webfiles.py"
+      - "extra_script.py"
+      - "!src/**/*.md"
+      - "!**/*.png"
+      - "!**/*.jpg"
+      - "!**/*.jpeg"
+      - "!version.txt"
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref }}
+          path: .
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python dependencies
+        run: pip install requests
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.platformio/.cache
+          key: ${{ runner.os }}-pio
+
+      - name: Install PlatformIO Core
+        run: pip install --upgrade platformio
+
+      - name: Prepare Web Files
+        run: |
+          echo "Running embed_webfiles.py to prepare web content..."
+          python embed_webfiles.py
+          echo "Web files embedded successfully"
+
+      - name: Build PlatformIO Project
+        run: |
+          echo "Starting PlatformIO build..."
+          pio run -e esp32-c3 --verbose
+          BUILD_EXIT_CODE=$?
+          echo "Build exit code: $BUILD_EXIT_CODE"
+          if [ $BUILD_EXIT_CODE -ne 0 ]; then
+            echo "Build failed with exit code $BUILD_EXIT_CODE"
+            exit $BUILD_EXIT_CODE
+          else
+            echo "Build completed successfully"
+          fi
+
+      - name: Verify Build Artifacts
+        run: |
+          echo "Verifying build artifacts..."
+          echo "Working directory: $(pwd)"
+          find .pio/build/esp32-c3/ -type f -name "*.bin" -ls 2>/dev/null || echo "No .bin files found in build directory"
+          echo ""
+
+          MISSING_FILES=""
+
+          if [ ! -f .pio/build/esp32-c3/firmware.bin ]; then
+            echo "ERROR: firmware.bin not found!"
+            MISSING_FILES="${MISSING_FILES} firmware.bin"
+          else
+            echo "firmware.bin found ($(stat -c%s .pio/build/esp32-c3/firmware.bin) bytes)"
+          fi
+
+          if [ ! -f .pio/build/esp32-c3/bootloader.bin ]; then
+            echo "ERROR: bootloader.bin not found!"
+            MISSING_FILES="${MISSING_FILES} bootloader.bin"
+          else
+            echo "bootloader.bin found ($(stat -c%s .pio/build/esp32-c3/bootloader.bin) bytes)"
+          fi
+
+          if [ ! -f .pio/build/esp32-c3/partitions.bin ]; then
+            echo "ERROR: partitions.bin not found!"
+            MISSING_FILES="${MISSING_FILES} partitions.bin"
+          else
+            echo "partitions.bin found ($(stat -c%s .pio/build/esp32-c3/partitions.bin) bytes)"
+          fi
+
+          if [ ! -z "${MISSING_FILES}" ]; then
+            echo ""
+            echo "CRITICAL: Missing build artifacts:${MISSING_FILES}"
+            exit 1
+          else
+            echo ""
+            echo "All build artifacts found successfully."
+          fi
+
+      - name: Determine and increment version
+        id: version
+        run: |
+          if [ -f version.txt ]; then
+            CURRENT_VERSION=$(cat version.txt)
+            echo "Current version from version.txt: ${CURRENT_VERSION}"
+          else
+            CURRENT_VERSION=$(git tag --list | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1)
+            if [ -z "${CURRENT_VERSION}" ]; then
+              CURRENT_VERSION="0.0.0"
+            fi
+            echo "Current version from tags: ${CURRENT_VERSION}"
+          fi
+
+          if [[ ! "${CURRENT_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "ERROR: Invalid version format: ${CURRENT_VERSION}"
+            echo "Expected format: x.y.z (e.g., 0.0.32)"
+            exit 1
+          fi
+
+          IFS='.' read -ra PARTS <<< "${CURRENT_VERSION}"
+          MAJOR=${PARTS[0]}
+          MINOR=${PARTS[1]}
+          PATCH=${PARTS[2]}
+
+          NEW_PATCH=$((PATCH + 1))
+          NEW_VERSION="${MAJOR}.${MINOR}.${NEW_PATCH}"
+
+          echo "New version: ${NEW_VERSION}"
+          echo "${NEW_VERSION}" > version.txt
+
+          echo "VERSION=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Commit version file
+        if: >-
+          github.ref == 'refs/heads/main' ||
+          github.ref == 'refs/heads/production_repo'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add version.txt
+          git commit -m "Auto-increment version to ${{ steps.version.outputs.version }}" || exit 0
+          git pull --rebase origin ${{ github.ref_name }} || echo "No remote changes to pull"
+          git push
+
+      - name: Generate Release Notes
+        if: >-
+          github.ref == 'refs/heads/main' ||
+          github.ref == 'refs/heads/production_repo'
+        id: release_notes
+        run: |
+          python buildprocess/generate_release_notes.py \
+            "${{ steps.version.outputs.version }}" > release_notes.md
+          {
+            echo "RELEASE_NOTES<<EOF"
+            cat release_notes.md
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+        env:
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          LLM_BASE_URL: ${{ vars.LLM_BASE_URL }}
+          LLM_MODEL: ${{ vars.LLM_MODEL }}
+          LLM_PROVIDER: ${{ vars.LLM_PROVIDER }}
+
+      - name: Create Release
+        if: >-
+          github.ref == 'refs/heads/main' ||
+          github.ref == 'refs/heads/production_repo'
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ steps.version.outputs.version }}
+          name: Release ${{ steps.version.outputs.version }}
+          body: ${{ steps.release_notes.outputs.RELEASE_NOTES }}
+          artifacts: |
+            .pio/build/esp32-c3/firmware.bin
+            .pio/build/esp32-c3/bootloader.bin
+            .pio/build/esp32-c3/partitions.bin
+          draft: false
+          prerelease: false
+          allowUpdates: true
+          replacesArtifacts: true
+          removeArtifacts: true
+          omitBodyDuringUpdate: false
+          omitNameDuringUpdate: false
+          token: ${{ secrets.GITHUB_TOKEN }}
