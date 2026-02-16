@@ -10,11 +10,11 @@ namespace {
 class ArduinoGpio : public logic::IGpio {
  public:
   void writePin(int pin, int level) override {
-    digitalWrite(pin, level == PIN_LOW ? LOW : HIGH);
+    digitalWrite(pin, level == logic::PIN_LOW ? LOW : HIGH);
   }
 
   int readPin(int pin) const override {
-    return digitalRead(pin) == LOW ? PIN_LOW : PIN_HIGH;
+    return digitalRead(pin) == LOW ? logic::PIN_LOW : logic::PIN_HIGH;
   }
 };
 

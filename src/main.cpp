@@ -77,7 +77,7 @@ void setup() {
   Serial.printf("AP IP: %s\n", WiFi.softAPIP().toString().c_str());
   Serial.printf("AP SSID: %s\n", activeSsid.c_str());
   Serial.printf("LittleFS: %s\n", fileSystemReady ? "ready" : "not ready");
-  Serial.println("HTTP: /, /status, /runtime, /setTemp, /swapSensors, /setWiFi, /restart, /resetRuntime");
+  Serial.println("HTTP: /, /status, /runtime, /setTemp, /swapSensors, /setWiFi, /restart, /resetRuntime, /update");
   Serial.printf("SSR1: %s | SSR2: %s\n",
                 heaterStateText(SSR_PIN_1).c_str(),
                 heaterStateText(SSR_PIN_2).c_str());

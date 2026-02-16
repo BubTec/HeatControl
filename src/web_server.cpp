@@ -2,6 +2,7 @@
 
 #include <ESPAsyncWebServer.h>
 #include <LittleFS.h>
+#include <Update.h>
 #include <WiFi.h>
 
 #include "app_state.h"
@@ -12,6 +13,10 @@
 namespace HeatControl {
 
 namespace {
+
+bool otaUploadStarted = false;
+bool otaUploadOk = false;
+String otaUploadMessage;
 
 String jsonEscape(const String &value) {
   String out;
@@ -101,6 +106,11 @@ String generateIndexHtml() {
           formatRuntime(savedRuntimeMinutes * 60UL, false) + "</div><div id='runtimeCurrent'>Current: " +
           formatRuntime(currentSessionSeconds, true) + "</div><form action='/resetRuntime' method='POST' style='margin-top:10px'>"
           "<input type='submit' value='Reset runtime'></form></div>";
+
+  html += F("<div class='box'><h3>Firmware Update (OTA)</h3>"
+            "<div class='muted'>Upload firmware.bin from the latest release.</div>"
+            "<form action='/update' method='GET' style='margin-top:10px'>"
+            "<input type='submit' value='Open OTA Update'></form></div>");
 
   html += F("<div class='box'><h3>Restart</h3><div class='row'>"
             "<form action='/restart' method='POST'><input type='hidden' name='mode' value='normal'><input type='submit' value='Restart normal'></form>"
@@ -231,6 +241,88 @@ void setupWebServer() {
     startTimeMs = millis();
     request->redirect("/");
   });
+
+  server.on("/update", HTTP_GET, [](AsyncWebServerRequest *request) {
+    String page;
+    page.reserve(1800);
+    page += F(
+        "<!DOCTYPE html><html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1'>"
+        "<title>HeatControl OTA</title><style>"
+        "body{font-family:Arial,Helvetica,sans-serif;background:#1d1f24;color:#fff;margin:0;padding:16px}"
+        ".box{max-width:600px;margin:0 auto;background:#2b2f36;padding:16px;border-radius:10px}"
+        "input[type=file]{margin:10px 0;color:#fff}"
+        "input[type=submit],a{background:#c0392b;color:#fff;border:0;padding:10px 14px;border-radius:6px;text-decoration:none;display:inline-block}"
+        ".muted{color:#bdbdbd;font-size:.9rem}"
+        "</style></head><body><div class='box'><h2>Firmware Update (OTA)</h2>"
+        "<p class='muted'>Select <b>firmware.bin</b> from a HeatControl release and upload it.</p>"
+        "<form method='POST' action='/update' enctype='multipart/form-data'>"
+        "<input type='file' name='firmware' accept='.bin' required><br>"
+        "<input type='submit' value='Upload and Flash'>"
+        "</form><br><a href='/'>Back</a></div></body></html>");
+    request->send(200, "text/html", page);
+  });
+
+  server.on(
+      "/update", HTTP_POST,
+      [](AsyncWebServerRequest *request) {
+        if (!otaUploadStarted) {
+          request->send(400, "text/plain", "No upload received.");
+          return;
+        }
+
+        if (!otaUploadOk) {
+          const String msg = otaUploadMessage.isEmpty() ? String("Update failed.") : otaUploadMessage;
+          otaUploadStarted = false;
+          otaUploadOk = false;
+          otaUploadMessage = "";
+          request->send(500, "text/plain", msg);
+          return;
+        }
+
+        otaUploadStarted = false;
+        otaUploadOk = false;
+        otaUploadMessage = "";
+        request->send(200, "text/plain", "Update successful. Device will reboot.");
+        delay(300);
+        ESP.restart();
+      },
+      [](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
+        (void)request;
+        if (index == 0) {
+          otaUploadStarted = true;
+          otaUploadOk = false;
+          otaUploadMessage = "";
+
+          if (!filename.endsWith(".bin")) {
+            otaUploadMessage = "Only .bin firmware files are accepted.";
+            return;
+          }
+
+          if (!Update.begin(UPDATE_SIZE_UNKNOWN, U_FLASH)) {
+            otaUploadMessage = "Update begin failed. Error code: " + String(Update.getError());
+            return;
+          }
+        }
+
+        if (!otaUploadMessage.isEmpty()) {
+          return;
+        }
+
+        const size_t written = Update.write(data, len);
+        if (written != len) {
+          otaUploadMessage = "Write failed. Error code: " + String(Update.getError());
+          return;
+        }
+
+        if (final) {
+          if (!Update.end(true)) {
+            otaUploadMessage = "Finalize failed. Error code: " + String(Update.getError());
+            return;
+          }
+          otaUploadOk = true;
+          otaUploadMessage = "OK";
+        }
+      });
 
   server.onNotFound([](AsyncWebServerRequest *request) {
     if (sendEmbeddedFile(request, request->url())) {
