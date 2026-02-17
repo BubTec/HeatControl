@@ -26,6 +26,17 @@ float readFloatFromEeprom(int addr) {
 
 }  // namespace
 
+namespace {
+
+uint8_t clampManualPowerPercent(uint8_t value) {
+  if (value == 25 || value == 50 || value == 75 || value == 100) {
+    return value;
+  }
+  return 25;
+}
+
+}  // namespace
+
 void setNextBootMode(uint8_t mode) {
   EEPROM.write(EEPROM_BOOT_MODE_ADDR, mode);
   EEPROM.commit();
@@ -110,6 +121,29 @@ void loadWiFiCredentials() {
 
   activeSsid = String(ssid);
   activePassword = String(pass);
+}
+
+void loadManualPowerPercent() {
+  manualPowerPercent = clampManualPowerPercent(EEPROM.read(EEPROM_MANUAL_POWER_ADDR));
+}
+
+void saveManualPowerPercent() {
+  EEPROM.write(EEPROM_MANUAL_POWER_ADDR, clampManualPowerPercent(manualPowerPercent));
+  EEPROM.commit();
+}
+
+void cycleManualPowerPercent() {
+  const uint8_t current = clampManualPowerPercent(manualPowerPercent);
+  if (current == 25) {
+    manualPowerPercent = 50;
+  } else if (current == 50) {
+    manualPowerPercent = 75;
+  } else if (current == 75) {
+    manualPowerPercent = 100;
+  } else {
+    manualPowerPercent = 25;
+  }
+  saveManualPowerPercent();
 }
 
 void writeRuntimeToEeprom(uint32_t minutes) {

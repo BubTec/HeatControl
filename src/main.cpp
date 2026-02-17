@@ -35,8 +35,17 @@ void setup() {
     powerMode = (digitalRead(INPUT_PIN) == HIGH);
   }
 
-  startupSignal(powerMode);
   sensors.begin();
+  manualMode = (sensors.getDeviceCount() == 0);
+  if (manualMode) {
+    powerMode = false;
+    loadManualPowerPercent();
+    if (digitalRead(INPUT_PIN) == HIGH) {
+      cycleManualPowerPercent();
+    }
+  }
+
+  startupSignal(powerMode, manualMode, manualPowerPercent);
   loadTemperatureTargets();
   loadSwapAssignment();
   loadWiFiCredentials();
@@ -72,7 +81,9 @@ void setup() {
   Serial.println();
   Serial.println("=== ESP32-C3 modular setup test ===");
   Serial.printf("Reset reason: %d\n", static_cast<int>(esp_reset_reason()));
-  Serial.printf("Detected mode: %s\n", powerMode ? "POWER" : "NORMAL");
+  const String modeText = manualMode ? ("MANUAL " + String(manualPowerPercent) + "%")
+                                     : (powerMode ? "POWER" : "NORMAL");
+  Serial.printf("Detected mode: %s\n", modeText.c_str());
   Serial.printf("OneWire bus pin: GPIO%d\n", ONE_WIRE_BUS);
   Serial.printf("AP IP: %s\n", WiFi.softAPIP().toString().c_str());
   Serial.printf("AP SSID: %s\n", activeSsid.c_str());
@@ -94,11 +105,13 @@ void loop() {
   if (now - lastPrintMs >= 2000) {
     lastPrintMs = now;
     ++counter;
+    const String modeLabel =
+        manualMode ? ("MANUAL " + String(manualPowerPercent) + "%") : (powerMode ? "POWER" : "NORMAL");
     Serial.printf("alive %u | uptime_ms=%lu | heap=%u | mode=%s | t1=%.2f | t2=%.2f | target1=%.1f | target2=%.1f | swap=%d | h1=%s | h2=%s\n",
                   counter,
                   now,
                   ESP.getFreeHeap(),
-                  powerMode ? "POWER" : "NORMAL",
+                  modeLabel.c_str(),
                   currentTemp1,
                   currentTemp2,
                   targetTemp1,

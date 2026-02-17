@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 namespace HeatControl {
 namespace logic {
 
@@ -22,11 +24,13 @@ class ITemperatureSensors {
 
 bool isSensorError(float temperatureC);
 bool shouldHeaterBeOn(bool forceOn, float currentTemp, float targetTemp);
+bool shouldManualHeaterBeOn(uint8_t manualPowerPercent, unsigned long nowMs);
 void controlHeater(IGpio &gpio, int pin, bool forceOn, float currentTemp, float targetTemp);
 const char *heaterStateTextFromLevel(int level);
-void updateSensorsAndHeaters(ITemperatureSensors &sensors, IGpio &gpio, bool powerMode, bool swapAssignment,
-                             float targetTemp1, float targetTemp2, float &currentTemp1, float &currentTemp2,
-                             int heaterPin1, int heaterPin2);
+void updateSensorsAndHeaters(ITemperatureSensors &sensors, IGpio &gpio, bool powerMode, bool manualMode,
+                             uint8_t manualPowerPercent, bool swapAssignment, float targetTemp1, float targetTemp2,
+                             float &currentTemp1, float &currentTemp2, int heaterPin1, int heaterPin2,
+                             unsigned long nowMs);
 
 }  // namespace logic
 }  // namespace HeatControl

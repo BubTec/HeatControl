@@ -12,6 +12,7 @@ uint32_t counter = 0;
 uint32_t savedRuntimeMinutes = 0;
 
 bool powerMode = false;
+bool manualMode = false;
 bool swapAssignment = false;
 bool fileSystemReady = false;
 
@@ -19,6 +20,7 @@ float currentTemp1 = DEVICE_DISCONNECTED_C;
 float currentTemp2 = DEVICE_DISCONNECTED_C;
 float targetTemp1 = DEFAULT_TARGET_TEMP;
 float targetTemp2 = DEFAULT_TARGET_TEMP;
+uint8_t manualPowerPercent = 25;
 
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);

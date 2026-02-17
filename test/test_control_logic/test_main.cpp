@@ -67,7 +67,8 @@ void test_update_sensors_and_heaters_without_swap() {
   float current0 = 0.0F;
   float current1 = 0.0F;
 
-  HeatControl::logic::updateSensorsAndHeaters(sensors, gpio, false, false, 23.0F, 23.0F, current0, current1, 4, 5);
+  HeatControl::logic::updateSensorsAndHeaters(sensors, gpio, false, false, 25, false, 23.0F, 23.0F, current0, current1,
+                                              4, 5, 0);
 
   TEST_ASSERT_EQUAL_INT(1, sensors.requestCount);
   TEST_ASSERT_EQUAL_FLOAT(21.0F, current0);
@@ -85,7 +86,8 @@ void test_update_sensors_and_heaters_with_swap() {
   float current0 = 0.0F;
   float current1 = 0.0F;
 
-  HeatControl::logic::updateSensorsAndHeaters(sensors, gpio, false, true, 23.0F, 23.0F, current0, current1, 4, 5);
+  HeatControl::logic::updateSensorsAndHeaters(sensors, gpio, false, false, 25, true, 23.0F, 23.0F, current0, current1,
+                                              4, 5, 0);
 
   TEST_ASSERT_EQUAL_INT(HeatControl::logic::PIN_LOW, gpio.readPin(4));
   TEST_ASSERT_EQUAL_INT(HeatControl::logic::PIN_HIGH, gpio.readPin(5));
@@ -94,6 +96,38 @@ void test_update_sensors_and_heaters_with_swap() {
 void test_heater_state_text_from_level() {
   TEST_ASSERT_EQUAL_STRING("ON", HeatControl::logic::heaterStateTextFromLevel(HeatControl::logic::PIN_LOW));
   TEST_ASSERT_EQUAL_STRING("OFF", HeatControl::logic::heaterStateTextFromLevel(HeatControl::logic::PIN_HIGH));
+}
+
+void test_manual_pwm_decision() {
+  TEST_ASSERT_TRUE(HeatControl::logic::shouldManualHeaterBeOn(25, 0));
+  TEST_ASSERT_TRUE(HeatControl::logic::shouldManualHeaterBeOn(25, 249));
+  TEST_ASSERT_FALSE(HeatControl::logic::shouldManualHeaterBeOn(25, 250));
+
+  TEST_ASSERT_TRUE(HeatControl::logic::shouldManualHeaterBeOn(50, 499));
+  TEST_ASSERT_FALSE(HeatControl::logic::shouldManualHeaterBeOn(50, 500));
+
+  TEST_ASSERT_TRUE(HeatControl::logic::shouldManualHeaterBeOn(75, 749));
+  TEST_ASSERT_FALSE(HeatControl::logic::shouldManualHeaterBeOn(75, 750));
+
+  TEST_ASSERT_TRUE(HeatControl::logic::shouldManualHeaterBeOn(100, 999));
+}
+
+void test_update_sensors_and_heaters_manual_mode() {
+  MockGpio gpio;
+  MockSensors sensors;
+  sensors.temp0 = 22.0F;
+  sensors.temp1 = 24.0F;
+
+  float current0 = 0.0F;
+  float current1 = 0.0F;
+
+  HeatControl::logic::updateSensorsAndHeaters(sensors, gpio, false, true, 25, false, 23.0F, 23.0F, current0, current1,
+                                              4, 5, 300);
+
+  TEST_ASSERT_EQUAL_FLOAT(22.0F, current0);
+  TEST_ASSERT_EQUAL_FLOAT(24.0F, current1);
+  TEST_ASSERT_EQUAL_INT(HeatControl::logic::PIN_HIGH, gpio.readPin(4));
+  TEST_ASSERT_EQUAL_INT(HeatControl::logic::PIN_HIGH, gpio.readPin(5));
 }
 
 }  // namespace
@@ -106,5 +140,7 @@ int main() {
   RUN_TEST(test_update_sensors_and_heaters_without_swap);
   RUN_TEST(test_update_sensors_and_heaters_with_swap);
   RUN_TEST(test_heater_state_text_from_level);
+  RUN_TEST(test_manual_pwm_decision);
+  RUN_TEST(test_update_sensors_and_heaters_manual_mode);
   return UNITY_END();
 }

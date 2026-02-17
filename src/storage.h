@@ -18,6 +18,10 @@ void saveSwapAssignment();
 void saveWiFiCredentials(const String &ssid, const String &password);
 void loadWiFiCredentials();
 
+void loadManualPowerPercent();
+void saveManualPowerPercent();
+void cycleManualPowerPercent();
+
 void writeRuntimeToEeprom(uint32_t minutes);
 uint32_t readRuntimeFromEeprom();
 void loadSavedRuntime();

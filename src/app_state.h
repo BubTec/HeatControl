@@ -13,6 +13,7 @@ constexpr int EEPROM_INIT_ADDR = 0;
 constexpr int EEPROM_SSID_ADDR = 1;
 constexpr int EEPROM_PASS_ADDR = 33;
 constexpr int EEPROM_BOOT_MODE_ADDR = 300;
+constexpr int EEPROM_MANUAL_POWER_ADDR = 304;
 constexpr int EEPROM_TEMP1_ADDR = 64;
 constexpr int EEPROM_TEMP2_ADDR = 68;
 constexpr int EEPROM_SWAP_ADDR = 72;
@@ -40,6 +41,7 @@ extern uint32_t counter;
 extern uint32_t savedRuntimeMinutes;
 
 extern bool powerMode;
+extern bool manualMode;
 extern bool swapAssignment;
 extern bool fileSystemReady;
 
@@ -47,6 +49,7 @@ extern float currentTemp1;
 extern float currentTemp2;
 extern float targetTemp1;
 extern float targetTemp2;
+extern uint8_t manualPowerPercent;
 
 extern OneWire oneWire;
 extern DallasTemperature sensors;

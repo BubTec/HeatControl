@@ -169,7 +169,9 @@ void setupWebServer() {
     const float displayTemp1 = swapAssignment ? currentTemp2 : currentTemp1;
     const float displayTemp2 = swapAssignment ? currentTemp1 : currentTemp2;
     const uint32_t currentSessionSeconds = static_cast<uint32_t>((millis() - startTimeMs) / 1000UL);
-    String json = "{\"mode\":\"" + String(powerMode ? "POWER" : "NORMAL") + "\"" +
+    const String modeText = manualMode ? ("MANUAL " + String(manualPowerPercent) + "%")
+                                       : (powerMode ? "POWER" : "NORMAL");
+    String json = "{\"mode\":\"" + modeText + "\"" +
                   ",\"current1\":" + String(displayTemp1, 2) +
                   ",\"current2\":" + String(displayTemp2, 2) +
                   ",\"target1\":" + String(targetTemp1, 1) +

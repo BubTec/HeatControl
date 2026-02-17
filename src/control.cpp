@@ -27,7 +27,32 @@ class DallasSensorsAdapter : public logic::ITemperatureSensors {
 
 }  // namespace
 
-void startupSignal(bool isPowerMode) {
+void startupSignal(bool isPowerMode, bool isManualMode, uint8_t manualPowerPercent) {
+  if (isManualMode) {
+    // Manual mode intro pulse.
+    digitalWrite(SIGNAL_PIN, HIGH);
+    delay(500);
+    digitalWrite(SIGNAL_PIN, LOW);
+    delay(220);
+
+    // Duty step feedback: 1/2/3/4 short pulses for 25/50/75/100%.
+    int stepPulses = 1;
+    if (manualPowerPercent >= 100) {
+      stepPulses = 4;
+    } else if (manualPowerPercent >= 75) {
+      stepPulses = 3;
+    } else if (manualPowerPercent >= 50) {
+      stepPulses = 2;
+    }
+    for (int i = 0; i < stepPulses; ++i) {
+      digitalWrite(SIGNAL_PIN, HIGH);
+      delay(130);
+      digitalWrite(SIGNAL_PIN, LOW);
+      delay(130);
+    }
+    return;
+  }
+
   const int pulseCount = isPowerMode ? 2 : 1;
   for (int i = 0; i < pulseCount; ++i) {
     digitalWrite(SIGNAL_PIN, HIGH);
@@ -54,8 +79,8 @@ String heaterStateText(int pin) {
 void updateSensorsAndHeaters() {
   ArduinoGpio gpio;
   DallasSensorsAdapter tempSensors;
-  logic::updateSensorsAndHeaters(tempSensors, gpio, powerMode, swapAssignment, targetTemp1, targetTemp2, currentTemp1,
-                                 currentTemp2, SSR_PIN_1, SSR_PIN_2);
+  logic::updateSensorsAndHeaters(tempSensors, gpio, powerMode, manualMode, manualPowerPercent, swapAssignment,
+                                 targetTemp1, targetTemp2, currentTemp1, currentTemp2, SSR_PIN_1, SSR_PIN_2, millis());
 }
 
 }  // namespace HeatControl
