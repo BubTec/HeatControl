@@ -261,7 +261,46 @@
     <div class="box">
       <h3>Diagnostics</h3>
       <div>Boot pin: <span class="diag-value" id="bootPinState">-</span></div>
-      <div>Manual power: <span class="diag-value" id="manualPowerState">-</span></div>
+      <div>ADC1 (GPIO0): <span class="diag-value" id="adc1Value">-</span></div>
+      <div>ADC2 (GPIO1): <span class="diag-value" id="adc2Value">-</span></div>
+      <div>Battery 1 (ADC1): <span class="diag-value" id="battery1PackV">-</span> V · Cell: <span class="diag-value" id="battery1CellV">-</span> V · SoC: <span class="diag-value" id="battery1Soc">-</span>%</div>
+      <div>Battery 2 (ADC2): <span class="diag-value" id="battery2PackV">-</span> V · Cell: <span class="diag-value" id="battery2CellV">-</span> V · SoC: <span class="diag-value" id="battery2Soc">-</span>%</div>
+      <div>Manual heater 1: <span class="diag-value" id="manualH1Enabled">-</span> · Manual heater 2: <span class="diag-value" id="manualH2Enabled">-</span></div>
+      <div style="margin-top:8px;">
+        <form action="/setBattery1" method="POST" style="display:inline-block;margin-right:14px;">
+          <label class="muted" style="display:block;margin-bottom:4px;">Battery 1 cells</label>
+          <select id="battery1Cells" name="cells" onchange="markUserEditing()" style="background:#444;border:1px solid #666;color:white;padding:8px;border-radius:4px;">
+            <option value="2">2S</option>
+            <option value="3">3S</option>
+            <option value="4">4S</option>
+            <option value="5">5S</option>
+            <option value="6">6S</option>
+          </select>
+          <input type="submit" value="Save" style="margin-left:8px;">
+        </form>
+        <form action="/setBattery2" method="POST" style="display:inline-block;">
+          <label class="muted" style="display:block;margin-bottom:4px;">Battery 2 cells</label>
+          <select id="battery2Cells" name="cells" onchange="markUserEditing()" style="background:#444;border:1px solid #666;color:white;padding:8px;border-radius:4px;">
+            <option value="2">2S</option>
+            <option value="3">3S</option>
+            <option value="4">4S</option>
+            <option value="5">5S</option>
+            <option value="6">6S</option>
+          </select>
+          <input type="submit" value="Save" style="margin-left:8px;">
+        </form>
+        <div class="muted" style="margin-top:6px;">SoC is estimated from per-cell voltage (see firmware table).</div>
+      </div>
+      <div>Manual power H1: <span class="diag-value" id="manualPower1State">-</span> · H2: <span class="diag-value" id="manualPower2State">-</span></div>
+      <div>Manual OFF/ON window: <span class="diag-value" id="manualToggleWindowDisplay">-</span> ms</div>
+      <form action="/setManualToggle" method="POST" style="margin-top:8px;">
+        <label class="muted" style="display:block;margin-bottom:4px;">
+          OFF/ON detection window (ms)
+          <input type="number" id="manualToggleWindowInput" name="windowMs" min="100" max="5000" step="50" value="500"
+                 oninput="markUserEditing()">
+        </label>
+        <input type="submit" value="Save" style="margin-left:8px;">
+      </form>
       <button type="button" onclick="triggerSignalTest()">Test Vibration</button>
       <button type="button" onclick="toggleSerialPanel()">Show Serial</button>
       <div id="serialPanel" class="serial-box" style="display:none;">
@@ -348,10 +387,55 @@
           if (typeof data.bootPin === 'string') {
             document.getElementById('bootPinState').textContent = data.bootPin;
           }
+          if (typeof data.adc1Mv === 'number') {
+            document.getElementById('adc1Value').textContent = data.adc1Mv + ' mV';
+          }
+          if (typeof data.adc2Mv === 'number') {
+            document.getElementById('adc2Value').textContent = data.adc2Mv + ' mV';
+          }
+          if (typeof data.batt1V === 'number') {
+            document.getElementById('battery1PackV').textContent = Number(data.batt1V).toFixed(2);
+          }
+          if (typeof data.batt1CellV === 'number') {
+            document.getElementById('battery1CellV').textContent = Number(data.batt1CellV).toFixed(2);
+          }
+          if (typeof data.batt1Soc === 'number') {
+            document.getElementById('battery1Soc').textContent = String(Math.round(Number(data.batt1Soc)));
+          }
+          if (typeof data.batt2V === 'number') {
+            document.getElementById('battery2PackV').textContent = Number(data.batt2V).toFixed(2);
+          }
+          if (typeof data.batt2CellV === 'number') {
+            document.getElementById('battery2CellV').textContent = Number(data.batt2CellV).toFixed(2);
+          }
+          if (typeof data.batt2Soc === 'number') {
+            document.getElementById('battery2Soc').textContent = String(Math.round(Number(data.batt2Soc)));
+          }
+          if (!isUserEditing() && typeof data.batt1Cells === 'number') {
+            document.getElementById('battery1Cells').value = String(Number(data.batt1Cells));
+          }
+          if (!isUserEditing() && typeof data.batt2Cells === 'number') {
+            document.getElementById('battery2Cells').value = String(Number(data.batt2Cells));
+          }
+          if (typeof data.manualH1Enabled === 'number') {
+            document.getElementById('manualH1Enabled').textContent = Number(data.manualH1Enabled) === 1 ? 'ENABLED' : 'DISABLED';
+          }
+          if (typeof data.manualH2Enabled === 'number') {
+            document.getElementById('manualH2Enabled').textContent = Number(data.manualH2Enabled) === 1 ? 'ENABLED' : 'DISABLED';
+          }
           if (Number(data.manualMode || 0) === 1) {
-            document.getElementById('manualPowerState').textContent = String(Number(data.manualPercent || 0)) + '%';
+            document.getElementById('manualPower1State').textContent = String(Number(data.manualPercent1 || 0)) + '%';
+            document.getElementById('manualPower2State').textContent = String(Number(data.manualPercent2 || 0)) + '%';
           } else {
-            document.getElementById('manualPowerState').textContent = '-';
+            document.getElementById('manualPower1State').textContent = '-';
+            document.getElementById('manualPower2State').textContent = '-';
+          }
+          if (typeof data.manualToggleMaxOffMs === 'number') {
+            const val = Number(data.manualToggleMaxOffMs);
+            document.getElementById('manualToggleWindowDisplay').textContent = String(Math.round(val));
+            if (!isUserEditing()) {
+              document.getElementById('manualToggleWindowInput').value = String(Math.round(val));
+            }
           }
         })
         .catch(() => {});
@@ -398,6 +482,7 @@
     document.getElementById('temp2Slider').addEventListener('change', markUserEditing);
     document.getElementById('temp1Slider').addEventListener('click', markUserEditing);
     document.getElementById('temp2Slider').addEventListener('click', markUserEditing);
+    document.getElementById('manualToggleWindowInput').addEventListener('input', markUserEditing);
 
     setInterval(updateStatus, 2000);
     updateStatus();

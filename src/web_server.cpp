@@ -169,13 +169,27 @@ void setupWebServer() {
     const float displayTemp1 = swapAssignment ? currentTemp2 : currentTemp1;
     const float displayTemp2 = swapAssignment ? currentTemp1 : currentTemp2;
     const uint32_t currentSessionSeconds = static_cast<uint32_t>((millis() - startTimeMs) / 1000UL);
-    const String modeText = manualMode ? ("MANUAL " + String(manualPowerPercent) + "%")
+    const String modeText = manualMode ? ("MANUAL H1 " + String(manualPowerPercent1) + "% / H2 " + String(manualPowerPercent2) + "%")
                                        : (powerMode ? "POWER" : "NORMAL");
     const String bootPinText = (digitalRead(INPUT_PIN) == HIGH) ? "HIGH" : "LOW";
     String json = "{\"mode\":\"" + modeText + "\"" +
                   ",\"manualMode\":" + String(manualMode ? 1 : 0) +
-                  ",\"manualPercent\":" + String(manualPowerPercent) +
+                  ",\"manualPercent1\":" + String(manualPowerPercent1) +
+                  ",\"manualPercent2\":" + String(manualPowerPercent2) +
+                  ",\"manualH1Enabled\":" + String(manualHeater1Enabled ? 1 : 0) +
+                  ",\"manualH2Enabled\":" + String(manualHeater2Enabled ? 1 : 0) +
                   ",\"bootPin\":\"" + bootPinText + "\"" +
+                  ",\"adc1Mv\":" + String(adc1MilliVolts) +
+                  ",\"adc2Mv\":" + String(adc2MilliVolts) +
+                  ",\"batt1Cells\":" + String(battery1CellCount) +
+                  ",\"batt1V\":" + String(battery1PackVoltage, 2) +
+                  ",\"batt1CellV\":" + String(battery1CellVoltage, 2) +
+                  ",\"batt1Soc\":" + String(battery1SocPercent) +
+                  ",\"batt2Cells\":" + String(battery2CellCount) +
+                  ",\"batt2V\":" + String(battery2PackVoltage, 2) +
+                  ",\"batt2CellV\":" + String(battery2CellVoltage, 2) +
+                  ",\"batt2Soc\":" + String(battery2SocPercent) +
+                  ",\"manualToggleMaxOffMs\":" + String(manualPowerToggleMaxOffMs) +
                   ",\"current1\":" + String(displayTemp1, 2) +
                   ",\"current2\":" + String(displayTemp2, 2) +
                   ",\"target1\":" + String(targetTemp1, 1) +
@@ -188,6 +202,32 @@ void setupWebServer() {
                   ",\"totalRuntime\":\"" + formatRuntime(savedRuntimeMinutes * 60UL, false) + "\"" +
                   ",\"currentRuntime\":\"" + formatRuntime(currentSessionSeconds, true) + "\"}";
     request->send(200, "application/json", json);
+  });
+
+  server.on("/setBattery1", HTTP_POST, [](AsyncWebServerRequest *request) {
+    if (request->hasParam("cells", true)) {
+      battery1CellCount = clampBatteryCellCount(static_cast<uint8_t>(request->getParam("cells", true)->value().toInt()));
+      saveBatteryCellCounts();
+    }
+    request->redirect("/");
+  });
+
+  server.on("/setBattery2", HTTP_POST, [](AsyncWebServerRequest *request) {
+    if (request->hasParam("cells", true)) {
+      battery2CellCount = clampBatteryCellCount(static_cast<uint8_t>(request->getParam("cells", true)->value().toInt()));
+      saveBatteryCellCounts();
+    }
+    request->redirect("/");
+  });
+
+  server.on("/setManualToggle", HTTP_POST, [](AsyncWebServerRequest *request) {
+    if (request->hasParam("windowMs", true)) {
+      const uint16_t value =
+          static_cast<uint16_t>(request->getParam("windowMs", true)->value().toInt());
+      manualPowerToggleMaxOffMs = clampManualToggleOffMs(value);
+      saveManualToggleOffMs();
+    }
+    request->redirect("/");
   });
 
   server.on("/runtime", HTTP_GET, [](AsyncWebServerRequest *request) {

@@ -17,6 +17,66 @@ namespace {
 
 constexpr size_t SERIAL_LOG_LIMIT = 12000;
 
+struct VoltToSoc {
+  float volt;
+  uint8_t soc;
+};
+
+constexpr VoltToSoc VOLT_TO_SOC[] = {
+    {4.18F, 100}, {4.10F, 96}, {3.99F, 82}, {3.85F, 68}, {3.77F, 58}, {3.58F, 34},
+    {3.42F, 20},  {3.33F, 14}, {3.21F, 8},  {3.00F, 2},  {2.87F, 0},
+};
+
+float voltageToSocFloat(float cellVolt) {
+  const size_t last = (sizeof(VOLT_TO_SOC) / sizeof(VOLT_TO_SOC[0])) - 1;
+
+  // Above top range: clamp.
+  if (cellVolt >= VOLT_TO_SOC[0].volt) {
+    return static_cast<float>(VOLT_TO_SOC[0].soc);
+  }
+
+  // Below bottom range: extrapolate using the last segment to allow negative values
+  // (used to detect a battery switch OFF/ON event).
+  if (cellVolt <= VOLT_TO_SOC[last].volt) {
+    const float vHigh = VOLT_TO_SOC[last - 1].volt;
+    const float vLow = VOLT_TO_SOC[last].volt;
+    const float socHigh = static_cast<float>(VOLT_TO_SOC[last - 1].soc);
+    const float socLow = static_cast<float>(VOLT_TO_SOC[last].soc);
+    const float t = (cellVolt - vLow) / (vHigh - vLow);
+    return socLow + t * (socHigh - socLow);
+  }
+
+  // Inside table range: interpolate.
+  for (size_t i = 0; i < last; ++i) {
+    const float vHigh = VOLT_TO_SOC[i].volt;
+    const float vLow = VOLT_TO_SOC[i + 1].volt;
+    if (cellVolt <= vHigh && cellVolt > vLow) {
+      const float socHigh = static_cast<float>(VOLT_TO_SOC[i].soc);
+      const float socLow = static_cast<float>(VOLT_TO_SOC[i + 1].soc);
+      const float t = (cellVolt - vLow) / (vHigh - vLow);
+      return socLow + t * (socHigh - socLow);
+    }
+  }
+
+  return 0.0F;
+}
+
+uint8_t clampSocPercent(float soc) {
+  if (soc <= 0.0F) return 0;
+  if (soc >= 100.0F) return 100;
+  return static_cast<uint8_t>(soc + 0.5F);
+}
+
+float updateBatteryFromAdc(uint16_t adcMilliVolts, uint8_t cellCount, float &packV, float &cellV, uint8_t &socPercent) {
+  const float adcV = static_cast<float>(adcMilliVolts) / 1000.0F;
+  packV = adcV * BATTERY_DIVIDER_RATIO;
+  const uint8_t cells = cellCount == 0 ? 3 : cellCount;
+  cellV = packV / static_cast<float>(cells);
+  const float socRaw = voltageToSocFloat(cellV);
+  socPercent = clampSocPercent(socRaw);
+  return socRaw;
+}
+
 void appendSerialLogLine(const String &line) {
   serialLogBuffer += line;
   serialLogBuffer += "\n";
@@ -56,6 +116,11 @@ void setup() {
   digitalWrite(SSR_PIN_1, HIGH);
   digitalWrite(SSR_PIN_2, HIGH);
   digitalWrite(SIGNAL_PIN, LOW);
+
+  // ADC setup (ESP32-C3): 12-bit readings, extended input range.
+  analogReadResolution(12);
+  analogSetPinAttenuation(ADC_PIN_1, ADC_11db);
+  analogSetPinAttenuation(ADC_PIN_2, ADC_11db);
   
   // Initialize state tracking
   lastHeater1State = (digitalRead(SSR_PIN_1) == LOW);
@@ -76,16 +141,21 @@ void setup() {
   manualMode = (sensors.getDeviceCount() == 0);
   if (manualMode) {
     powerMode = false;
-    loadManualPowerPercent();
+    loadManualPowerPercents();
     if (digitalRead(INPUT_PIN) == HIGH) {
-      cycleManualPowerPercent();
+      cycleManualPowerPercents();
+      // Haptic feedback for initial manual power selection (channel 1 as reference).
+      signalManualPowerChange(manualPowerPercent1);
     }
   }
 
-  startupSignal(powerMode, manualMode, manualPowerPercent);
+  // Startup feedback uses channel 1 manual power as reference.
+  startupSignal(powerMode, manualMode, manualPowerPercent1);
   loadTemperatureTargets();
   loadSwapAssignment();
   loadWiFiCredentials();
+  loadBatteryCellCounts();
+  loadManualToggleOffMs();
   loadSavedRuntime();
 
   startTimeMs = millis();
@@ -117,7 +187,8 @@ void setup() {
   logLine("");
   logLine("=== ESP32-C3 modular setup test ===");
   logf("Reset reason: %d", static_cast<int>(esp_reset_reason()));
-  const String modeText = manualMode ? ("MANUAL " + String(manualPowerPercent) + "%")
+  const String modeText =
+      manualMode ? ("MANUAL H1 " + String(manualPowerPercent1) + "% / H2 " + String(manualPowerPercent2) + "%")
                                      : (powerMode ? "POWER" : "NORMAL");
   logf("Detected mode: %s", modeText.c_str());
   logf("OneWire bus pin: GPIO%d", ONE_WIRE_BUS);
@@ -131,9 +202,70 @@ void setup() {
 void loop() {
   const unsigned long now = millis();
 
+  // High-frequency ADC check for manual OFF/ON detection (better than 1s resolution).
+  static unsigned long lastManualToggleCheckMs = 0;
+  if (manualMode && (now - lastManualToggleCheckMs) >= 50UL) {
+    lastManualToggleCheckMs = now;
+
+    // Read ADC inputs (millivolts) and update battery state.
+    adc1MilliVolts = static_cast<uint16_t>(analogReadMilliVolts(ADC_PIN_1));
+    adc2MilliVolts = static_cast<uint16_t>(analogReadMilliVolts(ADC_PIN_2));
+    const float soc1Raw =
+        updateBatteryFromAdc(adc1MilliVolts, battery1CellCount, battery1PackVoltage, battery1CellVoltage, battery1SocPercent);
+    const float soc2Raw =
+        updateBatteryFromAdc(adc2MilliVolts, battery2CellCount, battery2PackVoltage, battery2CellVoltage, battery2SocPercent);
+
+    // In manual mode, use a short battery switch OFF/ON (voltage dips below an impossible SoC)
+    // to toggle the corresponding heater output, but only if power returns within a defined time window.
+    const bool batt1OffNow = soc1Raw < -10.0F;
+    const bool batt2OffNow = soc2Raw < -10.0F;
+    // Treat battery as "ON" only if SoC estimate is clearly positive,
+    // to avoid toggling when the ADC input is floating or near zero.
+    const bool batt1OnNow = soc1Raw > 5.0F;
+    const bool batt2OnNow = soc2Raw > 5.0F;
+
+    // Battery switch detection: treat an OFF period as a user trigger to cycle the manual PWM step
+    // only if power returns within manualPowerToggleMaxOffMs.
+    if (batt1OffNow && !battery1Off) {
+      battery1Off = true;
+      battery1OffSinceMs = now;
+    } else if (!batt1OffNow && batt1OnNow && battery1Off) {
+      const unsigned long offMs = now - battery1OffSinceMs;
+      battery1Off = false;
+      if (offMs <= static_cast<unsigned long>(manualPowerToggleMaxOffMs)) {
+        cycleManualPowerPercent1();
+        logf("Battery 1 OFF/ON trigger (%lums) -> manual power 1 = %u%%", offMs, manualPowerPercent1);
+        // Haptic feedback for manual heater 1 power change.
+        signalManualPowerChange(manualPowerPercent1);
+      }
+    }
+
+    if (batt2OffNow && !battery2Off) {
+      battery2Off = true;
+      battery2OffSinceMs = now;
+    } else if (!batt2OffNow && batt2OnNow && battery2Off) {
+      const unsigned long offMs = now - battery2OffSinceMs;
+      battery2Off = false;
+      if (offMs <= static_cast<unsigned long>(manualPowerToggleMaxOffMs)) {
+        cycleManualPowerPercent2();
+        logf("Battery 2 OFF/ON trigger (%lums) -> manual power 2 = %u%%", offMs, manualPowerPercent2);
+        // Haptic feedback for manual heater 2 power change.
+        signalManualPowerChange(manualPowerPercent2);
+      }
+    }
+  }
+
   if (now - lastSensorMs >= 1000) {
     lastSensorMs = now;
     updateSensorsAndHeaters();
+
+    // In non-manual modes, update ADC/battery state at 1 Hz for diagnostics.
+    if (!manualMode) {
+      adc1MilliVolts = static_cast<uint16_t>(analogReadMilliVolts(ADC_PIN_1));
+      adc2MilliVolts = static_cast<uint16_t>(analogReadMilliVolts(ADC_PIN_2));
+      updateBatteryFromAdc(adc1MilliVolts, battery1CellCount, battery1PackVoltage, battery1CellVoltage, battery1SocPercent);
+      updateBatteryFromAdc(adc2MilliVolts, battery2CellCount, battery2PackVoltage, battery2CellVoltage, battery2SocPercent);
+    }
     
     // Check for heater state changes (motor/vibration)
     const bool currentHeater1State = (digitalRead(SSR_PIN_1) == LOW);
@@ -176,10 +308,13 @@ void loop() {
     lastPrintMs = now;
     ++counter;
     const String modeLabel =
-        manualMode ? ("MANUAL " + String(manualPowerPercent) + "%") : (powerMode ? "POWER" : "NORMAL");
-    logf("alive %u | uptime_ms=%lu | heap=%u | mode=%s | t1=%.2f | t2=%.2f | target1=%.1f | target2=%.1f | swap=%d | h1=%s | h2=%s",
+        manualMode ? ("MANUAL H1 " + String(manualPowerPercent1) + "% / H2 " + String(manualPowerPercent2) + "%")
+                   : (powerMode ? "POWER" : "NORMAL");
+    logf("alive %u | uptime_ms=%lu | heap=%u | mode=%s | t1=%.2f | t2=%.2f | target1=%.1f | target2=%.1f | swap=%d | h1=%s | h2=%s | adc1_mv=%u | adc2_mv=%u | batt1_cells=%u | batt1_v=%.2f | batt1_cell_v=%.2f | batt1_soc=%u | batt2_cells=%u | batt2_v=%.2f | batt2_cell_v=%.2f | batt2_soc=%u",
          counter, now, ESP.getFreeHeap(), modeLabel.c_str(), currentTemp1, currentTemp2, targetTemp1, targetTemp2,
-         swapAssignment ? 1 : 0, heaterStateText(SSR_PIN_1).c_str(), heaterStateText(SSR_PIN_2).c_str());
+         swapAssignment ? 1 : 0, heaterStateText(SSR_PIN_1).c_str(), heaterStateText(SSR_PIN_2).c_str(), adc1MilliVolts,
+         adc2MilliVolts, battery1CellCount, battery1PackVoltage, battery1CellVoltage, battery1SocPercent, battery2CellCount,
+         battery2PackVoltage, battery2CellVoltage, battery2SocPercent);
   }
 
   if (now - lastRuntimeSaveMs >= 60000UL) {

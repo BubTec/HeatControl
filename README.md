@@ -38,6 +38,8 @@ HeatControl is a dual-zone heating control system for drysuit diving, based on E
 - `GPIO5` -> Heater channel 2 (`SSR_PIN_2`)
 - `GPIO10` -> Boot mode input (`INPUT_PIN`)
 - `GPIO6` -> Startup signal output (`SIGNAL_PIN`)
+- `GPIO0` -> ADC voltage input 1 (`ADC_PIN_1`)
+- `GPIO1` -> ADC voltage input 2 (`ADC_PIN_2`)
 
 ## Interface
 ### Pinout
@@ -49,27 +51,59 @@ HeatControl is a dual-zone heating control system for drysuit diving, based on E
 - Some ESP32-C3 boards also print **D-labels** (e.g. `D2`) on the silkscreen/pinout image. These are just aliases.
 - When wiring, you can use either label, but always match the **GPIO number**.
 
-**GPIO ↔ D-label mapping (as shown in the pinout image):**
-
-| GPIO | Board label |
-|------|------------|
-| **3**  | **D1** |
-| **4**  | **D2** |
-| **5**  | **D3** |
-| **6**  | **D4** |
-| **10** | **D10** |
-
 **Connections (see `src/app_state.h`):**
 
-| GPIO | Function              | Connect to                          |
-|------|------------------------|-------------------------------------|
-| **3**  | OneWire bus            | DS18B20 data line (with 4.7kΩ pull-up to 3.3V) |
-| **4**  | Heater channel 1       | SSR/MOSFET control (SSR_PIN_1)      |
-| **5**  | Heater channel 2       | SSR/MOSFET control (SSR_PIN_2)      |
-| **6**  | Startup signal output  | Optional status LED or external signal (SIGNAL_PIN) |
-| **10** | Boot mode input        | Optional: hold low/high for power vs normal mode (INPUT_PIN) |
+| GPIO | Board label | Function              | Connect to                          |
+|------|------------|------------------------|-------------------------------------|
+| **3**  | **D1 / A1**     | OneWire bus            | DS18B20 data line (with 4.7kΩ pull-up to 3.3V) |
+| **4**  | **D2 / A2**     | Heater channel 1       | SSR/MOSFET control (SSR_PIN_1)      |
+| **5**  | **D3 / A3**     | Heater channel 2       | SSR/MOSFET control (SSR_PIN_2)      |
+| **6**  | **D4 / SDA**    | Startup signal output  | Optional status LED or external signal (SIGNAL_PIN) |
+| **10** | **D10 / MOSI**  | Boot mode input        | Optional: hold low/high for power vs normal mode (INPUT_PIN) |
+| **0**  | **ADC1-0 / A0** | ADC voltage input 1    | Voltage sense input (use a divider; max 3.3V at the pin) |
+| **1**  | **ADC1-1**      | ADC voltage input 2    | Voltage sense input (use a divider; max 3.3V at the pin) |
 
 **Note:** `INPUT_PIN` here is a project-specific boot-mode input on **GPIO10 / D10** (not the ESP32-C3 BOOT button/strapping pin).
+**Note:** ADC readings are reported in the UI/Serial as **millivolts** (`analogReadMilliVolts`).
+
+### Vibration / signal patterns (`SIGNAL_PIN` / GPIO6)
+
+`SIGNAL_PIN` (GPIO6) can drive a small vibration motor or an LED to provide haptic/visual feedback.  
+The firmware uses the following patterns (timings are approximate):
+
+- **Boot: normal mode**
+  - **Pattern**: 1× long pulse (HIGH ~300 ms, LOW ~200 ms)
+  - **When**: Device starts in **normal** temperature-control mode.
+
+- **Boot: power mode**
+  - **Pattern**: 2× long pulses (each HIGH ~300 ms, LOW ~200 ms)
+  - **When**: Device starts in **power** mode (full power).
+
+- **Boot: manual mode**
+  - **Pattern**:
+    - 1× long intro pulse (HIGH ~500 ms, LOW ~220 ms)
+    - Then **N** short pulses to show the manual power for heater channel 1:
+      - 1× short pulse  → 25 %
+      - 2× short pulses → 50 %
+      - 3× short pulses → 75 %
+      - 4× short pulses → 100 %
+    - Short pulses are HIGH ~130 ms, LOW ~130 ms.
+  - **When**: No DS18B20 sensors are detected and the controller enters **manual** mode at boot.
+
+- **Manual mode: change of manual power (heater 1 or 2)**
+  - **Pattern**:
+    - **N** short pulses (HIGH ~130 ms, LOW ~130 ms) encoding the **new** manual duty:
+      - 1× short pulse  → 25 %
+      - 2× short pulses → 50 %
+      - 3× short pulses → 75 %
+      - 4× short pulses → 100 %
+  - **When**:
+    - A short battery OFF/ON sequence (voltage drop < threshold, power returns within a configurable window, default ~500 ms) toggles the manual power step for the corresponding heater channel. Longer OFF periods do **not** change the step. The window can be adjusted in the web UI (Diagnostics → OFF/ON detection window).
+    - The manual power for both channels is cycled once at boot when in manual mode and `INPUT_PIN` is held HIGH (first selection feedback).
+
+- **Web API test pulse**
+  - **Pattern**: 1× very short pulse (HIGH ~120 ms)
+  - **When**: HTTP POST to `/signalTest` (useful to verify wiring of LED/vibration motor).
 
 **Network:** AP IP `4.3.2.1` · Default SSID `HeatControl` · OTA at `/update`
 

@@ -25,31 +25,36 @@ class DallasSensorsAdapter : public logic::ITemperatureSensors {
   float getTempCByIndex(int index) override { return sensors.getTempCByIndex(index); }
 };
 
-}  // namespace
-
-void startupSignal(bool isPowerMode, bool isManualMode, uint8_t manualPowerPercent) {
-  if (isManualMode) {
+void signalManualPowerPattern(uint8_t manualPowerPercent, bool includeIntroPulse) {
+  if (includeIntroPulse) {
     // Manual mode intro pulse.
     digitalWrite(SIGNAL_PIN, HIGH);
     delay(500);
     digitalWrite(SIGNAL_PIN, LOW);
     delay(220);
+  }
 
-    // Duty step feedback: 1/2/3/4 short pulses for 25/50/75/100%.
-    int stepPulses = 1;
-    if (manualPowerPercent >= 100) {
-      stepPulses = 4;
-    } else if (manualPowerPercent >= 75) {
-      stepPulses = 3;
-    } else if (manualPowerPercent >= 50) {
-      stepPulses = 2;
-    }
-    for (int i = 0; i < stepPulses; ++i) {
-      digitalWrite(SIGNAL_PIN, HIGH);
-      delay(130);
-      digitalWrite(SIGNAL_PIN, LOW);
-      delay(130);
-    }
+  // Duty step feedback: 1/2/3/4 short pulses for 25/50/75/100%.
+  int stepPulses = 1;
+  if (manualPowerPercent >= 100) {
+    stepPulses = 4;
+  } else if (manualPowerPercent >= 75) {
+    stepPulses = 3;
+  } else if (manualPowerPercent >= 50) {
+    stepPulses = 2;
+  }
+  for (int i = 0; i < stepPulses; ++i) {
+    digitalWrite(SIGNAL_PIN, HIGH);
+    delay(130);
+    digitalWrite(SIGNAL_PIN, LOW);
+    delay(130);
+  }
+}
+
+}  // namespace
+void startupSignal(bool isPowerMode, bool isManualMode, uint8_t manualPowerPercent) {
+  if (isManualMode) {
+    signalManualPowerPattern(manualPowerPercent, true);
     return;
   }
 
@@ -60,6 +65,11 @@ void startupSignal(bool isPowerMode, bool isManualMode, uint8_t manualPowerPerce
     digitalWrite(SIGNAL_PIN, LOW);
     delay(200);
   }
+}
+
+void signalManualPowerChange(uint8_t manualPowerPercent) {
+  // Short feedback pattern without the long intro pulse.
+  signalManualPowerPattern(manualPowerPercent, false);
 }
 
 bool isSensorError(float temperatureC) {
@@ -79,8 +89,23 @@ String heaterStateText(int pin) {
 void updateSensorsAndHeaters() {
   ArduinoGpio gpio;
   DallasSensorsAdapter tempSensors;
-  logic::updateSensorsAndHeaters(tempSensors, gpio, powerMode, manualMode, manualPowerPercent, swapAssignment,
-                                 targetTemp1, targetTemp2, currentTemp1, currentTemp2, SSR_PIN_1, SSR_PIN_2, millis());
+  const unsigned long nowMs = millis();
+
+  if (manualMode) {
+    // Manual mode: still read temperatures (if any), but control heaters independently.
+    tempSensors.requestTemperatures();
+    currentTemp1 = tempSensors.getTempCByIndex(0);
+    currentTemp2 = tempSensors.getTempCByIndex(1);
+
+    const bool pwmOn1 = logic::shouldManualHeaterBeOn(manualPowerPercent1, nowMs);
+    const bool pwmOn2 = logic::shouldManualHeaterBeOn(manualPowerPercent2, nowMs);
+    gpio.writePin(SSR_PIN_1, (manualHeater1Enabled && pwmOn1) ? logic::PIN_LOW : logic::PIN_HIGH);
+    gpio.writePin(SSR_PIN_2, (manualHeater2Enabled && pwmOn2) ? logic::PIN_LOW : logic::PIN_HIGH);
+    return;
+  }
+
+  logic::updateSensorsAndHeaters(tempSensors, gpio, powerMode, manualMode, manualPowerPercent1, swapAssignment,
+                                 targetTemp1, targetTemp2, currentTemp1, currentTemp2, SSR_PIN_1, SSR_PIN_2, nowMs);
 }
 
 }  // namespace HeatControl

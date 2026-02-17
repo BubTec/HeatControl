@@ -28,6 +28,16 @@ float readFloatFromEeprom(int addr) {
 
 namespace {
 
+uint8_t nextManualPowerPercent(uint8_t value) {
+  const uint8_t current = clampManualPowerPercent(value);
+  if (current == 25) return 50;
+  if (current == 50) return 75;
+  if (current == 75) return 100;
+  return 25;
+}
+
+}  // namespace
+
 uint8_t clampManualPowerPercent(uint8_t value) {
   if (value == 25 || value == 50 || value == 75 || value == 100) {
     return value;
@@ -35,7 +45,12 @@ uint8_t clampManualPowerPercent(uint8_t value) {
   return 25;
 }
 
-}  // namespace
+uint16_t clampManualToggleOffMs(uint16_t value) {
+  // Limit the OFF/ON detection window to a sane, safe range (100ms..5000ms).
+  if (value < 100U) return 100U;
+  if (value > 5000U) return 5000U;
+  return value;
+}
 
 void setNextBootMode(uint8_t mode) {
   EEPROM.write(EEPROM_BOOT_MODE_ADDR, mode);
@@ -123,27 +138,85 @@ void loadWiFiCredentials() {
   activePassword = String(pass);
 }
 
-void loadManualPowerPercent() {
-  manualPowerPercent = clampManualPowerPercent(EEPROM.read(EEPROM_MANUAL_POWER_ADDR));
+void loadManualPowerPercents() {
+  const uint8_t stored1 = EEPROM.read(EEPROM_MANUAL_POWER1_ADDR);
+  const uint8_t stored2 = EEPROM.read(EEPROM_MANUAL_POWER2_ADDR);
+
+  manualPowerPercent1 = clampManualPowerPercent(stored1);
+
+  // Backward compatibility: older firmware stored only one value. If the second slot is unset, mirror channel 1.
+  if (stored2 == 0xFF) {
+    manualPowerPercent2 = manualPowerPercent1;
+  } else {
+    manualPowerPercent2 = clampManualPowerPercent(stored2);
+  }
 }
 
-void saveManualPowerPercent() {
-  EEPROM.write(EEPROM_MANUAL_POWER_ADDR, clampManualPowerPercent(manualPowerPercent));
+void saveManualPowerPercents() {
+  EEPROM.write(EEPROM_MANUAL_POWER1_ADDR, clampManualPowerPercent(manualPowerPercent1));
+  EEPROM.write(EEPROM_MANUAL_POWER2_ADDR, clampManualPowerPercent(manualPowerPercent2));
   EEPROM.commit();
 }
 
-void cycleManualPowerPercent() {
-  const uint8_t current = clampManualPowerPercent(manualPowerPercent);
-  if (current == 25) {
-    manualPowerPercent = 50;
-  } else if (current == 50) {
-    manualPowerPercent = 75;
-  } else if (current == 75) {
-    manualPowerPercent = 100;
-  } else {
-    manualPowerPercent = 25;
+void loadManualToggleOffMs() {
+  uint16_t stored = 0U;
+  uint8_t *bytes = reinterpret_cast<uint8_t *>(&stored);
+  for (size_t i = 0; i < sizeof(uint16_t); ++i) {
+    bytes[i] = EEPROM.read(EEPROM_MANUAL_TOGGLE_MS_ADDR + static_cast<int>(i));
   }
-  saveManualPowerPercent();
+
+  // 0xFFFF or 0 means "not initialized yet" -> use default 500ms.
+  if (stored == 0xFFFFU || stored == 0U) {
+    manualPowerToggleMaxOffMs = 500U;
+  } else {
+    manualPowerToggleMaxOffMs = clampManualToggleOffMs(stored);
+  }
+}
+
+void saveManualToggleOffMs() {
+  const uint16_t value = clampManualToggleOffMs(manualPowerToggleMaxOffMs);
+  const uint8_t *bytes = reinterpret_cast<const uint8_t *>(&value);
+  for (size_t i = 0; i < sizeof(uint16_t); ++i) {
+    EEPROM.write(EEPROM_MANUAL_TOGGLE_MS_ADDR + static_cast<int>(i), bytes[i]);
+  }
+  EEPROM.commit();
+}
+
+void cycleManualPowerPercent1() {
+  manualPowerPercent1 = nextManualPowerPercent(manualPowerPercent1);
+  saveManualPowerPercents();
+}
+
+void cycleManualPowerPercent2() {
+  manualPowerPercent2 = nextManualPowerPercent(manualPowerPercent2);
+  saveManualPowerPercents();
+}
+
+void cycleManualPowerPercents() {
+  manualPowerPercent1 = nextManualPowerPercent(manualPowerPercent1);
+  manualPowerPercent2 = nextManualPowerPercent(manualPowerPercent2);
+  saveManualPowerPercents();
+}
+
+uint8_t clampBatteryCellCount(uint8_t value) {
+  // Keep it simple and safe: 2S..6S, default 3S.
+  if (value >= 2 && value <= 6) {
+    return value;
+  }
+  return 3;
+}
+
+void loadBatteryCellCounts() {
+  const uint8_t stored1 = EEPROM.read(EEPROM_BATTERY1_CELLS_ADDR);
+  const uint8_t stored2 = EEPROM.read(EEPROM_BATTERY2_CELLS_ADDR);
+  battery1CellCount = clampBatteryCellCount(stored1);
+  battery2CellCount = clampBatteryCellCount(stored2);
+}
+
+void saveBatteryCellCounts() {
+  EEPROM.write(EEPROM_BATTERY1_CELLS_ADDR, clampBatteryCellCount(battery1CellCount));
+  EEPROM.write(EEPROM_BATTERY2_CELLS_ADDR, clampBatteryCellCount(battery2CellCount));
+  EEPROM.commit();
 }
 
 void writeRuntimeToEeprom(uint32_t minutes) {
