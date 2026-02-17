@@ -8,7 +8,8 @@ bool isSensorError(float temperatureC) {
 }
 
 bool shouldHeaterBeOn(bool forceOn, float currentTemp, float targetTemp) {
-  return forceOn || isSensorError(currentTemp) || currentTemp < targetTemp;
+  // Fail-safe in temperature-controlled mode: sensor errors must not force heater ON.
+  return forceOn || (!isSensorError(currentTemp) && currentTemp < targetTemp);
 }
 
 bool shouldManualHeaterBeOn(uint8_t manualPowerPercent, unsigned long nowMs) {
@@ -33,17 +34,18 @@ const char *heaterStateTextFromLevel(int level) {
 }
 
 void updateSensorsAndHeaters(ITemperatureSensors &sensors, IGpio &gpio, bool powerMode, bool manualMode,
-                             uint8_t manualPowerPercent, bool swapAssignment, float targetTemp1, float targetTemp2,
-                             float &currentTemp1, float &currentTemp2, int heaterPin1, int heaterPin2,
-                             unsigned long nowMs) {
+                             uint8_t manualPowerPercent1, uint8_t manualPowerPercent2, bool manualHeater1Enabled,
+                             bool manualHeater2Enabled, bool swapAssignment, float targetTemp1, float targetTemp2,
+                             float &currentTemp1, float &currentTemp2, int heaterPin1, int heaterPin2, unsigned long nowMs) {
   sensors.requestTemperatures();
   currentTemp1 = sensors.getTempCByIndex(0);
   currentTemp2 = sensors.getTempCByIndex(1);
 
   if (manualMode) {
-    const bool manualOn = shouldManualHeaterBeOn(manualPowerPercent, nowMs);
-    gpio.writePin(heaterPin1, manualOn ? PIN_LOW : PIN_HIGH);
-    gpio.writePin(heaterPin2, manualOn ? PIN_LOW : PIN_HIGH);
+    const bool manualOn1 = shouldManualHeaterBeOn(manualPowerPercent1, nowMs);
+    const bool manualOn2 = shouldManualHeaterBeOn(manualPowerPercent2, nowMs);
+    gpio.writePin(heaterPin1, (manualHeater1Enabled && manualOn1) ? PIN_LOW : PIN_HIGH);
+    gpio.writePin(heaterPin2, (manualHeater2Enabled && manualOn2) ? PIN_LOW : PIN_HIGH);
     return;
   }
 

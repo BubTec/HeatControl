@@ -50,7 +50,8 @@ OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
 String activeSsid = "HeatControl";
 String activePassword = "HeatControl";
-String serialLogBuffer;
+char serialLogBuffer[12001] = {0};
+size_t serialLogLength = 0;
 AsyncWebServer server(80);
 DNSServer dnsServer;
 

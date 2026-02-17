@@ -3,6 +3,7 @@
 #include <LittleFS.h>
 #include <WiFi.h>
 #include <cstdarg>
+#include <cstring>
 #include <cstdio>
 #include <esp_system.h>
 
@@ -14,8 +15,6 @@
 using namespace HeatControl;
 
 namespace {
-
-constexpr size_t SERIAL_LOG_LIMIT = 12000;
 
 struct VoltToSoc {
   float volt;
@@ -78,11 +77,33 @@ float updateBatteryFromAdc(uint16_t adcMilliVolts, uint8_t cellCount, float &pac
 }
 
 void appendSerialLogLine(const String &line) {
-  serialLogBuffer += line;
-  serialLogBuffer += "\n";
-  if (serialLogBuffer.length() > SERIAL_LOG_LIMIT) {
-    serialLogBuffer.remove(0, serialLogBuffer.length() - SERIAL_LOG_LIMIT);
+  char lineBuf[320];
+  const int written = snprintf(lineBuf, sizeof(lineBuf), "%s\n", line.c_str());
+  if (written <= 0) {
+    return;
   }
+
+  const size_t appendLen = static_cast<size_t>(written >= static_cast<int>(sizeof(lineBuf))
+                                                    ? sizeof(lineBuf) - 1
+                                                    : written);
+  constexpr size_t maxLen = sizeof(serialLogBuffer) - 1;
+
+  if (appendLen >= maxLen) {
+    memcpy(serialLogBuffer, lineBuf + (appendLen - maxLen), maxLen);
+    serialLogBuffer[maxLen] = '\0';
+    serialLogLength = maxLen;
+    return;
+  }
+
+  if (serialLogLength + appendLen > maxLen) {
+    const size_t overflow = (serialLogLength + appendLen) - maxLen;
+    memmove(serialLogBuffer, serialLogBuffer + overflow, serialLogLength - overflow);
+    serialLogLength -= overflow;
+  }
+
+  memcpy(serialLogBuffer + serialLogLength, lineBuf, appendLen);
+  serialLogLength += appendLen;
+  serialLogBuffer[serialLogLength] = '\0';
 }
 
 void logLine(const String &line) {
@@ -110,7 +131,7 @@ void setup() {
 
   pinMode(SSR_PIN_1, OUTPUT);
   pinMode(SSR_PIN_2, OUTPUT);
-  pinMode(INPUT_PIN, INPUT);
+  pinMode(INPUT_PIN, INPUT_PULLDOWN);
   pinMode(SIGNAL_PIN, OUTPUT);
 
   digitalWrite(SSR_PIN_1, HIGH);
@@ -210,19 +231,44 @@ void loop() {
     // Read ADC inputs (millivolts) and update battery state.
     adc1MilliVolts = static_cast<uint16_t>(analogReadMilliVolts(ADC_PIN_1));
     adc2MilliVolts = static_cast<uint16_t>(analogReadMilliVolts(ADC_PIN_2));
-    const float soc1Raw =
-        updateBatteryFromAdc(adc1MilliVolts, battery1CellCount, battery1PackVoltage, battery1CellVoltage, battery1SocPercent);
-    const float soc2Raw =
-        updateBatteryFromAdc(adc2MilliVolts, battery2CellCount, battery2PackVoltage, battery2CellVoltage, battery2SocPercent);
+    updateBatteryFromAdc(adc1MilliVolts, battery1CellCount, battery1PackVoltage, battery1CellVoltage, battery1SocPercent);
+    updateBatteryFromAdc(adc2MilliVolts, battery2CellCount, battery2PackVoltage, battery2CellVoltage, battery2SocPercent);
 
-    // In manual mode, use a short battery switch OFF/ON (voltage dips below an impossible SoC)
-    // to toggle the corresponding heater output, but only if power returns within a defined time window.
-    const bool batt1OffNow = soc1Raw < -10.0F;
-    const bool batt2OffNow = soc2Raw < -10.0F;
-    // Treat battery as "ON" only if SoC estimate is clearly positive,
-    // to avoid toggling when the ADC input is floating or near zero.
-    const bool batt1OnNow = soc1Raw > 5.0F;
-    const bool batt2OnNow = soc2Raw > 5.0F;
+    // Robust OFF/ON detection based on raw ADC with hysteresis and debounce.
+    constexpr uint16_t adcOffMvThreshold = 80;
+    constexpr uint16_t adcOnMvThreshold = 300;
+    constexpr uint8_t stableSamplesRequired = 2;  // 2 * 50ms = 100ms
+    static uint8_t batt1OffStableCount = 0;
+    static uint8_t batt1OnStableCount = 0;
+    static uint8_t batt2OffStableCount = 0;
+    static uint8_t batt2OnStableCount = 0;
+
+    if (adc1MilliVolts <= adcOffMvThreshold) {
+      if (batt1OffStableCount < 255) ++batt1OffStableCount;
+      batt1OnStableCount = 0;
+    } else if (adc1MilliVolts >= adcOnMvThreshold) {
+      if (batt1OnStableCount < 255) ++batt1OnStableCount;
+      batt1OffStableCount = 0;
+    } else {
+      batt1OffStableCount = 0;
+      batt1OnStableCount = 0;
+    }
+
+    if (adc2MilliVolts <= adcOffMvThreshold) {
+      if (batt2OffStableCount < 255) ++batt2OffStableCount;
+      batt2OnStableCount = 0;
+    } else if (adc2MilliVolts >= adcOnMvThreshold) {
+      if (batt2OnStableCount < 255) ++batt2OnStableCount;
+      batt2OffStableCount = 0;
+    } else {
+      batt2OffStableCount = 0;
+      batt2OnStableCount = 0;
+    }
+
+    const bool batt1OffNow = batt1OffStableCount >= stableSamplesRequired;
+    const bool batt1OnNow = batt1OnStableCount >= stableSamplesRequired;
+    const bool batt2OffNow = batt2OffStableCount >= stableSamplesRequired;
+    const bool batt2OnNow = batt2OnStableCount >= stableSamplesRequired;
 
     // Battery switch detection: treat an OFF period as a user trigger to cycle the manual PWM step
     // only if power returns within manualPowerToggleMaxOffMs.

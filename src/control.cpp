@@ -89,23 +89,9 @@ String heaterStateText(int pin) {
 void updateSensorsAndHeaters() {
   ArduinoGpio gpio;
   DallasSensorsAdapter tempSensors;
-  const unsigned long nowMs = millis();
-
-  if (manualMode) {
-    // Manual mode: still read temperatures (if any), but control heaters independently.
-    tempSensors.requestTemperatures();
-    currentTemp1 = tempSensors.getTempCByIndex(0);
-    currentTemp2 = tempSensors.getTempCByIndex(1);
-
-    const bool pwmOn1 = logic::shouldManualHeaterBeOn(manualPowerPercent1, nowMs);
-    const bool pwmOn2 = logic::shouldManualHeaterBeOn(manualPowerPercent2, nowMs);
-    gpio.writePin(SSR_PIN_1, (manualHeater1Enabled && pwmOn1) ? logic::PIN_LOW : logic::PIN_HIGH);
-    gpio.writePin(SSR_PIN_2, (manualHeater2Enabled && pwmOn2) ? logic::PIN_LOW : logic::PIN_HIGH);
-    return;
-  }
-
-  logic::updateSensorsAndHeaters(tempSensors, gpio, powerMode, manualMode, manualPowerPercent1, swapAssignment,
-                                 targetTemp1, targetTemp2, currentTemp1, currentTemp2, SSR_PIN_1, SSR_PIN_2, nowMs);
+  logic::updateSensorsAndHeaters(tempSensors, gpio, powerMode, manualMode, manualPowerPercent1, manualPowerPercent2,
+                                 manualHeater1Enabled, manualHeater2Enabled, swapAssignment, targetTemp1, targetTemp2,
+                                 currentTemp1, currentTemp2, SSR_PIN_1, SSR_PIN_2, millis());
 }
 
 }  // namespace HeatControl

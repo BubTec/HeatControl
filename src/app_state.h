@@ -87,7 +87,8 @@ extern OneWire oneWire;
 extern DallasTemperature sensors;
 extern String activeSsid;
 extern String activePassword;
-extern String serialLogBuffer;
+extern char serialLogBuffer[12001];
+extern size_t serialLogLength;
 extern AsyncWebServer server;
 extern DNSServer dnsServer;
 

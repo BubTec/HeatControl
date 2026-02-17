@@ -28,9 +28,9 @@ bool shouldManualHeaterBeOn(uint8_t manualPowerPercent, unsigned long nowMs);
 void controlHeater(IGpio &gpio, int pin, bool forceOn, float currentTemp, float targetTemp);
 const char *heaterStateTextFromLevel(int level);
 void updateSensorsAndHeaters(ITemperatureSensors &sensors, IGpio &gpio, bool powerMode, bool manualMode,
-                             uint8_t manualPowerPercent, bool swapAssignment, float targetTemp1, float targetTemp2,
-                             float &currentTemp1, float &currentTemp2, int heaterPin1, int heaterPin2,
-                             unsigned long nowMs);
+                             uint8_t manualPowerPercent1, uint8_t manualPowerPercent2, bool manualHeater1Enabled,
+                             bool manualHeater2Enabled, bool swapAssignment, float targetTemp1, float targetTemp2,
+                             float &currentTemp1, float &currentTemp2, int heaterPin1, int heaterPin2, unsigned long nowMs);
 
 }  // namespace logic
 }  // namespace HeatControl
