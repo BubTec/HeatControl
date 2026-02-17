@@ -7,9 +7,8 @@ on:
       - production_repo
     paths:
       - "src/**"
-      - "websrc/**"
+      - "upload/**"
       - "tools/**"
-      - "buildprocess/**"
       - ".github/workflows/build_release.yml"
       - "platformio.ini"
       - "embed_webfiles.py"
@@ -18,7 +17,7 @@ on:
       - "!**/*.png"
       - "!**/*.jpg"
       - "!**/*.jpeg"
-      - "!version.txt"
+      - "!upload/version.txt"
 
 jobs:
   build-and-release:
@@ -117,9 +116,9 @@ jobs:
       - name: Determine and increment version
         id: version
         run: |
-          if [ -f version.txt ]; then
-            CURRENT_VERSION=$(cat version.txt)
-            echo "Current version from version.txt: ${CURRENT_VERSION}"
+          if [ -f upload/version.txt ]; then
+            CURRENT_VERSION=$(cat upload/version.txt)
+            echo "Current version from upload/version.txt: ${CURRENT_VERSION}"
           else
             CURRENT_VERSION=$(git tag --list | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1)
             if [ -z "${CURRENT_VERSION}" ]; then
@@ -143,7 +142,7 @@ jobs:
           NEW_VERSION="${MAJOR}.${MINOR}.${NEW_PATCH}"
 
           echo "New version: ${NEW_VERSION}"
-          echo "${NEW_VERSION}" > version.txt
+          echo "${NEW_VERSION}" > upload/version.txt
 
           echo "VERSION=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
           echo "version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
@@ -155,7 +154,7 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add version.txt
+          git add upload/version.txt
           git commit -m "Auto-increment version to ${{ steps.version.outputs.version }}" || exit 0
           git pull --rebase origin ${{ github.ref_name }} || echo "No remote changes to pull"
           git push
@@ -166,7 +165,7 @@ jobs:
           github.ref == 'refs/heads/production_repo'
         id: release_notes
         run: |
-          python buildprocess/generate_release_notes.py \
+          python tools/release/generate_release_notes.py \
             "${{ steps.version.outputs.version }}" > release_notes.md
           {
             echo "RELEASE_NOTES<<EOF"

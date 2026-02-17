@@ -33,9 +33,38 @@ def run_script(env, tag, relative_script):
         env.Exit(result.returncode)
 
 
+def patch_onewire_warning(env):
+    project_dir = env.get("PROJECT_DIR")
+    pio_env = env.get("PIOENV")
+    if not pio_env:
+        return
+
+    onewire_cpp = os.path.join(
+        project_dir, ".pio", "libdeps", pio_env, "OneWire", "OneWire.cpp"
+    )
+    if not os.path.exists(onewire_cpp):
+        return
+
+    with open(onewire_cpp, "r", encoding="utf-8", errors="replace") as f:
+        content = f.read()
+
+    updated = content.replace(
+        "#  undef noInterrupts() {portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;portENTER_CRITICAL(&mux)",
+        "#  undef noInterrupts",
+    ).replace(
+        "#  undef interrupts() portEXIT_CRITICAL(&mux);}",
+        "#  undef interrupts",
+    )
+
+    if updated != content:
+        with open(onewire_cpp, "w", encoding="utf-8", newline="") as f:
+            f.write(updated)
+        print("[onewire-patch] Patched OneWire.cpp to remove invalid #undef tokens")
+
+
 def run_prebuild(source, target, env):
-    run_script(env, "web-converter", os.path.join("tools", "web_converter.py"))
     run_script(env, "embed", "embed_webfiles.py")
+    patch_onewire_warning(env)
 
 
 # Run once at script load so generated C++ exists before dependency scanning.

@@ -144,7 +144,7 @@
     <div class="box">
       Mode: <span id="modeDisplay">-</span><br>
       <span class="muted">AP IP: 4.3.2.1</span><br>
-      <span class="muted">Firmware: {{APP_VERSION}}</span>
+      <span class="muted">Firmware: <span id="firmwareVersion">-</span></span>
     </div>
 
     <form action="/setTemp" method="POST" id="tempForm">
@@ -314,6 +314,15 @@
         .catch(() => {});
     }
 
+    function updateVersion() {
+      fetch('/version.txt')
+        .then(response => response.text())
+        .then(version => {
+          document.getElementById('firmwareVersion').textContent = version.trim() || '-';
+        })
+        .catch(() => {});
+    }
+
     document.getElementById('swapCheckbox').addEventListener('change', markUserEditing);
     document.getElementById('ssid').addEventListener('input', markUserEditing);
     document.getElementById('password').addEventListener('input', markUserEditing);
@@ -324,6 +333,7 @@
 
     setInterval(updateStatus, 2000);
     updateStatus();
+    updateVersion();
   </script>
 </body>
 </html>

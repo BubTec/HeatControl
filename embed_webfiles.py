@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate embedded web resources from websrc/ into src/generated/."""
+"""Generate embedded web resources from upload/ into src/generated/."""
 
 from __future__ import annotations
 
@@ -143,7 +143,7 @@ def clean_old_generated(out_dir: Path) -> None:
 
 def main() -> int:
     project_dir = Path(__file__).resolve().parent
-    source_root = project_dir / "websrc"
+    source_root = project_dir / "upload"
     out_dir = project_dir / "src" / "generated"
 
     if not source_root.exists():
@@ -157,11 +157,13 @@ def main() -> int:
         if not source_file.is_file():
             continue
         rel = source_file.relative_to(source_root).as_posix()
+        if source_file.name.startswith(".") or source_file.suffix.lower() == ".md":
+            continue
         generated.append(generate_single_header(source_file, source_root, out_dir))
         print(f"[embed] {rel}")
 
     if not generated:
-        print("[embed] No files found in websrc/")
+        print("[embed] No files found in upload/")
         return 1
 
     generate_registry(generated, out_dir)
