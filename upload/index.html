@@ -185,7 +185,13 @@
             <input type="number" id="temp1" name="temp1" value="23.0" step="0.5" min="10" max="45" style="display:none;">
           </div>
         </div>
-        <div id="status1" class="status status-off">Status: OFF</div>
+        <div id="status1" class="status status-off">Status: 0%</div>
+        <div class="muted">
+          Manual: <span class="diag-value" id="manualH1Enabled">-</span>
+        </div>
+        <div class="muted">
+          Battery 1 (ADC1): <span class="diag-value" id="battery1PackV">-</span> V · Cell: <span class="diag-value" id="battery1CellV">-</span> V · SoC: <span class="diag-value" id="battery1Soc">-</span>% · ADC: <span class="diag-value" id="adc1Value">-</span>
+        </div>
       </div>
 
       <div class="box">
@@ -203,7 +209,13 @@
             <input type="number" id="temp2" name="temp2" value="23.0" step="0.5" min="10" max="45" style="display:none;">
           </div>
         </div>
-        <div id="status2" class="status status-off">Status: OFF</div>
+        <div id="status2" class="status status-off">Status: 0%</div>
+        <div class="muted">
+          Manual: <span class="diag-value" id="manualH2Enabled">-</span>
+        </div>
+        <div class="muted">
+          Battery 2 (ADC2): <span class="diag-value" id="battery2PackV">-</span> V · Cell: <span class="diag-value" id="battery2CellV">-</span> V · SoC: <span class="diag-value" id="battery2Soc">-</span>% · ADC: <span class="diag-value" id="adc2Value">-</span>
+        </div>
       </div>
 
       <input type="submit" value="Save Settings">
@@ -261,11 +273,6 @@
     <div class="box">
       <h3>Diagnostics</h3>
       <div>Boot pin: <span class="diag-value" id="bootPinState">-</span></div>
-      <div>ADC1 (GPIO0): <span class="diag-value" id="adc1Value">-</span></div>
-      <div>ADC2 (GPIO1): <span class="diag-value" id="adc2Value">-</span></div>
-      <div>Battery 1 (ADC1): <span class="diag-value" id="battery1PackV">-</span> V · Cell: <span class="diag-value" id="battery1CellV">-</span> V · SoC: <span class="diag-value" id="battery1Soc">-</span>%</div>
-      <div>Battery 2 (ADC2): <span class="diag-value" id="battery2PackV">-</span> V · Cell: <span class="diag-value" id="battery2CellV">-</span> V · SoC: <span class="diag-value" id="battery2Soc">-</span>%</div>
-      <div>Manual heater 1: <span class="diag-value" id="manualH1Enabled">-</span> · Manual heater 2: <span class="diag-value" id="manualH2Enabled">-</span></div>
       <div style="margin-top:8px;">
         <form action="/setBattery1" method="POST" style="display:inline-block;margin-right:14px;">
           <label class="muted" style="display:block;margin-bottom:4px;">Battery 1 cells</label>
@@ -291,12 +298,11 @@
         </form>
         <div class="muted" style="margin-top:6px;">SoC is estimated from per-cell voltage (see firmware table).</div>
       </div>
-      <div>Manual power H1: <span class="diag-value" id="manualPower1State">-</span> · H2: <span class="diag-value" id="manualPower2State">-</span></div>
       <div>Manual OFF/ON window: <span class="diag-value" id="manualToggleWindowDisplay">-</span> ms</div>
       <form action="/setManualToggle" method="POST" style="margin-top:8px;">
         <label class="muted" style="display:block;margin-bottom:4px;">
           OFF/ON detection window (ms)
-          <input type="number" id="manualToggleWindowInput" name="windowMs" min="100" max="5000" step="50" value="500"
+          <input type="number" id="manualToggleWindowInput" name="windowMs" min="100" max="5000" step="50" value="1500"
                  oninput="markUserEditing()">
         </label>
         <input type="submit" value="Save" style="margin-left:8px;">
@@ -353,7 +359,8 @@
       fetch('/status')
         .then(response => response.json())
         .then(data => {
-          document.getElementById('modeDisplay').textContent = data.mode || '-';
+          const modeHeader = Number(data.manualMode || 0) === 1 ? 'MANUAL' : (data.mode || '-');
+          document.getElementById('modeDisplay').textContent = modeHeader;
           document.getElementById('currentTemp1Display').textContent = 'Current: ' + Number(data.current1 || 0).toFixed(1) + ' C';
           document.getElementById('currentTemp2Display').textContent = 'Current: ' + Number(data.current2 || 0).toFixed(1) + ' C';
 
@@ -364,12 +371,22 @@
 
           const status1 = document.getElementById('status1');
           const status2 = document.getElementById('status2');
-          const h1On = !!data.h1;
-          const h2On = !!data.h2;
-          status1.textContent = 'Status: ' + (h1On ? 'ON' : 'OFF');
-          status2.textContent = 'Status: ' + (h2On ? 'ON' : 'OFF');
-          status1.className = 'status ' + (h1On ? 'status-on' : 'status-off');
-          status2.className = 'status ' + (h2On ? 'status-on' : 'status-off');
+          const manualModeFlag = Number(data.manualMode || 0) === 1;
+          let status1Percent = 0;
+          let status2Percent = 0;
+          if (manualModeFlag) {
+            status1Percent = Number(data.manualPercent1 || 0);
+            status2Percent = Number(data.manualPercent2 || 0);
+          } else {
+            const h1On = !!data.h1;
+            const h2On = !!data.h2;
+            status1Percent = h1On ? 100 : 0;
+            status2Percent = h2On ? 100 : 0;
+          }
+          status1.textContent = 'Status: ' + String(Math.round(status1Percent)) + '%';
+          status2.textContent = 'Status: ' + String(Math.round(status2Percent)) + '%';
+          status1.className = 'status ' + (status1Percent > 0 ? 'status-on' : 'status-off');
+          status2.className = 'status ' + (status2Percent > 0 ? 'status-on' : 'status-off');
 
           if (!isUserEditing()) {
             document.getElementById('swapCheckbox').checked = !!data.swap;
@@ -421,13 +438,6 @@
           }
           if (typeof data.manualH2Enabled === 'number') {
             document.getElementById('manualH2Enabled').textContent = Number(data.manualH2Enabled) === 1 ? 'ENABLED' : 'DISABLED';
-          }
-          if (Number(data.manualMode || 0) === 1) {
-            document.getElementById('manualPower1State').textContent = String(Number(data.manualPercent1 || 0)) + '%';
-            document.getElementById('manualPower2State').textContent = String(Number(data.manualPercent2 || 0)) + '%';
-          } else {
-            document.getElementById('manualPower1State').textContent = '-';
-            document.getElementById('manualPower2State').textContent = '-';
           }
           if (typeof data.manualToggleMaxOffMs === 'number') {
             const val = Number(data.manualToggleMaxOffMs);

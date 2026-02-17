@@ -17,9 +17,9 @@ HeatControl is a dual-zone heating control system for drysuit diving, based on E
 - Adjustable targets (10-45 C)
 - Persistent settings in EEPROM
 - Three modes:
-  - Normal: temperature-based control
+  - Normal: temperature-based control (requires two valid sensors)
   - Power: full power output
-  - Manual: no-sensor mode with PWM power steps
+  - Manual: fallback PWM mode when fewer than two sensors are available
 - Swappable sensor assignment
 - Captive portal AP mode
 - OTA firmware upload from web UI (`/update`)
@@ -89,7 +89,7 @@ The firmware uses the following patterns (timings are approximate):
       - 3× short pulses → 75 %
       - 4× short pulses → 100 %
     - Short pulses are HIGH ~130 ms, LOW ~130 ms.
-  - **When**: No DS18B20 sensors are detected and the controller enters **manual** mode at boot.
+  - **When**: Fewer than two DS18B20 sensors are detected and the controller enters **manual** mode at boot.
 
 - **Manual mode: change of manual power (heater 1 or 2)**
   - **Pattern**:

@@ -159,14 +159,29 @@ void setup() {
   }
 
   sensors.begin();
-  manualMode = (sensors.getDeviceCount() == 0);
+  const uint8_t sensorCount = static_cast<uint8_t>(sensors.getDeviceCount());
+
+  // Normal (temperature-controlled) mode is only allowed when both sensors are present.
+  // For any configuration with fewer than two sensors, fall back to manual PWM mode.
+  manualMode = (sensorCount < 2);
   if (manualMode) {
     powerMode = false;
     loadManualPowerPercents();
     if (digitalRead(INPUT_PIN) == HIGH) {
-      cycleManualPowerPercents();
-      // Haptic feedback for initial manual power selection (channel 1 as reference).
-      signalManualPowerChange(manualPowerPercent1);
+      // Short OFF/ON gesture in manual mode: adjust only the heater that belonged
+      // to the last active battery, if we have a clear mapping from EEPROM.
+      const uint8_t lastMask = loadLastBatteryMask();
+      if (lastMask == 0x01U) {
+        cycleManualPowerPercent1();
+        signalManualPowerChange(manualPowerPercent1);
+      } else if (lastMask == 0x02U) {
+        cycleManualPowerPercent2();
+        signalManualPowerChange(manualPowerPercent2);
+      } else {
+        // Fallback: no clear last battery information -> advance both channels.
+        cycleManualPowerPercents();
+        signalManualPowerChange(manualPowerPercent1);
+      }
     }
   }
 
@@ -177,6 +192,7 @@ void setup() {
   loadWiFiCredentials();
   loadBatteryCellCounts();
   loadManualToggleOffMs();
+  logf("Manual toggle window: %u ms (min=100, max=5000)", manualPowerToggleMaxOffMs);
   loadSavedRuntime();
 
   startTimeMs = millis();
@@ -242,6 +258,10 @@ void loop() {
     static uint8_t batt1OnStableCount = 0;
     static uint8_t batt2OffStableCount = 0;
     static uint8_t batt2OnStableCount = 0;
+    static bool batt1OffNowPrev = false;
+    static bool batt1OnNowPrev = false;
+    static bool batt2OffNowPrev = false;
+    static bool batt2OnNowPrev = false;
 
     if (adc1MilliVolts <= adcOffMvThreshold) {
       if (batt1OffStableCount < 255) ++batt1OffStableCount;
@@ -270,33 +290,80 @@ void loop() {
     const bool batt2OffNow = batt2OffStableCount >= stableSamplesRequired;
     const bool batt2OnNow = batt2OnStableCount >= stableSamplesRequired;
 
+    // Persist last known battery presence mask (bit0 = battery1, bit1 = battery2)
+    // only when it changes, to avoid unnecessary EEPROM wear.
+    uint8_t currentMask = 0;
+    if (adc1MilliVolts >= adcOnMvThreshold) {
+      currentMask |= 0x01U;
+    }
+    if (adc2MilliVolts >= adcOnMvThreshold) {
+      currentMask |= 0x02U;
+    }
+    static uint8_t lastSavedMask = 0xFFU;
+    if (currentMask != lastSavedMask) {
+      lastSavedMask = currentMask;
+      saveLastBatteryMask(currentMask);
+    }
+
+    // Edge logging for OFF/ON detection flags to debug threshold behavior.
+    if (batt1OffNow != batt1OffNowPrev) {
+      batt1OffNowPrev = batt1OffNow;
+      logf("Batt1OffNow changed -> %d | adc1_mv=%u (off_thresh=%u, on_thresh=%u)", batt1OffNow ? 1 : 0,
+           adc1MilliVolts, adcOffMvThreshold, adcOnMvThreshold);
+    }
+    if (batt1OnNow != batt1OnNowPrev) {
+      batt1OnNowPrev = batt1OnNow;
+      logf("Batt1OnNow changed  -> %d | adc1_mv=%u (off_thresh=%u, on_thresh=%u)", batt1OnNow ? 1 : 0,
+           adc1MilliVolts, adcOffMvThreshold, adcOnMvThreshold);
+    }
+    if (batt2OffNow != batt2OffNowPrev) {
+      batt2OffNowPrev = batt2OffNow;
+      logf("Batt2OffNow changed -> %d | adc2_mv=%u (off_thresh=%u, on_thresh=%u)", batt2OffNow ? 1 : 0,
+           adc2MilliVolts, adcOffMvThreshold, adcOnMvThreshold);
+    }
+    if (batt2OnNow != batt2OnNowPrev) {
+      batt2OnNowPrev = batt2OnNow;
+      logf("Batt2OnNow changed  -> %d | adc2_mv=%u (off_thresh=%u, on_thresh=%u)", batt2OnNow ? 1 : 0,
+           adc2MilliVolts, adcOffMvThreshold, adcOnMvThreshold);
+    }
+
     // Battery switch detection: treat an OFF period as a user trigger to cycle the manual PWM step
     // only if power returns within manualPowerToggleMaxOffMs.
     if (batt1OffNow && !battery1Off) {
       battery1Off = true;
       battery1OffSinceMs = now;
+      logf("Battery 1 OFF edge detected | now_ms=%lu | adc1_mv=%u", now, adc1MilliVolts);
     } else if (!batt1OffNow && batt1OnNow && battery1Off) {
       const unsigned long offMs = now - battery1OffSinceMs;
       battery1Off = false;
+      logf("Battery 1 ON edge detected  | off_ms=%lu (limit=%u) | adc1_mv=%u", offMs,
+           static_cast<unsigned int>(manualPowerToggleMaxOffMs), adc1MilliVolts);
       if (offMs <= static_cast<unsigned long>(manualPowerToggleMaxOffMs)) {
         cycleManualPowerPercent1();
         logf("Battery 1 OFF/ON trigger (%lums) -> manual power 1 = %u%%", offMs, manualPowerPercent1);
         // Haptic feedback for manual heater 1 power change.
         signalManualPowerChange(manualPowerPercent1);
+      } else {
+        logf("Battery 1 OFF/ON ignored (off_ms too long for toggle window)");
       }
     }
 
     if (batt2OffNow && !battery2Off) {
       battery2Off = true;
       battery2OffSinceMs = now;
+      logf("Battery 2 OFF edge detected | now_ms=%lu | adc2_mv=%u", now, adc2MilliVolts);
     } else if (!batt2OffNow && batt2OnNow && battery2Off) {
       const unsigned long offMs = now - battery2OffSinceMs;
       battery2Off = false;
+      logf("Battery 2 ON edge detected  | off_ms=%lu (limit=%u) | adc2_mv=%u", offMs,
+           static_cast<unsigned int>(manualPowerToggleMaxOffMs), adc2MilliVolts);
       if (offMs <= static_cast<unsigned long>(manualPowerToggleMaxOffMs)) {
         cycleManualPowerPercent2();
         logf("Battery 2 OFF/ON trigger (%lums) -> manual power 2 = %u%%", offMs, manualPowerPercent2);
         // Haptic feedback for manual heater 2 power change.
         signalManualPowerChange(manualPowerPercent2);
+      } else {
+        logf("Battery 2 OFF/ON ignored (off_ms too long for toggle window)");
       }
     }
   }

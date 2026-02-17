@@ -18,6 +18,7 @@ constexpr int EEPROM_MANUAL_POWER2_ADDR = 305;
 constexpr int EEPROM_BATTERY1_CELLS_ADDR = 308;
 constexpr int EEPROM_BATTERY2_CELLS_ADDR = 309;
 constexpr int EEPROM_MANUAL_TOGGLE_MS_ADDR = 310;
+constexpr int EEPROM_LAST_BATTERY_MASK_ADDR = 312;
 constexpr int EEPROM_TEMP1_ADDR = 64;
 constexpr int EEPROM_TEMP2_ADDR = 68;
 constexpr int EEPROM_SWAP_ADDR = 72;

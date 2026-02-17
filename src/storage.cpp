@@ -165,9 +165,9 @@ void loadManualToggleOffMs() {
     bytes[i] = EEPROM.read(EEPROM_MANUAL_TOGGLE_MS_ADDR + static_cast<int>(i));
   }
 
-  // 0xFFFF or 0 means "not initialized yet" -> use default 500ms.
+  // 0xFFFF or 0 means "not initialized yet" -> use default 1500ms.
   if (stored == 0xFFFFU || stored == 0U) {
-    manualPowerToggleMaxOffMs = 500U;
+    manualPowerToggleMaxOffMs = 1500U;
   } else {
     manualPowerToggleMaxOffMs = clampManualToggleOffMs(stored);
   }
@@ -264,6 +264,21 @@ String formatRuntime(unsigned long seconds, bool showSeconds) {
   if (showSeconds) result += String(seconds) + "s";
   if (result.isEmpty()) result = showSeconds ? "0s" : "0m";
   return result;
+}
+
+uint8_t loadLastBatteryMask() {
+  // Bit0 = battery 1 present, bit1 = battery 2 present.
+  const uint8_t raw = EEPROM.read(EEPROM_LAST_BATTERY_MASK_ADDR);
+  if (raw == 0xFF) {
+    return 0;
+  }
+  return static_cast<uint8_t>(raw & 0x03U);
+}
+
+void saveLastBatteryMask(uint8_t mask) {
+  const uint8_t clamped = static_cast<uint8_t>(mask & 0x03U);
+  EEPROM.write(EEPROM_LAST_BATTERY_MASK_ADDR, clamped);
+  EEPROM.commit();
 }
 
 }  // namespace HeatControl

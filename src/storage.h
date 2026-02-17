@@ -40,4 +40,8 @@ void saveRuntimeMinute();
 
 String formatRuntime(unsigned long seconds, bool showSeconds);
 
+// Persist last known battery presence mask (bit0 = battery1, bit1 = battery2).
+uint8_t loadLastBatteryMask();
+void saveLastBatteryMask(uint8_t mask);
+
 }  // namespace HeatControl
