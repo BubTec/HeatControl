@@ -43,6 +43,18 @@ HeatControl is a dual-zone heating control system for drysuit diving, based on E
 ### Pinout
 ![ESP32-C3 Pinout](documentation/PinOut.jpg)
 
+**Connections (see `src/app_state.h`):**
+
+| GPIO | Function              | Connect to                          |
+|------|------------------------|-------------------------------------|
+| **3**  | OneWire bus            | DS18B20 data line (with 4.7kΩ pull-up to 3.3V) |
+| **4**  | Heater channel 1       | SSR/MOSFET control (SSR_PIN_1)      |
+| **5**  | Heater channel 2       | SSR/MOSFET control (SSR_PIN_2)      |
+| **6**  | Startup signal output  | Optional status LED or external signal (SIGNAL_PIN) |
+| **10** | Boot mode input        | Optional: hold low/high for power vs normal mode (INPUT_PIN) |
+
+**Network:** AP IP `4.3.2.1` · Default SSID `HeatControl` · OTA at `/update`
+
 ### Web Interface
 <img src="documentation/GUI.png" alt="Web Interface" width="300"/>
 
