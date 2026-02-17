@@ -11,6 +11,11 @@ unsigned long startTimeMs = 0;
 uint32_t counter = 0;
 uint32_t savedRuntimeMinutes = 0;
 
+bool lastHeater1State = false;
+bool lastHeater2State = false;
+bool lastSignalPinState = false;
+bool lastInputPinState = false;
+
 bool powerMode = false;
 bool manualMode = false;
 bool swapAssignment = false;
@@ -26,6 +31,7 @@ OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
 String activeSsid = "HeatControl";
 String activePassword = "HeatControl";
+String serialLogBuffer;
 AsyncWebServer server(80);
 DNSServer dnsServer;
 

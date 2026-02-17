@@ -40,6 +40,11 @@ extern unsigned long startTimeMs;
 extern uint32_t counter;
 extern uint32_t savedRuntimeMinutes;
 
+extern bool lastHeater1State;
+extern bool lastHeater2State;
+extern bool lastSignalPinState;
+extern bool lastInputPinState;
+
 extern bool powerMode;
 extern bool manualMode;
 extern bool swapAssignment;
@@ -55,6 +60,7 @@ extern OneWire oneWire;
 extern DallasTemperature sensors;
 extern String activeSsid;
 extern String activePassword;
+extern String serialLogBuffer;
 extern AsyncWebServer server;
 extern DNSServer dnsServer;
 

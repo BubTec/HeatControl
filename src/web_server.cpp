@@ -171,7 +171,11 @@ void setupWebServer() {
     const uint32_t currentSessionSeconds = static_cast<uint32_t>((millis() - startTimeMs) / 1000UL);
     const String modeText = manualMode ? ("MANUAL " + String(manualPowerPercent) + "%")
                                        : (powerMode ? "POWER" : "NORMAL");
+    const String bootPinText = (digitalRead(INPUT_PIN) == HIGH) ? "HIGH" : "LOW";
     String json = "{\"mode\":\"" + modeText + "\"" +
+                  ",\"manualMode\":" + String(manualMode ? 1 : 0) +
+                  ",\"manualPercent\":" + String(manualPowerPercent) +
+                  ",\"bootPin\":\"" + bootPinText + "\"" +
                   ",\"current1\":" + String(displayTemp1, 2) +
                   ",\"current2\":" + String(displayTemp2, 2) +
                   ",\"target1\":" + String(targetTemp1, 1) +
@@ -235,6 +239,17 @@ void setupWebServer() {
     request->send(200, "text/plain", "Rebooting...");
     delay(150);
     ESP.restart();
+  });
+
+  server.on("/signalTest", HTTP_POST, [](AsyncWebServerRequest *request) {
+    digitalWrite(SIGNAL_PIN, HIGH);
+    delay(120);
+    digitalWrite(SIGNAL_PIN, LOW);
+    request->send(200, "text/plain", "OK");
+  });
+
+  server.on("/logs", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send(200, "text/plain; charset=utf-8", serialLogBuffer);
   });
 
   server.on("/resetRuntime", HTTP_POST, [](AsyncWebServerRequest *request) {
@@ -325,6 +340,20 @@ void setupWebServer() {
           otaUploadMessage = "OK";
         }
       });
+
+  // Handle Windows Captive Portal Detection requests to prevent LittleFS errors
+  server.on("/connecttest.txt", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send(404, "text/plain", "Not found");
+  });
+  server.on("/connecttest.txt.gz", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send(404, "text/plain", "Not found");
+  });
+  server.on("/connecttest.txt/index.htm", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send(404, "text/plain", "Not found");
+  });
+  server.on("/connecttest.txt/index.htm.gz", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send(404, "text/plain", "Not found");
+  });
 
   server.onNotFound([](AsyncWebServerRequest *request) {
     if (sendEmbeddedFile(request, request->url())) {

@@ -134,6 +134,28 @@
       color: #bdbdbd;
       font-size: 0.9rem;
     }
+    .diag-value {
+      font-weight: bold;
+      margin-left: 6px;
+    }
+    .serial-box {
+      margin-top: 10px;
+      text-align: left;
+    }
+    #serialLog {
+      background: #121212;
+      border: 1px solid #555;
+      border-radius: 6px;
+      padding: 8px;
+      min-height: 140px;
+      max-height: 260px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 0.85rem;
+      color: #d9d9d9;
+    }
   </style>
 </head>
 <body>
@@ -235,6 +257,18 @@
         <input type="submit" value="Open OTA Update">
       </form>
     </div>
+
+    <div class="box">
+      <h3>Diagnostics</h3>
+      <div>Boot pin: <span class="diag-value" id="bootPinState">-</span></div>
+      <div>Manual power: <span class="diag-value" id="manualPowerState">-</span></div>
+      <button type="button" onclick="triggerSignalTest()">Test Vibration</button>
+      <button type="button" onclick="toggleSerialPanel()">Show Serial</button>
+      <div id="serialPanel" class="serial-box" style="display:none;">
+        <button type="button" onclick="loadSerialLog()">Refresh Log</button>
+        <pre id="serialLog">No data loaded.</pre>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -310,6 +344,15 @@
           if (typeof data.currentRuntime === 'string') {
             document.getElementById('runtimeCurrent').textContent = 'Current: ' + data.currentRuntime;
           }
+
+          if (typeof data.bootPin === 'string') {
+            document.getElementById('bootPinState').textContent = data.bootPin;
+          }
+          if (Number(data.manualMode || 0) === 1) {
+            document.getElementById('manualPowerState').textContent = String(Number(data.manualPercent || 0)) + '%';
+          } else {
+            document.getElementById('manualPowerState').textContent = '-';
+          }
         })
         .catch(() => {});
     }
@@ -321,6 +364,31 @@
           document.getElementById('firmwareVersion').textContent = version.trim() || '-';
         })
         .catch(() => {});
+    }
+
+    function triggerSignalTest() {
+      fetch('/signalTest', { method: 'POST' }).catch(() => {});
+    }
+
+    function loadSerialLog() {
+      fetch('/logs')
+        .then(response => response.text())
+        .then(text => {
+          const log = text.trim().length > 0 ? text : 'No log entries yet.';
+          const pre = document.getElementById('serialLog');
+          pre.textContent = log;
+          pre.scrollTop = pre.scrollHeight;
+        })
+        .catch(() => {});
+    }
+
+    function toggleSerialPanel() {
+      const panel = document.getElementById('serialPanel');
+      const isHidden = panel.style.display === 'none';
+      panel.style.display = isHidden ? 'block' : 'none';
+      if (isHidden) {
+        loadSerialLog();
+      }
     }
 
     document.getElementById('swapCheckbox').addEventListener('change', markUserEditing);
