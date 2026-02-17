@@ -43,6 +43,22 @@ HeatControl is a dual-zone heating control system for drysuit diving, based on E
 ### Pinout
 ![ESP32-C3 Pinout](documentation/PinOut.jpg)
 
+**Important note about pin names (GPIO vs D-labels):**
+
+- The firmware uses **GPIO numbers** (e.g. `GPIO4`) in `src/app_state.h`.
+- Some ESP32-C3 boards also print **D-labels** (e.g. `D2`) on the silkscreen/pinout image. These are just aliases.
+- When wiring, you can use either label, but always match the **GPIO number**.
+
+**GPIO ↔ D-label mapping (as shown in the pinout image):**
+
+| GPIO | Board label |
+|------|------------|
+| **3**  | **D1** |
+| **4**  | **D2** |
+| **5**  | **D3** |
+| **6**  | **D4** |
+| **10** | **D10** |
+
 **Connections (see `src/app_state.h`):**
 
 | GPIO | Function              | Connect to                          |
@@ -52,6 +68,8 @@ HeatControl is a dual-zone heating control system for drysuit diving, based on E
 | **5**  | Heater channel 2       | SSR/MOSFET control (SSR_PIN_2)      |
 | **6**  | Startup signal output  | Optional status LED or external signal (SIGNAL_PIN) |
 | **10** | Boot mode input        | Optional: hold low/high for power vs normal mode (INPUT_PIN) |
+
+**Note:** `INPUT_PIN` here is a project-specific boot-mode input on **GPIO10 / D10** (not the ESP32-C3 BOOT button/strapping pin).
 
 **Network:** AP IP `4.3.2.1` · Default SSID `HeatControl` · OTA at `/update`
 
