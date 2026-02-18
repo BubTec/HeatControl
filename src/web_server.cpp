@@ -308,14 +308,8 @@ void setupWebServer() {
       request->send(403, "text/plain", "Forbidden");
       return;
     }
-    if (request->hasParam("mode", true)) {
-      const String mode = request->getParam("mode", true)->value();
-      if (mode == "power") {
-        setNextBootMode(BOOT_MODE_POWER);
-      } else if (mode == "normal") {
-        setNextBootMode(BOOT_MODE_NORMAL);
-      }
-    }
+    // Web UI restart always boots in normal mode.
+    setNextBootMode(BOOT_MODE_NORMAL);
     request->send(200, "text/plain", "Rebooting...");
     scheduleRestart(600);
   });

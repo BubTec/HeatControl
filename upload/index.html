@@ -471,6 +471,17 @@
       gap: 8px;
     }
 
+    .btn-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .btn-grid .btn {
+      width: 100%;
+      min-width: 0;
+    }
+
     .diag-action-row {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -730,20 +741,19 @@
         <div class="sub-card">
           <div class="sub-title" data-i18n="ota_title">Firmware Update (OTA)</div>
           <div class="hint" data-i18n="ota_hint">Lade eine neue firmware.bin hoch, um das Geraet zu aktualisieren.</div>
-          <div class="row-two" style="margin-bottom:8px;">
+          <div class="btn-grid" style="margin-bottom:8px;">
             <button type="button" class="btn" id="checkUpdateBtn" data-i18n="update_check_btn">Auf Update pruefen</button>
             <button type="button" class="btn" id="autoUpdateBtn" data-i18n="update_auto_btn">Automatisch aktualisieren</button>
+            <button type="button" class="btn" id="otaOpenBtn" data-i18n="ota_open">Update-Seite oeffnen</button>
           </div>
-          <button type="button" class="btn" id="otaOpenBtn" data-i18n="ota_open">Update-Seite oeffnen</button>
           <div class="help-text" data-i18n="help_ota">Nutze nur passende Firmware fuer dieses Geraet. Update nicht waehrend instabiler Versorgung starten.</div>
         </div>
 
         <div class="sub-card" id="settingsSection">
           <div class="sub-title" data-i18n="system_actions_title">Systemaktionen</div>
-          <button type="button" class="btn" id="saveSettingsBtn" data-i18n="settings_save">Alle Einstellungen speichern</button>
-          <div class="row-two" style="margin-top:8px;">
+          <div class="btn-grid" style="margin-top:8px;">
+            <button type="button" class="btn" id="saveSettingsBtn" data-i18n="settings_save">Alle Einstellungen speichern</button>
             <button type="button" class="btn" id="restartNormalBtn" data-i18n="restart_normal">Normal neu starten</button>
-            <button type="button" class="btn" id="restartPowerBtn" data-i18n="restart_power">Power-Modus starten</button>
           </div>
           <div class="help-text" data-i18n="help_system_actions">Alle Einstellungen speichern betrifft Sollwerte, Sensor-Zuordnung, Batterie-Zellen und das Manual-Fenster. WLAN bleibt separat.</div>
         </div>
@@ -841,7 +851,6 @@
   const saveWifiBtn = document.getElementById('saveWifiBtn');
   const saveSettingsBtn = document.getElementById('saveSettingsBtn');
   const restartNormalBtn = document.getElementById('restartNormalBtn');
-  const restartPowerBtn = document.getElementById('restartPowerBtn');
   const resetRuntimeBtn = document.getElementById('resetRuntimeBtn');
   const otaOpenBtn = document.getElementById('otaOpenBtn');
   const checkUpdateBtn = document.getElementById('checkUpdateBtn');
@@ -931,7 +940,6 @@
       system_actions_title: 'Systemaktionen',
       settings_save: 'Alle Einstellungen speichern',
       restart_normal: 'Normal neu starten',
-      restart_power: 'Power-Modus starten',
       diag_title: 'Diagnose',
       diag_batt1_cells: 'Batterie 1 Zellen',
       diag_batt2_cells: 'Batterie 2 Zellen',
@@ -969,7 +977,6 @@
       toast_settings_saved: 'Alle Einstellungen gespeichert',
       toast_settings_error: 'Speichern fehlgeschlagen',
       toast_restart_normal: 'Normaler Neustart gestartet',
-      toast_restart_power: 'Power-Neustart gestartet',
       toast_runtime_reset: 'Gesamtlaufzeit zurueckgesetzt',
       toast_vibration_ok: 'Vibrationstest gestartet',
       toast_overtemp_reset: 'MOSFET Overtemp-Historie geloescht',
@@ -989,7 +996,6 @@
       confirm_auto_update: 'Automatisches Update jetzt starten?',
       confirm_auto_update_force_same: 'Aktuelle Version bereits installiert ({version}). Trotzdem Update erneut durchfuehren?',
       confirm_restart_normal: 'Geraet im Normalmodus neu starten?',
-      confirm_restart_power: 'Geraet im Power-Modus neu starten?',
       confirm_overtemp_reset: 'MOSFET Overtemp-Historie wirklich loeschen?',
       confirm_runtime_reset: 'Gesamtlaufzeit wirklich zuruecksetzen?',
       current_not_connected: 'Nicht verbunden',
@@ -1036,7 +1042,6 @@
       system_actions_title: 'System actions',
       settings_save: 'Save all settings',
       restart_normal: 'Restart normal mode',
-      restart_power: 'Restart power mode',
       diag_title: 'Diagnostics',
       diag_batt1_cells: 'Battery 1 cells',
       diag_batt2_cells: 'Battery 2 cells',
@@ -1074,7 +1079,6 @@
       toast_settings_saved: 'All settings saved',
       toast_settings_error: 'Save failed',
       toast_restart_normal: 'Normal restart initiated',
-      toast_restart_power: 'Power restart initiated',
       toast_runtime_reset: 'Total runtime reset',
       toast_vibration_ok: 'Vibration test started',
       toast_overtemp_reset: 'MOSFET overtemp history cleared',
@@ -1094,7 +1098,6 @@
       confirm_auto_update: 'Start automatic update now?',
       confirm_auto_update_force_same: 'This version ({version}) is already installed. Run the update again anyway?',
       confirm_restart_normal: 'Restart device in normal mode?',
-      confirm_restart_power: 'Restart device in power mode?',
       confirm_overtemp_reset: 'Clear MOSFET overtemp history now?',
       confirm_runtime_reset: 'Reset total runtime?',
       current_not_connected: 'Not connected',
@@ -1500,10 +1503,10 @@
     }
   }
 
-  async function doRestart(mode) {
+  async function doRestart() {
     try {
-      await postForm('/restart', { mode: mode });
-      showToast(mode === 'power' ? t('toast_restart_power') : t('toast_restart_normal'));
+      await postForm('/restart', {});
+      showToast(t('toast_restart_normal'));
     } catch (_) {
       showToast(t('toast_settings_error'));
     }
@@ -1757,10 +1760,7 @@
   saveSettingsBtn.addEventListener('click', saveAllSettings);
   saveWifiBtn.addEventListener('click', saveWifi);
   restartNormalBtn.addEventListener('click', () => {
-    if (confirm(t('confirm_restart_normal'))) doRestart('normal');
-  });
-  restartPowerBtn.addEventListener('click', () => {
-    if (confirm(t('confirm_restart_power'))) doRestart('power');
+    if (confirm(t('confirm_restart_normal'))) doRestart();
   });
   resetRuntimeBtn.addEventListener('click', () => {
     if (confirm(t('confirm_runtime_reset'))) resetRuntime();
