@@ -9,6 +9,7 @@
 #include "app_state.h"
 #include "control.h"
 #include "generated/embedded_files_registry.h"
+#include "https_redirect.h"
 #include "storage.h"
 
 namespace HeatControl {
@@ -378,8 +379,12 @@ void setupWebServer() {
         ".hero-logo{width:min(84%,320px);max-width:320px;height:auto;object-fit:contain;filter:drop-shadow(0 8px 16px rgba(0,0,0,.38))}"
         ".title{margin:0 0 8px;text-transform:uppercase;letter-spacing:.06em;font-size:.74rem;color:#d1dbe3;font-weight:700}"
         ".hint{border:1px dashed #566777;border-radius:9px;background:#1a232b;color:#c2cdd6;padding:8px;font-size:.74rem;line-height:1.35;margin:0 0 10px}"
-        ".file{display:block;width:100%;border:1px solid #566777;border-radius:10px;background:#1a232b;color:#e3eaf0;font-size:.82rem;padding:10px}"
-        ".actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}"
+        ".file-picker{position:relative;display:block;width:100%;border:1px solid #566777;border-radius:12px;background:#1a232b;color:#e3eaf0;padding:14px;text-align:center;cursor:pointer}"
+        ".file-picker strong{display:block;font-size:.86rem;margin-bottom:4px}"
+        ".file-picker span{display:block;font-size:.72rem;color:var(--muted)}"
+        ".file-picker input{position:absolute;inset:0;border:0;opacity:0;width:100%;height:100%;cursor:pointer}"
+        ".file-name{margin-top:6px;text-align:center;font-size:.72rem;color:var(--muted)}"
+        ".actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-top:10px}"
         ".btn,.btn-link{border:1px solid #5d6f81;border-radius:10px;background:linear-gradient(180deg,#394450,#2b333d);color:var(--text);font-size:.8rem;padding:10px;min-height:40px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}"
         ".btn-primary{border-color:rgba(255,182,92,.68);background:linear-gradient(180deg,rgba(255,182,92,.28),rgba(146,87,42,.56));color:#ffe7c7;font-weight:700}"
         ".note{margin-top:10px;color:var(--muted);font-size:.73rem;line-height:1.35}"
@@ -387,11 +392,17 @@ void setupWebServer() {
         "<div class='title'>Firmware Update (OTA)</div>"
         "<p class='hint'>Waehle eine passende <b>firmware.bin</b> aus einem HeatControl-Release und starte danach das Flashen.</p>"
         "<form method='POST' action='/update' enctype='multipart/form-data'>"
-        "<input class='file' type='file' name='firmware' accept='.bin' required>"
-        "<div class='actions'><button class='btn btn-primary' type='submit'>Upload und Flashen</button><a class='btn-link' href='/'>Zurueck zur Konsole</a></div>"
+        "<label class='file-picker'>"
+        "<strong>Datei auswaehlen</strong>"
+        "<span>Firmware (.bin) aus dem aktuellen Release</span>"
+        "<input type='file' id='firmwareFileInput' name='firmware' accept='.bin' required>"
+        "</label>"
+        "<p class='file-name' id='firmwareFileName'>Keine Datei ausgewaehlt.</p>"
+        "<div class='actions'><button class='btn btn-primary' type='submit'>Upload und Flashen</button><a class='btn-link' href='/'>Zurueck zur Konsole</a>"
+        "<a class='btn-link' href='https://github.com/BubTec/HeatControl/releases/latest' target='_blank' rel='noopener'>Neueste Version (GitHub)</a></div>"
         "</form>"
         "<div class='note'>Wichtig: Versorgung waehrend des Updates nicht unterbrechen. Das Geraet startet danach automatisch neu.</div>"
-        "</section></main></body></html>");
+        "</section></main><script>document.addEventListener('DOMContentLoaded',function(){var input=document.getElementById('firmwareFileInput');var nameEl=document.getElementById('firmwareFileName');if(!input||!nameEl){return;}var updateName=function(){if(input.files&&input.files.length){nameEl.textContent=input.files[0].name;}else{nameEl.textContent='Keine Datei ausgewaehlt.';}};input.addEventListener('change',updateName);});</script></body></html>");
     request->send(200, "text/html", page);
   });
 
@@ -509,6 +520,7 @@ void setupWebServer() {
     server.serveStatic("/", LittleFS, "/");
   }
 
+  startHttpsRedirectServer();
   server.begin();
 }
 
