@@ -802,6 +802,8 @@
   const state = {
     temp1: 23.0,
     temp2: 23.0,
+    current1: 0,
+    current2: 0,
     swap: false,
     batt1Cells: 3,
     batt2Cells: 3,
@@ -900,6 +902,7 @@
       confirm_restart_normal: 'Geraet im Normalmodus neu starten?',
       confirm_restart_power: 'Geraet im Power-Modus neu starten?',
       confirm_runtime_reset: 'Gesamtlaufzeit wirklich zuruecksetzen?',
+      current_not_connected: 'Nicht verbunden',
       current_prefix: 'Ist',
       serial_empty: 'Keine Logdaten vorhanden.'
     },
@@ -989,6 +992,7 @@
       confirm_restart_normal: 'Restart device in normal mode?',
       confirm_restart_power: 'Restart device in power mode?',
       confirm_runtime_reset: 'Reset total runtime?',
+      current_not_connected: 'Not connected',
       current_prefix: 'Current',
       serial_empty: 'No log entries yet.'
     }
@@ -1265,13 +1269,15 @@
     setTempDisplay(channel, cur + delta);
   }
 
-  function formatCurrentTemp(temp) {
-    return `${t('current_prefix')} ${Number(temp).toFixed(1)} C`;
+  function isSensorDisconnected(temp) {
+    return Number(temp) <= -126.5;
   }
 
-  function extractNumber(text) {
-    const match = String(text || '').match(/-?\d+(?:\.\d+)?/);
-    return match ? Number(match[0]) : 0;
+  function formatCurrentTemp(temp) {
+    if (isSensorDisconnected(temp)) {
+      return t('current_not_connected');
+    }
+    return `${t('current_prefix')} ${Number(temp).toFixed(1)} C`;
   }
 
   function updateRing(channel, percent) {
@@ -1419,8 +1425,8 @@
     setAdvanced(!advancedPanel.classList.contains('hidden'));
     setHelpVisibility(showHelp);
     setModeHelpVisibility(showModeHelp);
-    currentTemp1Display.textContent = formatCurrentTemp(extractNumber(currentTemp1Display.textContent));
-    currentTemp2Display.textContent = formatCurrentTemp(extractNumber(currentTemp2Display.textContent));
+    currentTemp1Display.textContent = formatCurrentTemp(state.current1);
+    currentTemp2Display.textContent = formatCurrentTemp(state.current2);
     renderUpdateBanner();
   }
 
@@ -1440,8 +1446,12 @@
       }
       modePill.textContent = state.modeLabel;
 
-      currentTemp1Display.textContent = formatCurrentTemp(Number(data.current1 || 0));
-      currentTemp2Display.textContent = formatCurrentTemp(Number(data.current2 || 0));
+      const current1 = Number(data.current1);
+      const current2 = Number(data.current2);
+      state.current1 = Number.isFinite(current1) ? current1 : 0;
+      state.current2 = Number.isFinite(current2) ? current2 : 0;
+      currentTemp1Display.textContent = formatCurrentTemp(state.current1);
+      currentTemp2Display.textContent = formatCurrentTemp(state.current2);
 
       if (!isUserEditing()) {
         setTempDisplay(1, Number(data.target1 || 23));
