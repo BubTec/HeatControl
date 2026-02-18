@@ -9,7 +9,6 @@
 #include "app_state.h"
 #include "control.h"
 #include "generated/embedded_files_registry.h"
-#include "https_redirect.h"
 #include "storage.h"
 
 namespace HeatControl {
@@ -520,7 +519,6 @@ void setupWebServer() {
     server.serveStatic("/", LittleFS, "/");
   }
 
-  startHttpsRedirectServer();
   server.begin();
 }
 
