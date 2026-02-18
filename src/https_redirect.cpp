@@ -89,18 +89,32 @@ void startHttpsRedirectServer() {
     return;
   }
 
-  constexpr httpd_method_t methods[] = {
-      HTTP_GET, HTTP_POST, HTTP_PUT, HTTP_DELETE, HTTP_HEAD, HTTP_OPTIONS, HTTP_PATCH,
+  static httpd_uri_t redirectGet = {
+      .uri = "/*",
+      .method = HTTP_GET,
+      .handler = httpsRedirectHandler,
+      .user_ctx = nullptr,
+#ifdef CONFIG_HTTPD_WS_SUPPORT
+      .is_websocket = false,
+      .handle_ws_control_frames = false,
+      .supported_subprotocol = nullptr,
+#endif
   };
 
-  for (httpd_method_t method : methods) {
-    httpd_uri_t redirectUri = {};
-    redirectUri.uri = "/*";
-    redirectUri.method = method;
-    redirectUri.handler = httpsRedirectHandler;
-    redirectUri.user_ctx = nullptr;
-    httpd_register_uri_handler(httpsRedirectServer, &redirectUri);
-  }
+  static httpd_uri_t redirectHead = {
+      .uri = "/*",
+      .method = HTTP_HEAD,
+      .handler = httpsRedirectHandler,
+      .user_ctx = nullptr,
+#ifdef CONFIG_HTTPD_WS_SUPPORT
+      .is_websocket = false,
+      .handle_ws_control_frames = false,
+      .supported_subprotocol = nullptr,
+#endif
+  };
+
+  httpd_register_uri_handler(httpsRedirectServer, &redirectGet);
+  httpd_register_uri_handler(httpsRedirectServer, &redirectHead);
 }
 
 }  // namespace HeatControl
