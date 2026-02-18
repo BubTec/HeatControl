@@ -150,6 +150,7 @@ The web interface provides:
 1. Power on the device
 2. Connect to the AP
 3. Open `http://4.3.2.1`
+   - If desktop captive portal does not open automatically, open `http://4.3.2.1` directly.
 4. Configure targets and monitor status
 5. Optional OTA update: open `/update` and upload `firmware.bin`
 
