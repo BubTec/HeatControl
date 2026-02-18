@@ -239,6 +239,13 @@ void setup() {
 void loop() {
   const unsigned long now = millis();
 
+  if (restartScheduled && (static_cast<long>(now - restartAtMs) >= 0)) {
+    restartScheduled = false;
+    logLine("Restart scheduled: rebooting now.");
+    delay(80);
+    ESP.restart();
+  }
+
   // High-frequency ADC check for manual OFF/ON detection (better than 1s resolution).
   static unsigned long lastManualToggleCheckMs = 0;
   if (manualMode && (now - lastManualToggleCheckMs) >= 50UL) {

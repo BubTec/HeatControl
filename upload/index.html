@@ -1087,6 +1087,7 @@
     let releaseFirmwareUrl = '';
 
     try {
+      console.log('[update] fetching latest GitHub release info');
       const releaseResponse = await fetchWithTimeout(
         'https://api.github.com/repos/BubTec/HeatControl/releases/latest',
         { headers: { Accept: 'application/vnd.github+json' } },
@@ -1101,17 +1102,32 @@
         }
 
         const assets = Array.isArray(payload.assets) ? payload.assets : [];
-        const binAsset = assets.find((asset) => {
-          const name = typeof asset.name === 'string' ? asset.name : '';
-          const url = typeof asset.browser_download_url === 'string' ? asset.browser_download_url : '';
-          return /\.bin$/i.test(name) && url.length > 0;
+        const binCandidates = assets
+          .map((asset) => {
+            const name = typeof asset.name === 'string' ? asset.name : '';
+            const url = typeof asset.browser_download_url === 'string' ? asset.browser_download_url : '';
+            const size = typeof asset.size === 'number' ? asset.size : 0;
+            return { name, url, size };
+          })
+          .filter((asset) => /\.bin$/i.test(asset.name) && asset.url.length > 0);
+
+        binCandidates.sort((a, b) => {
+          const aIsFirmware = /^firmware\.bin$/i.test(a.name) ? 1 : 0;
+          const bIsFirmware = /^firmware\.bin$/i.test(b.name) ? 1 : 0;
+          if (aIsFirmware !== bIsFirmware) return bIsFirmware - aIsFirmware;
+          return (b.size || 0) - (a.size || 0);
         });
-        if (binAsset && typeof binAsset.browser_download_url === 'string') {
-          releaseFirmwareUrl = binAsset.browser_download_url;
+
+        if (binCandidates.length > 0) {
+          releaseFirmwareUrl = binCandidates[0].url;
+          console.log('[update] selected release asset', binCandidates[0]);
         }
+      } else {
+        console.warn('[update] GitHub release API request failed', releaseResponse.status);
       }
     } catch (_) {
       // keep fallback path
+      console.warn('[update] GitHub release API request errored');
     }
 
     if (releaseVersion) {
@@ -1143,6 +1159,7 @@
     state.remoteVersion = releaseInfo.version;
     state.remoteFirmwareUrl = releaseInfo.firmwareUrl || '';
     state.updateAvailable = compareVersions(releaseInfo.version, local) > 0;
+    console.log('[update] local', local, 'remote', state.remoteVersion, 'available', state.updateAvailable, 'url', state.remoteFirmwareUrl);
     renderUpdateBanner();
     return state.updateAvailable ? 'available' : 'none';
   }
@@ -1165,24 +1182,29 @@
     if (!confirm(t('confirm_auto_update'))) return;
 
     showToast(t('toast_auto_update_start'));
+    console.log('[update] auto update requested');
 
     const status = await checkForUpdate();
     if (status === 'unavailable') {
       showToast(t('toast_update_unavailable'));
+      console.warn('[update] update status unavailable');
       return;
     }
     if (status === 'none') {
       showToast(t('toast_update_none'));
+      console.log('[update] no newer version');
       return;
     }
 
     if (!state.remoteFirmwareUrl) {
       showToast(t('toast_auto_update_no_asset'));
+      console.warn('[update] no firmware URL in latest release');
       return;
     }
 
     try {
       showToast(t('toast_auto_update_download'));
+      console.log('[update] downloading firmware', state.remoteFirmwareUrl);
       const firmwareResponse = await fetchWithTimeout(state.remoteFirmwareUrl, {}, 120000);
       if (!firmwareResponse.ok) {
         throw new Error(`DL_${firmwareResponse.status}`);
@@ -1192,19 +1214,24 @@
       if (!firmwareBlob || firmwareBlob.size < 1024) {
         throw new Error('DL_EMPTY');
       }
+      console.log('[update] downloaded bytes', firmwareBlob.size);
 
       showToast(t('toast_auto_update_upload'));
       const form = new FormData();
       const fileName = `HeatControl-${state.remoteVersion || 'latest'}.bin`;
       form.append('firmware', firmwareBlob, fileName);
 
+      console.log('[update] uploading firmware to /update as', fileName);
       const uploadResponse = await fetch('/update', { method: 'POST', body: form });
+      console.log('[update] upload response', uploadResponse.status);
       if (!uploadResponse.ok) {
         throw new Error(`UP_${uploadResponse.status}`);
       }
 
       showToast(t('toast_auto_update_done'));
+      console.log('[update] auto update finished (device should reboot)');
     } catch (_) {
+      console.error('[update] auto update failed');
       showToast(t('toast_auto_update_failed'));
     }
   }

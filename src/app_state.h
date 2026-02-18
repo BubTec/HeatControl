@@ -93,4 +93,7 @@ extern size_t serialLogLength;
 extern AsyncWebServer server;
 extern DNSServer dnsServer;
 
+extern bool restartScheduled;
+extern unsigned long restartAtMs;
+
 }  // namespace HeatControl

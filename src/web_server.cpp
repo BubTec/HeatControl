@@ -17,6 +17,7 @@ namespace {
 bool otaUploadStarted = false;
 bool otaUploadOk = false;
 String otaUploadMessage;
+size_t otaUploadBytes = 0;
 
 String jsonEscape(const String &value) {
   String out;
@@ -77,6 +78,11 @@ class CaptiveRequestHandler : public AsyncWebHandler {
     request->send(response);
   }
 };
+
+void scheduleRestart(uint32_t delayMs) {
+  restartScheduled = true;
+  restartAtMs = millis() + delayMs;
+}
 
 }  // namespace
 
@@ -273,8 +279,7 @@ void setupWebServer() {
       saveWiFiCredentials(newSsid, newPassword);
     }
     request->send(200, "text/plain", "WiFi settings saved. Rebooting...");
-    delay(150);
-    ESP.restart();
+    scheduleRestart(600);
   });
 
   server.on("/restart", HTTP_POST, [](AsyncWebServerRequest *request) {
@@ -291,8 +296,7 @@ void setupWebServer() {
       }
     }
     request->send(200, "text/plain", "Rebooting...");
-    delay(150);
-    ESP.restart();
+    scheduleRestart(600);
   });
 
   server.on("/signalTest", HTTP_POST, [](AsyncWebServerRequest *request) {
@@ -331,21 +335,33 @@ void setupWebServer() {
       return;
     }
     String page;
-    page.reserve(1800);
+    page.reserve(6200);
     page += F(
-        "<!DOCTYPE html><html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1'>"
+        "<!DOCTYPE html><html lang='de'><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1'>"
         "<title>HeatControl OTA</title><style>"
-        "body{font-family:Arial,Helvetica,sans-serif;background:#1d1f24;color:#fff;margin:0;padding:16px}"
-        ".box{max-width:600px;margin:0 auto;background:#2b2f36;padding:16px;border-radius:10px}"
-        "input[type=file]{margin:10px 0;color:#fff}"
-        "input[type=submit],a{background:#c0392b;color:#fff;border:0;padding:10px 14px;border-radius:6px;text-decoration:none;display:inline-block}"
-        ".muted{color:#bdbdbd;font-size:.9rem}"
-        "</style></head><body><div class='box'><h2>Firmware Update (OTA)</h2>"
-        "<p class='muted'>Select <b>firmware.bin</b> from a HeatControl release and upload it.</p>"
+        ":root{--bg-0:#0f1419;--bg-1:#151c24;--panel-0:#1c252f;--panel-1:#26323e;--line:#3b4a59;--text:#eaf2f7;--muted:#9db0bf;--warm:#ffb65c;--shadow:rgba(0,0,0,.44)}"
+        "*{box-sizing:border-box}"
+        "body{margin:0;min-height:100vh;font-family:Bahnschrift,'Segoe UI',sans-serif;color:var(--text);background:radial-gradient(120% 90% at 0% 0%,rgba(94,199,255,.16),transparent 58%),radial-gradient(120% 110% at 100% 100%,rgba(255,182,92,.12),transparent 62%),repeating-linear-gradient(90deg,rgba(255,255,255,.03) 0 1px,transparent 1px 22px),linear-gradient(180deg,var(--bg-0),var(--bg-1));padding:14px}"
+        ".app{max-width:460px;margin:0 auto;display:grid;gap:12px}"
+        ".card{border:1px solid var(--line);border-radius:16px;background:linear-gradient(180deg,var(--panel-0),var(--panel-1));box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 10px 24px var(--shadow);padding:14px}"
+        ".logo-wrap{text-align:center;margin-bottom:8px}"
+        ".hero-logo{width:min(84%,320px);max-width:320px;height:auto;object-fit:contain;filter:drop-shadow(0 8px 16px rgba(0,0,0,.38))}"
+        ".title{margin:0 0 8px;text-transform:uppercase;letter-spacing:.06em;font-size:.74rem;color:#d1dbe3;font-weight:700}"
+        ".hint{border:1px dashed #566777;border-radius:9px;background:#1a232b;color:#c2cdd6;padding:8px;font-size:.74rem;line-height:1.35;margin:0 0 10px}"
+        ".file{display:block;width:100%;border:1px solid #566777;border-radius:10px;background:#1a232b;color:#e3eaf0;font-size:.82rem;padding:10px}"
+        ".actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}"
+        ".btn,.btn-link{border:1px solid #5d6f81;border-radius:10px;background:linear-gradient(180deg,#394450,#2b333d);color:var(--text);font-size:.8rem;padding:10px;min-height:40px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}"
+        ".btn-primary{border-color:rgba(255,182,92,.68);background:linear-gradient(180deg,rgba(255,182,92,.28),rgba(146,87,42,.56));color:#ffe7c7;font-weight:700}"
+        ".note{margin-top:10px;color:var(--muted);font-size:.73rem;line-height:1.35}"
+        "</style></head><body><main class='app'><section class='card'><div class='logo-wrap'><img class='hero-logo' src='/LOGO.png' alt='HeatControl Logo'></div>"
+        "<div class='title'>Firmware Update (OTA)</div>"
+        "<p class='hint'>Waehle eine passende <b>firmware.bin</b> aus einem HeatControl-Release und starte danach das Flashen.</p>"
         "<form method='POST' action='/update' enctype='multipart/form-data'>"
-        "<input type='file' name='firmware' accept='.bin' required><br>"
-        "<input type='submit' value='Upload and Flash'>"
-        "</form><br><a href='/'>Back</a></div></body></html>");
+        "<input class='file' type='file' name='firmware' accept='.bin' required>"
+        "<div class='actions'><button class='btn btn-primary' type='submit'>Upload und Flashen</button><a class='btn-link' href='/'>Zurueck zur Konsole</a></div>"
+        "</form>"
+        "<div class='note'>Wichtig: Versorgung waehrend des Updates nicht unterbrechen. Das Geraet startet danach automatisch neu.</div>"
+        "</section></main></body></html>");
     request->send(200, "text/html", page);
   });
 
@@ -374,8 +390,7 @@ void setupWebServer() {
         otaUploadOk = false;
         otaUploadMessage = "";
         request->send(200, "text/plain", "Update successful. Device will reboot.");
-        delay(300);
-        ESP.restart();
+        scheduleRestart(1200);
       },
       [](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
         if (!isFromLocalApSubnet(request)) {
@@ -385,6 +400,7 @@ void setupWebServer() {
           otaUploadStarted = true;
           otaUploadOk = false;
           otaUploadMessage = "";
+          otaUploadBytes = 0;
 
           if (!filename.endsWith(".bin")) {
             otaUploadMessage = "Only .bin firmware files are accepted.";
@@ -406,8 +422,15 @@ void setupWebServer() {
           otaUploadMessage = "Write failed. Error code: " + String(Update.getError());
           return;
         }
+        otaUploadBytes += written;
 
         if (final) {
+          constexpr size_t kMinFirmwareBytes = 100U * 1024U;
+          if (otaUploadBytes < kMinFirmwareBytes) {
+            Update.abort();
+            otaUploadMessage = "Firmware image too small (" + String(otaUploadBytes) + " bytes). Aborting update.";
+            return;
+          }
           if (!Update.end(true)) {
             otaUploadMessage = "Finalize failed. Error code: " + String(Update.getError());
             return;

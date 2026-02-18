@@ -55,4 +55,7 @@ size_t serialLogLength = 0;
 AsyncWebServer server(80);
 DNSServer dnsServer;
 
+bool restartScheduled = false;
+unsigned long restartAtMs = 0;
+
 }  // namespace HeatControl
