@@ -967,6 +967,7 @@
       toast_auto_update_no_asset: 'Kein passendes .bin Release gefunden',
       toast_auto_update_failed: 'Auto-Update fehlgeschlagen',
       confirm_auto_update: 'Automatisches Update jetzt starten?',
+      confirm_auto_update_force_same: 'Aktuelle Version bereits installiert ({version}). Trotzdem Update erneut durchfuehren?',
       confirm_restart_normal: 'Geraet im Normalmodus neu starten?',
       confirm_restart_power: 'Geraet im Power-Modus neu starten?',
       confirm_overtemp_reset: 'MOSFET Overtemp-Historie wirklich loeschen?',
@@ -1071,6 +1072,7 @@
       toast_auto_update_no_asset: 'No matching .bin release asset found',
       toast_auto_update_failed: 'Auto update failed',
       confirm_auto_update: 'Start automatic update now?',
+      confirm_auto_update_force_same: 'This version ({version}) is already installed. Run the update again anyway?',
       confirm_restart_normal: 'Restart device in normal mode?',
       confirm_restart_power: 'Restart device in power mode?',
       confirm_overtemp_reset: 'Clear MOSFET overtemp history now?',
@@ -1254,9 +1256,6 @@
   }
 
   async function startAutoUpdate() {
-    if (!confirm(t('confirm_auto_update'))) return;
-
-    showToast(t('toast_auto_update_start'));
     console.log('[update] auto update requested');
 
     const status = await checkForUpdate();
@@ -1265,10 +1264,18 @@
       console.warn('[update] update status unavailable');
       return;
     }
+    if (status === 'available') {
+      if (!confirm(t('confirm_auto_update'))) return;
+    }
     if (status === 'none') {
-      showToast(t('toast_update_none'));
-      console.log('[update] no newer version');
-      return;
+      const versionText = state.remoteVersion || state.localVersion || String(firmwareVersion.textContent || '').trim() || '-';
+      const confirmText = fillTemplate(t('confirm_auto_update_force_same'), { version: versionText });
+      if (!confirm(confirmText)) {
+        showToast(t('toast_update_none'));
+        console.log('[update] no newer version (force update canceled)');
+        return;
+      }
+      console.log('[update] no newer version, forcing update by user confirmation');
     }
 
     if (!state.remoteFirmwareUrl) {
@@ -1278,6 +1285,7 @@
     }
 
     try {
+      showToast(t('toast_auto_update_start'));
       showToast(t('toast_auto_update_download'));
       console.log('[update] downloading firmware', state.remoteFirmwareUrl);
       const firmwareResponse = await fetchWithTimeout(state.remoteFirmwareUrl, {}, 120000);
