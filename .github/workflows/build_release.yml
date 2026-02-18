@@ -19,7 +19,7 @@ on:
       - "!**/*.jpg"
       - "!**/*.jpeg"
       - "!upload/version.txt"
-      - "!upload/firmware.bin"
+      - "!firmware/firmware.bin"
 
 jobs:
   build-and-release:
@@ -156,10 +156,11 @@ jobs:
           github.ref == 'refs/heads/main' ||
           github.ref == 'refs/heads/production_repo'
         run: |
-          cp .pio/build/esp32-c3/firmware.bin upload/firmware.bin
+          mkdir -p firmware
+          cp .pio/build/esp32-c3/firmware.bin firmware/firmware.bin
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add upload/version.txt upload/firmware.bin
+          git add upload/version.txt firmware/firmware.bin
           git commit -m "Auto-increment version to ${{ steps.version.outputs.version }} and publish firmware binary" || exit 0
           git pull --rebase origin ${{ github.ref_name }} || echo "No remote changes to pull"
           git push
