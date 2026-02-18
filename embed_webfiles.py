@@ -157,7 +157,7 @@ def main() -> int:
         if not source_file.is_file():
             continue
         rel = source_file.relative_to(source_root).as_posix()
-        if source_file.name.startswith(".") or source_file.suffix.lower() == ".md":
+        if source_file.name.startswith(".") or source_file.suffix.lower() in {".md", ".bin"}:
             continue
         generated.append(generate_single_header(source_file, source_root, out_dir))
         print(f"[embed] {rel}")
