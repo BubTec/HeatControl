@@ -4,6 +4,7 @@
 #include <LittleFS.h>
 #include <Update.h>
 #include <WiFi.h>
+#include <cmath>
 
 #include "app_state.h"
 #include "control.h"
@@ -62,6 +63,13 @@ bool isFromLocalApSubnet(AsyncWebServerRequest *request) {
   return ip[0] == 4 && ip[1] == 3 && ip[2] == 2;
 }
 
+void sendCaptiveRedirect(AsyncWebServerRequest *request) {
+  AsyncWebServerResponse *response = request->beginResponse(302, "text/plain", "");
+  response->addHeader("Location", "http://4.3.2.1/");
+  response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  request->send(response);
+}
+
 class CaptiveRequestHandler : public AsyncWebHandler {
  public:
   bool canHandle(AsyncWebServerRequest *request) {
@@ -73,9 +81,7 @@ class CaptiveRequestHandler : public AsyncWebHandler {
   }
 
   void handleRequest(AsyncWebServerRequest *request) {
-    AsyncWebServerResponse *response = request->beginResponse(302, "text/plain", "");
-    response->addHeader("Location", "http://4.3.2.1");
-    request->send(response);
+    sendCaptiveRedirect(request);
   }
 };
 
@@ -106,6 +112,10 @@ void setupWebServer() {
     const String modeText = manualMode ? ("MANUAL H1 " + String(manualPowerPercent1) + "% / H2 " + String(manualPowerPercent2) + "%")
                                        : (powerMode ? "POWER" : "NORMAL");
     const String bootPinText = (digitalRead(INPUT_PIN) == HIGH) ? "HIGH" : "LOW";
+    const String ntc1TempJson = std::isnan(ntcMosfet1TempC) ? "null" : String(ntcMosfet1TempC, 2);
+    const String ntc2TempJson = std::isnan(ntcMosfet2TempC) ? "null" : String(ntcMosfet2TempC, 2);
+    const String trip1TempJson = std::isnan(mosfet1OvertempTripTempC) ? "null" : String(mosfet1OvertempTripTempC, 2);
+    const String trip2TempJson = std::isnan(mosfet2OvertempTripTempC) ? "null" : String(mosfet2OvertempTripTempC, 2);
     String json = "{\"mode\":\"" + modeText + "\"" +
                   ",\"manualMode\":" + String(manualMode ? 1 : 0) +
                   ",\"manualPercent1\":" + String(manualPowerPercent1) +
@@ -115,6 +125,17 @@ void setupWebServer() {
                   ",\"bootPin\":\"" + bootPinText + "\"" +
                   ",\"adc1Mv\":" + String(adc1MilliVolts) +
                   ",\"adc2Mv\":" + String(adc2MilliVolts) +
+                  ",\"ntcMosfet1Mv\":" + String(ntcMosfet1MilliVolts) +
+                  ",\"ntcMosfet2Mv\":" + String(ntcMosfet2MilliVolts) +
+                  ",\"ntcMosfet1C\":" + ntc1TempJson +
+                  ",\"ntcMosfet2C\":" + ntc2TempJson +
+                  ",\"mosfet1OvertempActive\":" + String(mosfet1OvertempActive ? 1 : 0) +
+                  ",\"mosfet2OvertempActive\":" + String(mosfet2OvertempActive ? 1 : 0) +
+                  ",\"mosfet1OvertempLatched\":" + String(mosfet1OvertempLatched ? 1 : 0) +
+                  ",\"mosfet2OvertempLatched\":" + String(mosfet2OvertempLatched ? 1 : 0) +
+                  ",\"mosfet1OvertempTripC\":" + trip1TempJson +
+                  ",\"mosfet2OvertempTripC\":" + trip2TempJson +
+                  ",\"mosfetOvertempLimitC\":" + String(MOSFET_OVERTEMP_LIMIT_C, 1) +
                   ",\"batt1Cells\":" + String(battery1CellCount) +
                   ",\"batt1V\":" + String(battery1PackVoltage, 2) +
                   ",\"batt1CellV\":" + String(battery1CellVoltage, 2) +
@@ -329,6 +350,15 @@ void setupWebServer() {
     request->redirect("/");
   });
 
+  server.on("/resetOvertemp", HTTP_POST, [](AsyncWebServerRequest *request) {
+    if (!isFromLocalApSubnet(request)) {
+      request->send(403, "text/plain", "Forbidden");
+      return;
+    }
+    clearMosfetOvertempEvents();
+    request->send(200, "text/plain", "OK");
+  });
+
   server.on("/update", HTTP_GET, [](AsyncWebServerRequest *request) {
     if (!isFromLocalApSubnet(request)) {
       request->send(403, "text/plain", "Forbidden");
@@ -440,21 +470,26 @@ void setupWebServer() {
         }
       });
 
-  // Handle Windows Captive Portal Detection requests to prevent LittleFS errors
-  server.on("/connecttest.txt", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(404, "text/plain", "Not found");
-  });
-  server.on("/connecttest.txt.gz", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(404, "text/plain", "Not found");
-  });
-  server.on("/connecttest.txt/index.htm", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(404, "text/plain", "Not found");
-  });
-  server.on("/connecttest.txt/index.htm.gz", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(404, "text/plain", "Not found");
-  });
+  // Known captive portal probes (Android / iOS / Windows): always redirect to portal root.
+  server.on("/generate_204", HTTP_ANY, [](AsyncWebServerRequest *request) { sendCaptiveRedirect(request); });
+  server.on("/gen_204", HTTP_ANY, [](AsyncWebServerRequest *request) { sendCaptiveRedirect(request); });
+  server.on("/hotspot-detect.html", HTTP_ANY, [](AsyncWebServerRequest *request) { sendCaptiveRedirect(request); });
+  server.on("/library/test/success.html", HTTP_ANY, [](AsyncWebServerRequest *request) { sendCaptiveRedirect(request); });
+  server.on("/success.txt", HTTP_ANY, [](AsyncWebServerRequest *request) { sendCaptiveRedirect(request); });
+  server.on("/ncsi.txt", HTTP_ANY, [](AsyncWebServerRequest *request) { sendCaptiveRedirect(request); });
+  server.on("/connecttest.txt", HTTP_ANY, [](AsyncWebServerRequest *request) { sendCaptiveRedirect(request); });
+  server.on("/connecttest.txt.gz", HTTP_ANY, [](AsyncWebServerRequest *request) { sendCaptiveRedirect(request); });
+  server.on("/connecttest.txt/index.htm", HTTP_ANY, [](AsyncWebServerRequest *request) { sendCaptiveRedirect(request); });
+  server.on("/connecttest.txt/index.htm.gz", HTTP_ANY, [](AsyncWebServerRequest *request) { sendCaptiveRedirect(request); });
+  server.on("/redirect", HTTP_ANY, [](AsyncWebServerRequest *request) { sendCaptiveRedirect(request); });
+  server.on("/fwlink", HTTP_ANY, [](AsyncWebServerRequest *request) { sendCaptiveRedirect(request); });
 
   server.onNotFound([](AsyncWebServerRequest *request) {
+    if (request->method() == HTTP_GET && isFromLocalApSubnet(request)) {
+      sendCaptiveRedirect(request);
+      return;
+    }
+
     if (sendEmbeddedFile(request, request->url())) {
       return;
     }

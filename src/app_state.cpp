@@ -43,6 +43,16 @@ uint8_t battery2CellCount = 3;
 float battery2PackVoltage = 0.0F;
 float battery2CellVoltage = 0.0F;
 uint8_t battery2SocPercent = 0;
+uint16_t ntcMosfet1MilliVolts = 0;
+uint16_t ntcMosfet2MilliVolts = 0;
+float ntcMosfet1TempC = NAN;
+float ntcMosfet2TempC = NAN;
+bool mosfet1OvertempActive = false;
+bool mosfet2OvertempActive = false;
+bool mosfet1OvertempLatched = false;
+bool mosfet2OvertempLatched = false;
+float mosfet1OvertempTripTempC = NAN;
+float mosfet2OvertempTripTempC = NAN;
 
 uint16_t manualPowerToggleMaxOffMs = 500;
 

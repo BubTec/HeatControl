@@ -5,6 +5,7 @@
 #include <cstdarg>
 #include <cstring>
 #include <cstdio>
+#include <cmath>
 #include <esp_system.h>
 
 #include "app_state.h"
@@ -25,6 +26,14 @@ constexpr VoltToSoc VOLT_TO_SOC[] = {
     {4.18F, 100}, {4.10F, 96}, {3.99F, 82}, {3.85F, 68}, {3.77F, 58}, {3.58F, 34},
     {3.42F, 20},  {3.33F, 14}, {3.21F, 8},  {3.00F, 2},  {2.87F, 0},
 };
+
+// NTC input model:
+// 3.3V -> NTC (10k, B3950) -> ADC node -> 10k resistor -> GND
+constexpr float NTC_VCC_MV = 3300.0F;
+constexpr float NTC_SERIES_RESISTOR_OHM = 10000.0F;
+constexpr float NTC_NOMINAL_RESISTANCE_OHM = 10000.0F;
+constexpr float NTC_BETA = 3950.0F;
+constexpr float NTC_NOMINAL_TEMP_C = 25.0F;
 
 float voltageToSocFloat(float cellVolt) {
   const size_t last = (sizeof(VOLT_TO_SOC) / sizeof(VOLT_TO_SOC[0])) - 1;
@@ -74,6 +83,28 @@ float updateBatteryFromAdc(uint16_t adcMilliVolts, uint8_t cellCount, float &pac
   const float socRaw = voltageToSocFloat(cellV);
   socPercent = clampSocPercent(socRaw);
   return socRaw;
+}
+
+bool ntcMilliVoltsToTempC(uint16_t adcMilliVolts, float &tempC) {
+  const float vNodeMv = static_cast<float>(adcMilliVolts);
+  if (vNodeMv <= 0.0F || vNodeMv >= NTC_VCC_MV) {
+    return false;
+  }
+
+  // Divider solved for top resistor (NTC): Rntc = Rfixed * (Vcc / Vnode - 1)
+  const float ntcOhm = NTC_SERIES_RESISTOR_OHM * ((NTC_VCC_MV / vNodeMv) - 1.0F);
+  if (ntcOhm <= 0.0F) {
+    return false;
+  }
+
+  const float nominalTempK = NTC_NOMINAL_TEMP_C + 273.15F;
+  const float invT = (1.0F / nominalTempK) + (1.0F / NTC_BETA) * std::log(ntcOhm / NTC_NOMINAL_RESISTANCE_OHM);
+  if (invT <= 0.0F) {
+    return false;
+  }
+
+  tempC = (1.0F / invT) - 273.15F;
+  return true;
 }
 
 void appendSerialLogLine(const String &line) {
@@ -142,6 +173,8 @@ void setup() {
   analogReadResolution(12);
   analogSetPinAttenuation(ADC_PIN_1, ADC_11db);
   analogSetPinAttenuation(ADC_PIN_2, ADC_11db);
+  analogSetPinAttenuation(ADC_PIN_NTC_MOSFET_1, ADC_11db);
+  analogSetPinAttenuation(ADC_PIN_NTC_MOSFET_2, ADC_11db);
   
   // Initialize state tracking
   lastHeater1State = (digitalRead(SSR_PIN_1) == LOW);
@@ -192,6 +225,7 @@ void setup() {
   loadWiFiCredentials();
   loadBatteryCellCounts();
   loadManualToggleOffMs();
+  loadMosfetOvertempEvents();
   logf("Manual toggle window: %u ms (min=100, max=5000)", manualPowerToggleMaxOffMs);
   loadSavedRuntime();
 
@@ -229,6 +263,8 @@ void setup() {
                                      : (powerMode ? "POWER" : "NORMAL");
   logf("Detected mode: %s", modeText.c_str());
   logf("OneWire bus pin: GPIO%d", ONE_WIRE_BUS);
+  logf("MOSFET NTC pins: H1=GPIO%d | H2=GPIO%d | overtemp_limit=%.1fC", ADC_PIN_NTC_MOSFET_1, ADC_PIN_NTC_MOSFET_2,
+       MOSFET_OVERTEMP_LIMIT_C);
   logf("AP IP: %s", WiFi.softAPIP().toString().c_str());
   logf("AP SSID: %s", activeSsid.c_str());
   logf("LittleFS: %s", fileSystemReady ? "ready" : "not ready");
@@ -378,6 +414,56 @@ void loop() {
   if (now - lastSensorMs >= 1000) {
     lastSensorMs = now;
     updateSensorsAndHeaters();
+    const bool prevOvertemp1 = mosfet1OvertempActive;
+    const bool prevOvertemp2 = mosfet2OvertempActive;
+
+    ntcMosfet1MilliVolts = static_cast<uint16_t>(analogReadMilliVolts(ADC_PIN_NTC_MOSFET_1));
+    ntcMosfet2MilliVolts = static_cast<uint16_t>(analogReadMilliVolts(ADC_PIN_NTC_MOSFET_2));
+    const bool ntc1Valid = ntcMilliVoltsToTempC(ntcMosfet1MilliVolts, ntcMosfet1TempC);
+    const bool ntc2Valid = ntcMilliVoltsToTempC(ntcMosfet2MilliVolts, ntcMosfet2TempC);
+    if (!ntc1Valid) {
+      ntcMosfet1TempC = NAN;
+    }
+    if (!ntc2Valid) {
+      ntcMosfet2TempC = NAN;
+    }
+
+    if (!mosfet1OvertempActive && ntc1Valid && ntcMosfet1TempC >= MOSFET_OVERTEMP_LIMIT_C) {
+      mosfet1OvertempActive = true;
+      saveMosfetOvertempEvent(1U, ntcMosfet1TempC);
+      logf("MOSFET1 overtemp TRIP | temp=%.2fC | limit=%.1fC | heater forced OFF", ntcMosfet1TempC,
+           MOSFET_OVERTEMP_LIMIT_C);
+    } else if (mosfet1OvertempActive && ntc1Valid && ntcMosfet1TempC <= MOSFET_OVERTEMP_RESET_C) {
+      mosfet1OvertempActive = false;
+      logf("MOSFET1 cooled down | temp=%.2fC | resume<=%.1fC", ntcMosfet1TempC, MOSFET_OVERTEMP_RESET_C);
+    }
+
+    if (!mosfet2OvertempActive && ntc2Valid && ntcMosfet2TempC >= MOSFET_OVERTEMP_LIMIT_C) {
+      mosfet2OvertempActive = true;
+      saveMosfetOvertempEvent(2U, ntcMosfet2TempC);
+      logf("MOSFET2 overtemp TRIP | temp=%.2fC | limit=%.1fC | heater forced OFF", ntcMosfet2TempC,
+           MOSFET_OVERTEMP_LIMIT_C);
+    } else if (mosfet2OvertempActive && ntc2Valid && ntcMosfet2TempC <= MOSFET_OVERTEMP_RESET_C) {
+      mosfet2OvertempActive = false;
+      logf("MOSFET2 cooled down | temp=%.2fC | resume<=%.1fC", ntcMosfet2TempC, MOSFET_OVERTEMP_RESET_C);
+    }
+
+    if (mosfet1OvertempActive) {
+      digitalWrite(SSR_PIN_1, HIGH);
+    }
+    if (mosfet2OvertempActive) {
+      digitalWrite(SSR_PIN_2, HIGH);
+    }
+
+    static unsigned long lastNtcLogMs = 0;
+    const bool overtempChanged = (prevOvertemp1 != mosfet1OvertempActive) || (prevOvertemp2 != mosfet2OvertempActive);
+    if (overtempChanged || (now - lastNtcLogMs) >= 5000UL) {
+      lastNtcLogMs = now;
+      const String ntc1Text = ntc1Valid ? (String(ntcMosfet1TempC, 2) + "C") : "n/a";
+      const String ntc2Text = ntc2Valid ? (String(ntcMosfet2TempC, 2) + "C") : "n/a";
+      logf("MOSFET NTC | h1=%s (%u mV) | h2=%s (%u mV) | ot1=%d | ot2=%d", ntc1Text.c_str(), ntcMosfet1MilliVolts,
+           ntc2Text.c_str(), ntcMosfet2MilliVolts, mosfet1OvertempActive ? 1 : 0, mosfet2OvertempActive ? 1 : 0);
+    }
 
     // In non-manual modes, update ADC/battery state at 1 Hz for diagnostics.
     if (!manualMode) {
@@ -426,15 +512,97 @@ void loop() {
 
   if (now - lastPrintMs >= 2000) {
     lastPrintMs = now;
-    ++counter;
     const String modeLabel =
         manualMode ? ("MANUAL H1 " + String(manualPowerPercent1) + "% / H2 " + String(manualPowerPercent2) + "%")
                    : (powerMode ? "POWER" : "NORMAL");
-    logf("alive %u | uptime_ms=%lu | heap=%u | mode=%s | t1=%.2f | t2=%.2f | target1=%.1f | target2=%.1f | swap=%d | h1=%s | h2=%s | adc1_mv=%u | adc2_mv=%u | batt1_cells=%u | batt1_v=%.2f | batt1_cell_v=%.2f | batt1_soc=%u | batt2_cells=%u | batt2_v=%.2f | batt2_cell_v=%.2f | batt2_soc=%u",
-         counter, now, ESP.getFreeHeap(), modeLabel.c_str(), currentTemp1, currentTemp2, targetTemp1, targetTemp2,
-         swapAssignment ? 1 : 0, heaterStateText(SSR_PIN_1).c_str(), heaterStateText(SSR_PIN_2).c_str(), adc1MilliVolts,
-         adc2MilliVolts, battery1CellCount, battery1PackVoltage, battery1CellVoltage, battery1SocPercent, battery2CellCount,
-         battery2PackVoltage, battery2CellVoltage, battery2SocPercent);
+    const bool heater1On = (digitalRead(SSR_PIN_1) == LOW);
+    const bool heater2On = (digitalRead(SSR_PIN_2) == LOW);
+
+    constexpr unsigned long aliveHeartbeatMs = 30000UL;
+    constexpr float tempDeltaLogC = 0.2F;
+    constexpr float voltageDeltaLogV = 0.05F;
+    constexpr uint16_t adcDeltaLogMv = 40U;
+
+    static bool aliveSnapshotValid = false;
+    static unsigned long lastAliveLogMs = 0;
+    static String lastModeLabel;
+    static float lastCurrentTemp1 = 0.0F;
+    static float lastCurrentTemp2 = 0.0F;
+    static float lastTargetTemp1 = 0.0F;
+    static float lastTargetTemp2 = 0.0F;
+    static bool lastSwapAssignment = false;
+    static bool lastHeater1On = false;
+    static bool lastHeater2On = false;
+    static uint16_t lastAdc1MilliVolts = 0;
+    static uint16_t lastAdc2MilliVolts = 0;
+    static uint8_t lastBattery1CellCount = 0;
+    static uint8_t lastBattery2CellCount = 0;
+    static float lastBattery1PackVoltage = 0.0F;
+    static float lastBattery1CellVoltage = 0.0F;
+    static uint8_t lastBattery1SocPercent = 0;
+    static float lastBattery2PackVoltage = 0.0F;
+    static float lastBattery2CellVoltage = 0.0F;
+    static uint8_t lastBattery2SocPercent = 0;
+
+    const auto floatChanged = [](float current, float previous, float threshold) {
+      if (std::isnan(current) != std::isnan(previous)) {
+        return true;
+      }
+      if (std::isnan(current) && std::isnan(previous)) {
+        return false;
+      }
+      return std::fabs(current - previous) >= threshold;
+    };
+    const auto adcChanged = [](uint16_t current, uint16_t previous) {
+      return (current > previous) ? ((current - previous) >= adcDeltaLogMv) : ((previous - current) >= adcDeltaLogMv);
+    };
+
+    const bool stateChanged = !aliveSnapshotValid || (modeLabel != lastModeLabel) ||
+                              floatChanged(currentTemp1, lastCurrentTemp1, tempDeltaLogC) ||
+                              floatChanged(currentTemp2, lastCurrentTemp2, tempDeltaLogC) ||
+                              floatChanged(targetTemp1, lastTargetTemp1, 0.1F) ||
+                              floatChanged(targetTemp2, lastTargetTemp2, 0.1F) || (swapAssignment != lastSwapAssignment) ||
+                              (heater1On != lastHeater1On) || (heater2On != lastHeater2On) ||
+                              adcChanged(adc1MilliVolts, lastAdc1MilliVolts) ||
+                              adcChanged(adc2MilliVolts, lastAdc2MilliVolts) ||
+                              (battery1CellCount != lastBattery1CellCount) ||
+                              (battery2CellCount != lastBattery2CellCount) ||
+                              floatChanged(battery1PackVoltage, lastBattery1PackVoltage, voltageDeltaLogV) ||
+                              floatChanged(battery1CellVoltage, lastBattery1CellVoltage, voltageDeltaLogV) ||
+                              (battery1SocPercent != lastBattery1SocPercent) ||
+                              floatChanged(battery2PackVoltage, lastBattery2PackVoltage, voltageDeltaLogV) ||
+                              floatChanged(battery2CellVoltage, lastBattery2CellVoltage, voltageDeltaLogV) ||
+                              (battery2SocPercent != lastBattery2SocPercent);
+    const bool heartbeatDue = !aliveSnapshotValid || ((now - lastAliveLogMs) >= aliveHeartbeatMs);
+
+    if (stateChanged || heartbeatDue) {
+      ++counter;
+      logf("alive %u | uptime_ms=%lu | heap=%u | mode=%s | t1=%.2f | t2=%.2f | target1=%.1f | target2=%.1f | swap=%d | h1=%s | h2=%s | adc1_mv=%u | adc2_mv=%u | batt1_cells=%u | batt1_v=%.2f | batt1_cell_v=%.2f | batt1_soc=%u | batt2_cells=%u | batt2_v=%.2f | batt2_cell_v=%.2f | batt2_soc=%u",
+           counter, now, ESP.getFreeHeap(), modeLabel.c_str(), currentTemp1, currentTemp2, targetTemp1, targetTemp2,
+           swapAssignment ? 1 : 0, heater1On ? "ON" : "OFF", heater2On ? "ON" : "OFF", adc1MilliVolts, adc2MilliVolts,
+           battery1CellCount, battery1PackVoltage, battery1CellVoltage, battery1SocPercent, battery2CellCount,
+           battery2PackVoltage, battery2CellVoltage, battery2SocPercent);
+      aliveSnapshotValid = true;
+      lastAliveLogMs = now;
+      lastModeLabel = modeLabel;
+      lastCurrentTemp1 = currentTemp1;
+      lastCurrentTemp2 = currentTemp2;
+      lastTargetTemp1 = targetTemp1;
+      lastTargetTemp2 = targetTemp2;
+      lastSwapAssignment = swapAssignment;
+      lastHeater1On = heater1On;
+      lastHeater2On = heater2On;
+      lastAdc1MilliVolts = adc1MilliVolts;
+      lastAdc2MilliVolts = adc2MilliVolts;
+      lastBattery1CellCount = battery1CellCount;
+      lastBattery2CellCount = battery2CellCount;
+      lastBattery1PackVoltage = battery1PackVoltage;
+      lastBattery1CellVoltage = battery1CellVoltage;
+      lastBattery1SocPercent = battery1SocPercent;
+      lastBattery2PackVoltage = battery2PackVoltage;
+      lastBattery2CellVoltage = battery2CellVoltage;
+      lastBattery2SocPercent = battery2SocPercent;
+    }
   }
 
   if (now - lastRuntimeSaveMs >= 60000UL) {

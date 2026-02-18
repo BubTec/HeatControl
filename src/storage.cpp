@@ -1,5 +1,6 @@
 #include "storage.h"
 
+#include <cmath>
 #include <EEPROM.h>
 
 #include "app_state.h"
@@ -279,6 +280,53 @@ void saveLastBatteryMask(uint8_t mask) {
   const uint8_t clamped = static_cast<uint8_t>(mask & 0x03U);
   EEPROM.write(EEPROM_LAST_BATTERY_MASK_ADDR, clamped);
   EEPROM.commit();
+}
+
+void loadMosfetOvertempEvents() {
+  const uint8_t rawFlag1 = EEPROM.read(EEPROM_MOSFET1_OVERTEMP_FLAG_ADDR);
+  const uint8_t rawFlag2 = EEPROM.read(EEPROM_MOSFET2_OVERTEMP_FLAG_ADDR);
+  mosfet1OvertempLatched = (rawFlag1 == 1U);
+  mosfet2OvertempLatched = (rawFlag2 == 1U);
+
+  const float storedTrip1 = readFloatFromEeprom(EEPROM_MOSFET1_OVERTEMP_TEMP_ADDR);
+  const float storedTrip2 = readFloatFromEeprom(EEPROM_MOSFET2_OVERTEMP_TEMP_ADDR);
+  const auto isPlausibleTrip = [](float value) { return !std::isnan(value) && value >= -50.0F && value <= 200.0F; };
+
+  mosfet1OvertempTripTempC = (mosfet1OvertempLatched && isPlausibleTrip(storedTrip1)) ? storedTrip1 : NAN;
+  mosfet2OvertempTripTempC = (mosfet2OvertempLatched && isPlausibleTrip(storedTrip2)) ? storedTrip2 : NAN;
+}
+
+void saveMosfetOvertempEvent(uint8_t channel, float tripTempC) {
+  if (channel != 1U && channel != 2U) {
+    return;
+  }
+
+  const uint8_t clampedChannel = channel == 1U ? 1U : 2U;
+  const float clampedTrip = (std::isnan(tripTempC) || tripTempC < -50.0F || tripTempC > 200.0F) ? NAN : tripTempC;
+  if (clampedChannel == 1U) {
+    EEPROM.write(EEPROM_MOSFET1_OVERTEMP_FLAG_ADDR, 1U);
+    writeFloatToEeprom(EEPROM_MOSFET1_OVERTEMP_TEMP_ADDR, clampedTrip);
+    mosfet1OvertempLatched = true;
+    mosfet1OvertempTripTempC = clampedTrip;
+  } else {
+    EEPROM.write(EEPROM_MOSFET2_OVERTEMP_FLAG_ADDR, 1U);
+    writeFloatToEeprom(EEPROM_MOSFET2_OVERTEMP_TEMP_ADDR, clampedTrip);
+    mosfet2OvertempLatched = true;
+    mosfet2OvertempTripTempC = clampedTrip;
+  }
+  EEPROM.commit();
+}
+
+void clearMosfetOvertempEvents() {
+  EEPROM.write(EEPROM_MOSFET1_OVERTEMP_FLAG_ADDR, 0U);
+  EEPROM.write(EEPROM_MOSFET2_OVERTEMP_FLAG_ADDR, 0U);
+  writeFloatToEeprom(EEPROM_MOSFET1_OVERTEMP_TEMP_ADDR, NAN);
+  writeFloatToEeprom(EEPROM_MOSFET2_OVERTEMP_TEMP_ADDR, NAN);
+  EEPROM.commit();
+  mosfet1OvertempLatched = false;
+  mosfet2OvertempLatched = false;
+  mosfet1OvertempTripTempC = NAN;
+  mosfet2OvertempTripTempC = NAN;
 }
 
 }  // namespace HeatControl
