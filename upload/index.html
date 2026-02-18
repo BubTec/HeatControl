@@ -1565,6 +1565,7 @@
   updateSwapVisual();
   updateVersion().then(checkForUpdate);
   updateStatus();
+  // Keep UI status values fresh while page is open.
   setInterval(updateStatus, 2000);
 </script>
 </body>
