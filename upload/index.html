@@ -1085,6 +1085,7 @@
   async function fetchLatestReleaseInfo() {
     let releaseVersion = '';
     let releaseFirmwareUrl = '';
+    const rawFirmwareUrl = 'https://raw.githubusercontent.com/BubTec/HeatControl/main/upload/firmware.bin';
 
     try {
       console.log('[update] fetching latest GitHub release info');
@@ -1099,6 +1100,7 @@
         const tag = typeof payload.tag_name === 'string' ? payload.tag_name.trim() : '';
         if (tag) {
           releaseVersion = tag;
+          releaseFirmwareUrl = rawFirmwareUrl;
         }
 
         const assets = Array.isArray(payload.assets) ? payload.assets : [];
@@ -1119,9 +1121,9 @@
         });
 
         if (binCandidates.length > 0) {
-          releaseFirmwareUrl = binCandidates[0].url;
-          console.log('[update] selected release asset', binCandidates[0]);
+          console.log('[update] release assets found, selected metadata asset', binCandidates[0]);
         }
+        console.log('[update] using CORS-safe firmware URL', releaseFirmwareUrl || rawFirmwareUrl);
       } else {
         console.warn('[update] GitHub release API request failed', releaseResponse.status);
       }
@@ -1143,7 +1145,7 @@
       if (!rawResponse.ok) {
         return { version: '', firmwareUrl: '' };
       }
-      return { version: (await rawResponse.text()).trim(), firmwareUrl: '' };
+      return { version: (await rawResponse.text()).trim(), firmwareUrl: rawFirmwareUrl };
     } catch (_) {
       return { version: '', firmwareUrl: '' };
     }
