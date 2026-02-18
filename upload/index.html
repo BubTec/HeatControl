@@ -13,7 +13,7 @@
       --line: #3b4a59;
       --text: #eaf2f7;
       --muted: #9db0bf;
-      --warm: #ffb65c;
+      --warm: #ff6262;
       --shadow: rgba(0, 0, 0, 0.44);
     }
 
@@ -26,7 +26,7 @@
       color: var(--text);
       background:
         radial-gradient(120% 90% at 0% 0%, rgba(94, 199, 255, 0.16), transparent 58%),
-        radial-gradient(120% 110% at 100% 100%, rgba(255, 182, 92, 0.12), transparent 62%),
+        radial-gradient(120% 110% at 100% 100%, rgba(255, 92, 92, 0.14), transparent 62%),
         repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.03) 0 1px, transparent 1px 22px),
         linear-gradient(180deg, var(--bg-0), var(--bg-1));
     }
@@ -148,10 +148,10 @@
 
     .update-banner {
       margin-top: 8px;
-      border: 1px solid rgba(255, 182, 92, 0.65);
+      border: 1px solid rgba(255, 98, 98, 0.65);
       border-radius: 10px;
-      background: rgba(255, 182, 92, 0.14);
-      color: #ffe8c8;
+      background: rgba(255, 98, 98, 0.14);
+      color: #ffdada;
       font-size: 0.74rem;
       line-height: 1.35;
       padding: 7px 9px;
@@ -190,7 +190,7 @@
       box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
       font-size: 0.72rem;
       font-weight: 700;
-      color: #ffe2bb;
+      color: #ffd9d9;
     }
 
     .status-ring span {
@@ -265,8 +265,8 @@
       width: 24px;
       height: 24px;
       border-radius: 50%;
-      border: 1px solid #6a7d90;
-      background: linear-gradient(180deg, #ffca8a, #ff9f5f);
+      border: 1px solid #8b6266;
+      background: linear-gradient(180deg, #ff9d9d, #ff6262);
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
     }
 
@@ -274,8 +274,8 @@
       width: 24px;
       height: 24px;
       border-radius: 50%;
-      border: 1px solid #6a7d90;
-      background: linear-gradient(180deg, #ffca8a, #ff9f5f);
+      border: 1px solid #8b6266;
+      background: linear-gradient(180deg, #ff9d9d, #ff6262);
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
     }
 
@@ -427,14 +427,6 @@
 
     .switch-mock input {
       display: none;
-    }
-
-    .status-text {
-      margin-top: 8px;
-      color: #ccd7df;
-      font-size: 0.72rem;
-      letter-spacing: 0.02em;
-      text-align: center;
     }
 
     .row-two {
@@ -616,7 +608,6 @@
         <input type="range" class="heating-slider" id="temp1Slider" min="10" max="45" step="0.5" value="23.0">
         <div class="slider-meta"><span>10 C</span><span data-i18n="slider_target">Sollwert</span><span>45 C</span></div>
       </div>
-      <div class="status-text" id="heater1StatusText">0% Leistung</div>
     </section>
 
     <section class="card heater-card">
@@ -636,7 +627,6 @@
         <input type="range" class="heating-slider" id="temp2Slider" min="10" max="45" step="0.5" value="23.0">
         <div class="slider-meta"><span>10 C</span><span data-i18n="slider_target">Sollwert</span><span>45 C</span></div>
       </div>
-      <div class="status-text" id="heater2StatusText">0% Leistung</div>
     </section>
 
     <section class="card" id="advancedCard">
@@ -771,8 +761,6 @@
   const statusRing2 = document.getElementById('statusRing2');
   const status1Pct = document.getElementById('status1Pct');
   const status2Pct = document.getElementById('status2Pct');
-  const heater1StatusText = document.getElementById('heater1StatusText');
-  const heater2StatusText = document.getElementById('heater2StatusText');
 
   const swapSensorsInput = document.getElementById('swapSensorsInput');
   const swapOffLabel = document.getElementById('swapOffLabel');
@@ -912,7 +900,6 @@
       confirm_restart_normal: 'Geraet im Normalmodus neu starten?',
       confirm_restart_power: 'Geraet im Power-Modus neu starten?',
       confirm_runtime_reset: 'Gesamtlaufzeit wirklich zuruecksetzen?',
-      status_output_suffix: 'Leistung',
       current_prefix: 'Ist',
       serial_empty: 'Keine Logdaten vorhanden.'
     },
@@ -1002,7 +989,6 @@
       confirm_restart_normal: 'Restart device in normal mode?',
       confirm_restart_power: 'Restart device in power mode?',
       confirm_runtime_reset: 'Reset total runtime?',
-      status_output_suffix: 'Output',
       current_prefix: 'Current',
       serial_empty: 'No log entries yet.'
     }
@@ -1288,20 +1274,14 @@
     return match ? Number(match[0]) : 0;
   }
 
-  function formatOutput(percent) {
-    return `${Math.round(percent)}% ${t('status_output_suffix')}`;
-  }
-
   function updateRing(channel, percent) {
     const p = Math.max(0, Math.min(100, Number(percent) || 0));
     if (channel === 1) {
       statusRing1.style.setProperty('--pct', p);
       status1Pct.textContent = `${Math.round(p)}%`;
-      heater1StatusText.textContent = formatOutput(p);
     } else {
       statusRing2.style.setProperty('--pct', p);
       status2Pct.textContent = `${Math.round(p)}%`;
-      heater2StatusText.textContent = formatOutput(p);
     }
   }
 
@@ -1441,8 +1421,6 @@
     setModeHelpVisibility(showModeHelp);
     currentTemp1Display.textContent = formatCurrentTemp(extractNumber(currentTemp1Display.textContent));
     currentTemp2Display.textContent = formatCurrentTemp(extractNumber(currentTemp2Display.textContent));
-    heater1StatusText.textContent = formatOutput(parseInt(status1Pct.textContent, 10) || 0);
-    heater2StatusText.textContent = formatOutput(parseInt(status2Pct.textContent, 10) || 0);
     renderUpdateBanner();
   }
 
