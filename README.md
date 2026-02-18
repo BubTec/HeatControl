@@ -9,7 +9,7 @@
 [![Lint Code Base](https://github.com/BubTec/HeatControl/actions/workflows/super-linter.yml/badge.svg)](https://github.com/BubTec/HeatControl/actions/workflows/super-linter.yml)
 
 ## Description
-HeatControl is a dual-zone heating control system for drysuit diving, based on ESP32-C3. The controller regulates two heating channels using DS18B20 sensors and SSR/MOSFET outputs, and provides a web UI for setup and live monitoring.
+HeatControl is a dual-zone heating control system for drysuit diving, based on ESP32-C3. The controller regulates two heating channels using DS18B20 sensors and SSR/MOSFET outputs, monitors MOSFET temperature with two NTC sensors, and provides a web UI for setup and live monitoring.
 
 ## Features
 - Dual-zone temperature control
@@ -23,12 +23,15 @@ HeatControl is a dual-zone heating control system for drysuit diving, based on E
 - Swappable sensor assignment
 - Captive portal AP mode
 - OTA firmware upload from web UI (`/update`)
+- MOSFET overtemperature protection with 2x NTC (trip at 80 C, re-enable at 75 C)
 
 ## Hardware
 ### Requirements
 - ESP32-C3 board (DevKitM-1 compatible)
 - 2x DS18B20 temperature sensors
 - 2x SSR/MOSFET channels for heating
+- 2x NTC thermistors (10k, B3950 recommended) for MOSFET monitoring
+- 2x 10kOhm resistors (for NTC voltage divider)
 - Step-down converter (15V to 5V)
 - 1000uF capacitor
 - 4.7kOhm pull-up for OneWire
@@ -44,6 +47,12 @@ HeatControl is a dual-zone heating control system for drysuit diving, based on E
 - `GPIO3` -> MOSFET 1 NTC ADC input (`ADC_PIN_NTC_MOSFET_1`)
 - `GPIO2` -> MOSFET 2 NTC ADC input (`ADC_PIN_NTC_MOSFET_2`)
 - `GPIO20`/`GPIO21` -> UART0 reserved (left free by firmware)
+
+### NTC Wiring (per MOSFET channel)
+- Divider topology used by firmware: `3.3V -> NTC (10k, B3950) -> ADC node -> 10k resistor -> GND`
+- Channel 1 ADC node -> `GPIO3` (`ADC_PIN_NTC_MOSFET_1`)
+- Channel 2 ADC node -> `GPIO2` (`ADC_PIN_NTC_MOSFET_2`)
+- Important: keep ADC pin voltage within `0..3.3V`
 
 ## Interface
 ### Pinout
@@ -123,8 +132,10 @@ The web interface provides:
 - Target temperature controls
 - Heater status indicators
 - Sensor swap option
+- MOSFET NTC diagnostics (mV + C) and `HOT/TRIP` warnings per heater card
 - WiFi configuration
 - Runtime reset
+- MOSFET overtemp-history reset (acknowledge latched events)
 - OTA update upload page
 
 ## Installation

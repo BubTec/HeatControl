@@ -359,6 +359,12 @@ void setupWebServer() {
     request->send(200, "text/plain", "OK");
   });
 
+  server.on("/version.txt", HTTP_GET, [](AsyncWebServerRequest *request) {
+    if (!sendEmbeddedFile(request, "/version.txt")) {
+      request->send(404, "text/plain", "Not found");
+    }
+  });
+
   server.on("/update", HTTP_GET, [](AsyncWebServerRequest *request) {
     if (!isFromLocalApSubnet(request)) {
       request->send(403, "text/plain", "Forbidden");
