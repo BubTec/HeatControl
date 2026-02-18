@@ -54,6 +54,42 @@ jobs:
       - name: Install PlatformIO Core
         run: pip install --upgrade platformio
 
+      # Bump version before embed/build so firmware and release tag stay in sync.
+      - name: Determine and increment version
+        id: version
+        run: |
+          if [ -f upload/version.txt ]; then
+            CURRENT_VERSION=$(cat upload/version.txt)
+            echo "Current version from upload/version.txt: ${CURRENT_VERSION}"
+          else
+            CURRENT_VERSION=$(git tag --list | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1)
+            if [ -z "${CURRENT_VERSION}" ]; then
+              CURRENT_VERSION="0.0.0"
+            fi
+            echo "Current version from tags: ${CURRENT_VERSION}"
+          fi
+
+          if [[ ! "${CURRENT_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "ERROR: Invalid version format: ${CURRENT_VERSION}"
+            echo "Expected format: x.y.z (e.g., 0.0.32)"
+            exit 1
+          fi
+
+          IFS='.' read -ra PARTS <<< "${CURRENT_VERSION}"
+          MAJOR=${PARTS[0]}
+          MINOR=${PARTS[1]}
+          PATCH=${PARTS[2]}
+
+          NEW_PATCH=$((PATCH + 1))
+          NEW_VERSION="${MAJOR}.${MINOR}.${NEW_PATCH}"
+
+          echo "New version: ${NEW_VERSION}"
+          echo "${NEW_VERSION}" > upload/version.txt
+
+          echo "VERSION=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
+
+
       - name: Prepare Web Files
         run: |
           echo "Running embed_webfiles.py to prepare web content..."
@@ -114,40 +150,6 @@ jobs:
 
       - name: Run Unit Tests (native mocks)
         run: pio test -e native
-
-      - name: Determine and increment version
-        id: version
-        run: |
-          if [ -f upload/version.txt ]; then
-            CURRENT_VERSION=$(cat upload/version.txt)
-            echo "Current version from upload/version.txt: ${CURRENT_VERSION}"
-          else
-            CURRENT_VERSION=$(git tag --list | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1)
-            if [ -z "${CURRENT_VERSION}" ]; then
-              CURRENT_VERSION="0.0.0"
-            fi
-            echo "Current version from tags: ${CURRENT_VERSION}"
-          fi
-
-          if [[ ! "${CURRENT_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "ERROR: Invalid version format: ${CURRENT_VERSION}"
-            echo "Expected format: x.y.z (e.g., 0.0.32)"
-            exit 1
-          fi
-
-          IFS='.' read -ra PARTS <<< "${CURRENT_VERSION}"
-          MAJOR=${PARTS[0]}
-          MINOR=${PARTS[1]}
-          PATCH=${PARTS[2]}
-
-          NEW_PATCH=$((PATCH + 1))
-          NEW_VERSION="${MAJOR}.${MINOR}.${NEW_PATCH}"
-
-          echo "New version: ${NEW_VERSION}"
-          echo "${NEW_VERSION}" > upload/version.txt
-
-          echo "VERSION=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
-          echo "version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Commit version file
         if: >-
