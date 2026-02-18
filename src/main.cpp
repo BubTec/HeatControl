@@ -232,7 +232,7 @@ void setup() {
   logf("AP IP: %s", WiFi.softAPIP().toString().c_str());
   logf("AP SSID: %s", activeSsid.c_str());
   logf("LittleFS: %s", fileSystemReady ? "ready" : "not ready");
-  logLine("HTTP: /, /status, /runtime, /setTemp, /swapSensors, /setWiFi, /restart, /resetRuntime, /update, /signalTest, /logs");
+  logLine("HTTP: /, /status, /runtime, /setTemp, /saveSettings, /swapSensors, /setWiFi, /restart, /resetRuntime, /update, /signalTest, /logs");
   logf("SSR1: %s | SSR2: %s", heaterStateText(SSR_PIN_1).c_str(), heaterStateText(SSR_PIN_2).c_str());
 }
 

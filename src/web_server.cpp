@@ -191,6 +191,65 @@ void setupWebServer() {
     request->redirect("/");
   });
 
+  server.on("/saveSettings", HTTP_POST, [](AsyncWebServerRequest *request) {
+    if (!isFromLocalApSubnet(request)) {
+      request->send(403, "text/plain", "Forbidden");
+      return;
+    }
+
+    bool tempChanged = false;
+    bool swapChanged = false;
+    bool manualWindowChanged = false;
+    bool batteryChanged = false;
+
+    if (request->hasParam("temp1", true)) {
+      targetTemp1 = clampTarget(request->getParam("temp1", true)->value().toFloat());
+      tempChanged = true;
+    }
+    if (request->hasParam("temp2", true)) {
+      targetTemp2 = clampTarget(request->getParam("temp2", true)->value().toFloat());
+      tempChanged = true;
+    }
+
+    if (request->hasParam("swap", true)) {
+      String swapRaw = request->getParam("swap", true)->value();
+      swapRaw.toLowerCase();
+      swapAssignment = (swapRaw == "1" || swapRaw == "true" || swapRaw == "on" || swapRaw == "yes");
+      swapChanged = true;
+    }
+
+    if (request->hasParam("windowMs", true)) {
+      const uint16_t value = static_cast<uint16_t>(request->getParam("windowMs", true)->value().toInt());
+      manualPowerToggleMaxOffMs = clampManualToggleOffMs(value);
+      manualWindowChanged = true;
+    }
+
+    if (request->hasParam("batt1Cells", true)) {
+      battery1CellCount = clampBatteryCellCount(static_cast<uint8_t>(request->getParam("batt1Cells", true)->value().toInt()));
+      batteryChanged = true;
+    }
+    if (request->hasParam("batt2Cells", true)) {
+      battery2CellCount = clampBatteryCellCount(static_cast<uint8_t>(request->getParam("batt2Cells", true)->value().toInt()));
+      batteryChanged = true;
+    }
+
+    if (tempChanged) {
+      saveTemperatureTargets();
+    }
+    if (swapChanged) {
+      saveSwapAssignment();
+    }
+    if (manualWindowChanged) {
+      saveManualToggleOffMs();
+    }
+    if (batteryChanged) {
+      saveBatteryCellCounts();
+    }
+
+    request->send(200, "text/plain", "OK");
+  });
+
+
   server.on("/swapSensors", HTTP_POST, [](AsyncWebServerRequest *request) {
     if (!isFromLocalApSubnet(request)) {
       request->send(403, "text/plain", "Forbidden");

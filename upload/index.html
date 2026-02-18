@@ -1,501 +1,1573 @@
 <!DOCTYPE html>
-<html>
+<html lang="de">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>HeatControl</title>
   <style>
-    html {
-      font-family: Arial, Helvetica, sans-serif;
-      text-align: center;
-      background-color: #1a1a1a;
-      color: white;
+    :root {
+      --bg-0: #0f1419;
+      --bg-1: #151c24;
+      --panel-0: #1c252f;
+      --panel-1: #26323e;
+      --line: #3b4a59;
+      --text: #eaf2f7;
+      --muted: #9db0bf;
+      --warm: #ffb65c;
+      --shadow: rgba(0, 0, 0, 0.44);
     }
+
+    * { box-sizing: border-box; }
+
     body {
       margin: 0;
-      padding: 20px;
+      min-height: 100vh;
+      font-family: "Bahnschrift", "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(120% 90% at 0% 0%, rgba(94, 199, 255, 0.16), transparent 58%),
+        radial-gradient(120% 110% at 100% 100%, rgba(255, 182, 92, 0.12), transparent 62%),
+        repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.03) 0 1px, transparent 1px 22px),
+        linear-gradient(180deg, var(--bg-0), var(--bg-1));
     }
-    .header {
-      background-color: #e5e5e5;
-      border-radius: 8px;
-      margin-bottom: 20px;
-      padding: 8px;
-    }
-    .logo {
+
+    .app {
       width: 100%;
-      max-width: 640px;
-      height: auto;
-    }
-    .container {
-      max-width: 700px;
+      max-width: 460px;
       margin: 0 auto;
-      padding: 0 14px;
+      padding: 12px 12px 18px;
+      display: grid;
+      gap: 10px;
     }
-    .box {
-      background-color: #333;
-      padding: 18px;
-      border-radius: 8px;
-      margin-bottom: 16px;
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: linear-gradient(180deg, var(--panel-0), var(--panel-1));
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 10px 24px var(--shadow);
+      padding: 12px;
+      animation: rise 320ms ease both;
     }
-    .status {
-      display: inline-block;
-      padding: 5px 14px;
-      border-radius: 4px;
-      margin: 8px 0;
-      font-weight: bold;
-    }
-    .status-on { background-color: #e74c3c; }
-    .status-off { background-color: #666; }
-    input[type="number"], input[type="text"], input[type="password"] {
-      background-color: #444;
-      border: 1px solid #666;
-      color: white;
-      padding: 8px;
-      border-radius: 4px;
-      width: 120px;
-      margin: 5px;
-    }
-    input[type="submit"], button {
-      background-color: #e74c3c;
-      color: white;
-      padding: 10px 20px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      margin: 10px;
-    }
-    input[type="submit"]:hover, button:hover {
-      background-color: #c0392b;
-    }
-    .temp-control {
+
+    .topline {
       display: flex;
-      flex-direction: column;
-      width: 100%;
-      margin: 15px 0;
-    }
-    .temp-buttons-display {
-      display: flex;
-      align-items: center;
       justify-content: center;
-      gap: 15px;
-      margin-bottom: 12px;
+      align-items: center;
+      margin-bottom: 6px;
     }
-    .temp-button {
-      width: 50px;
-      height: 50px;
-      font-size: 1.8rem;
-      background-color: #e74c3c;
-      color: white;
-      border: none;
-      border-radius: 8px;
+
+    .hero-logo {
+      width: min(82%, 320px);
+      max-width: 320px;
+      height: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.38));
+    }
+
+    .mode-row {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .lang-btn {
+      border: 1px solid #5f7183;
+      border-radius: 999px;
+      background: rgba(20, 28, 35, 0.85);
+      color: #d6e1e9;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      padding: 4px 10px;
+      min-height: 28px;
+    }
+
+    .mode-pill {
+      border: 1px solid rgba(57, 208, 152, 0.62);
+      border-radius: 999px;
+      background: rgba(57, 208, 152, 0.18);
+      color: #ddfff1;
+      padding: 4px 10px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
       cursor: pointer;
-      padding: 0;
-      line-height: 50px;
-      touch-action: manipulation;
+      user-select: none;
     }
-    .temp-display {
-      font-size: 1.4rem;
-      min-width: 80px;
+
+    .mode-pill.help-open {
+      background: rgba(57, 208, 152, 0.3);
+    }
+
+    .mode-help {
+      margin-bottom: 8px;
+      border: 1px dashed #576a7d;
+      border-radius: 10px;
+      background: rgba(18, 25, 32, 0.86);
+      padding: 8px;
+      font-size: 0.72rem;
+      color: #c6d1da;
+      line-height: 1.32;
+      display: grid;
+      gap: 5px;
+    }
+
+    .mode-help.hidden {
+      display: none;
+    }
+
+    .mode-help b {
+      color: #f0f5f9;
+      margin-right: 4px;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 7px;
+    }
+
+    .summary-item {
+      border: 1px solid #495869;
+      border-radius: 10px;
+      background: rgba(14, 19, 24, 0.76);
       text-align: center;
+      padding: 7px 4px;
+      font-size: 0.7rem;
+      color: var(--muted);
     }
-    .slider-container {
-      width: 100%;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    .slider {
-      width: 100%;
-      height: 8px;
-      border-radius: 4px;
-      background: #444;
-      outline: none;
-      margin: 0 auto;
-      appearance: none;
-      -webkit-appearance: none;
-    }
-    .slider::-webkit-slider-thumb {
-      appearance: none;
-      -webkit-appearance: none;
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      background: #e74c3c;
-      cursor: pointer;
-    }
-    .slider::-moz-range-thumb {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      background: #e74c3c;
-      cursor: pointer;
-      border: none;
-    }
-    .muted {
-      color: #bdbdbd;
+
+    .summary-item b {
+      display: block;
+      margin-top: 3px;
+      color: var(--text);
       font-size: 0.9rem;
     }
-    .diag-value {
-      font-weight: bold;
-      margin-left: 6px;
+
+    .update-banner {
+      margin-top: 8px;
+      border: 1px solid rgba(255, 182, 92, 0.65);
+      border-radius: 10px;
+      background: rgba(255, 182, 92, 0.14);
+      color: #ffe8c8;
+      font-size: 0.74rem;
+      line-height: 1.35;
+      padding: 7px 9px;
+      text-align: center;
     }
-    .serial-box {
-      margin-top: 10px;
+
+    .update-banner.hidden {
+      display: none;
+    }
+
+    .heater-card {
+      padding: 12px;
+    }
+
+    .heater-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .heater-name {
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      font-size: 0.9rem;
+    }
+
+    .status-ring {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: conic-gradient(var(--warm) calc(var(--pct) * 1%), #2f3944 0);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #ffe2bb;
+    }
+
+    .status-ring span {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: #161d24;
+      border: 1px solid #536171;
+    }
+
+    .control-row {
+      display: grid;
+      grid-template-columns: 56px 1fr 56px;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .temp-btn {
+      height: 56px;
+      border: 1px solid #5e6f80;
+      border-radius: 12px;
+      background: linear-gradient(180deg, #3a4551, #2b333d);
+      color: var(--text);
+      font-size: 1.42rem;
+      font-weight: 700;
+      line-height: 1;
+      touch-action: manipulation;
+    }
+
+    .set-box {
+      border: 1px solid #5d6e7f;
+      border-radius: 12px;
+      background: #151c23;
+      text-align: center;
+      padding: 9px 8px;
+      font-family: "Consolas", monospace;
+    }
+
+    .set-temp {
+      color: var(--warm);
+      font-size: 1.5rem;
+      line-height: 1.1;
+      font-weight: 700;
+    }
+
+    .current-temp {
+      margin-top: 4px;
+      color: #cad4dc;
+      font-size: 0.78rem;
+    }
+
+    .slider-wrap {
+      margin-top: 9px;
+    }
+
+    .heating-slider {
+      width: 100%;
+      height: 8px;
+      border-radius: 999px;
+      border: 1px solid #4e5f70;
+      background: #121a20;
+      outline: none;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    .heating-slider::-webkit-slider-thumb {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 1px solid #6a7d90;
+      background: linear-gradient(180deg, #ffca8a, #ff9f5f);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    }
+
+    .heating-slider::-moz-range-thumb {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 1px solid #6a7d90;
+      background: linear-gradient(180deg, #ffca8a, #ff9f5f);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    }
+
+    .slider-meta {
+      margin-top: 5px;
+      display: flex;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 0.68rem;
+      letter-spacing: 0.02em;
+    }
+
+    .advanced-head {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .advanced-toggle {
+      width: 100%;
+      border: 1px solid #5b6d80;
+      border-radius: 10px;
+      background: linear-gradient(180deg, #37424d, #2a323c);
+      color: var(--text);
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      padding: 10px;
       text-align: left;
     }
-    #serialLog {
-      background: #121212;
-      border: 1px solid #555;
-      border-radius: 6px;
+
+    .help-toggle {
+      border: 1px solid #5f7183;
+      border-radius: 10px;
+      background: rgba(24, 32, 40, 0.9);
+      color: #d8e2ea;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      padding: 10px 9px;
+      min-height: 40px;
+    }
+
+    .advanced-panel {
+      margin-top: 8px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .advanced-panel.hidden {
+      display: none;
+    }
+
+    .sub-card {
+      border: 1px solid #4f5f6f;
+      border-radius: 11px;
+      background: rgba(15, 21, 27, 0.78);
+      padding: 9px;
+    }
+
+    .sub-title {
+      margin-bottom: 7px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-size: 0.72rem;
+      color: #d1dbe3;
+      font-weight: 700;
+    }
+
+    .setting-line {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+      border: 1px solid #536374;
+      border-radius: 9px;
+      background: #1a232b;
       padding: 8px;
-      min-height: 140px;
-      max-height: 260px;
-      overflow: auto;
-      white-space: pre-wrap;
-      word-break: break-word;
-      font-family: Consolas, "Courier New", monospace;
-      font-size: 0.85rem;
-      color: #d9d9d9;
+      font-size: 0.74rem;
+      color: #c8d2da;
+    }
+
+    .setting-line b {
+      display: block;
+      color: #fff;
+      font-size: 0.82rem;
+      margin-bottom: 2px;
+    }
+
+    .switch-mock {
+      border: 1px solid #5a6b7c;
+      border-radius: 999px;
+      overflow: hidden;
+      background: #2a343d;
+      display: flex;
+      min-width: 90px;
+      font-size: 0.67rem;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .switch-mock span {
+      padding: 4px 8px;
+      color: #bdcad4;
+    }
+
+    .switch-mock .active {
+      background: rgba(57, 208, 152, 0.22);
+      color: #ddfff0;
+      border-right: 1px solid #6f7f8f;
+    }
+
+    .field {
+      margin-bottom: 7px;
+    }
+
+    .field:last-child {
+      margin-bottom: 0;
+    }
+
+    .field label {
+      display: block;
+      font-size: 0.73rem;
+      color: #cfd9e1;
+      margin-bottom: 4px;
+    }
+
+    .field .mock-input {
+      width: 100%;
+      border: 1px solid #566777;
+      border-radius: 8px;
+      background: #1a232b;
+      color: #e3eaf0;
+      font-size: 0.8rem;
+      padding: 8px;
+    }
+
+    select.mock-input,
+    input.mock-input {
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    input.mock-input[type="password"] {
+      letter-spacing: 0.08em;
+    }
+
+    .switch-mock input {
+      display: none;
+    }
+
+    .status-text {
+      margin-top: 8px;
+      color: #ccd7df;
+      font-size: 0.72rem;
+      letter-spacing: 0.02em;
+      text-align: center;
+    }
+
+    .row-two {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .btn {
+      border: 1px solid #5d6f81;
+      border-radius: 9px;
+      background: linear-gradient(180deg, #394450, #2b333d);
+      color: var(--text);
+      font-size: 0.77rem;
+      padding: 8px;
+      min-height: 38px;
+    }
+
+    .btn.warn {
+      border-color: rgba(255, 120, 104, 0.74);
+      color: #ffd7d2;
+      background: linear-gradient(180deg, rgba(117, 44, 40, 0.72), rgba(80, 31, 28, 0.72));
+    }
+
+    .runtime-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .runtime-grid div {
+      border: 1px solid #566777;
+      border-radius: 9px;
+      background: #1a232b;
+      text-align: center;
+      padding: 8px;
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+
+    .runtime-grid b {
+      display: block;
+      margin-top: 3px;
+      color: #fff;
+      font-size: 0.92rem;
+    }
+
+    .hint {
+      border: 1px dashed #566777;
+      border-radius: 9px;
+      background: #1a232b;
+      color: #c2cdd6;
+      padding: 8px;
+      font-size: 0.74rem;
+      line-height: 1.35;
+      margin-bottom: 8px;
+    }
+
+    .help-text {
+      margin-top: 8px;
+      border: 1px dashed #5a6c7f;
+      border-radius: 8px;
+      background: rgba(19, 26, 33, 0.84);
+      color: #c8d3dc;
+      padding: 7px 8px;
+      font-size: 0.72rem;
+      line-height: 1.34;
+      display: none;
+    }
+
+    body.show-help .help-text {
+      display: block;
+    }
+
+    .diag-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .diag-item {
+      border: 1px solid #556677;
+      border-radius: 9px;
+      background: #1a232b;
+      padding: 8px;
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+
+    .diag-item b {
+      display: block;
+      margin-top: 2px;
+      color: #fff;
+      font-size: 0.9rem;
+    }
+
+    .serial-preview {
+      border: 1px solid #506172;
+      border-radius: 8px;
+      background: #141b21;
+      color: #d6dfe6;
+      font-family: "Consolas", monospace;
+      font-size: 0.71rem;
+      padding: 8px;
+      line-height: 1.36;
+    }
+
+    .serial-preview.hidden {
+      display: none;
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      bottom: 16px;
+      z-index: 30;
+      background: rgba(20, 30, 37, 0.95);
+      border: 1px solid #5f7386;
+      color: #e9f2f7;
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-size: 0.76rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 200ms ease, transform 200ms ease;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
     }
   </style>
 </head>
 <body>
-  <div class="header">
-    <img class="logo" src="/LOGO.png" alt="HeatControl logo">
-  </div>
-  <div class="container">
-    <div class="box">
-      Mode: <span id="modeDisplay">-</span><br>
-      <span class="muted">AP IP: 4.3.2.1</span><br>
-      <span class="muted">Firmware: <span id="firmwareVersion">-</span></span>
-    </div>
+  <main class="app">
+    <section class="card">
+      <div class="topline">
+        <img class="hero-logo" src="LOGO.png" alt="HeatControl Logo">
+      </div>
+      <div class="mode-row">
+        <div class="mode-pill" id="modePill" data-i18n="mode_auto">AUTO</div>
+        <button type="button" class="lang-btn" id="langToggleBtn">English</button>
+      </div>
+      <div class="mode-help hidden" id="modeHelpBox">
+        <div><b data-i18n="mode_auto_label">AUTO:</b><span data-i18n="mode_auto_desc">Automatische Regelung fuer beide Heizkreise anhand der Solltemperaturen.</span></div>
+        <div><b data-i18n="mode_power_label">POWER:</b><span data-i18n="mode_power_desc">Beide Heizkreise werden im Leistungsmodus priorisiert betrieben.</span></div>
+        <div><b data-i18n="mode_manual_label">MANUAL:</b><span data-i18n="mode_manual_desc">Manuelle Steuerung fuer beide Heizkreise mit festen Leistungswerten.</span></div>
+      </div>
+      <div class="summary-grid">
+        <div class="summary-item"><span data-i18n="summary_ap_ip">AP IP</span><b>4.3.2.1</b></div>
+        <div class="summary-item"><span data-i18n="summary_firmware">Firmware</span><b id="firmwareVersion">-</b></div>
+        <div class="summary-item"><span data-i18n="summary_ssid">WLAN</span><b id="summarySsid">-</b></div>
+      </div>
+      <div class="update-banner hidden" id="updateBanner"></div>
+    </section>
 
-    <form action="/setTemp" method="POST" id="tempForm">
-      <div class="box">
-        <h3>Heating 1</h3>
-        <div id="currentTemp1Display">Current: 0.0 C</div>
-        <div class="temp-control">
-          <div class="temp-buttons-display">
-            <button type="button" class="temp-button" onclick="adjustTemp('temp1', -0.5)">-</button>
-            <div class="temp-display"><span id="targetTemp1Display">23.0</span>C</div>
-            <button type="button" class="temp-button" onclick="adjustTemp('temp1', 0.5)">+</button>
+    <section class="card heater-card">
+      <div class="heater-head">
+        <div class="heater-name" data-i18n="heater1_title">Heizung 1</div>
+        <div class="status-ring" id="statusRing1" style="--pct:0"><span id="status1Pct">0%</span></div>
+      </div>
+      <div class="control-row">
+        <button type="button" class="temp-btn" id="temp1DownBtn">-</button>
+        <div class="set-box">
+          <div class="set-temp"><span id="targetTemp1Display">23.0</span> C</div>
+          <div class="current-temp" id="currentTemp1Display">Ist 0.0 C</div>
+        </div>
+        <button type="button" class="temp-btn" id="temp1UpBtn">+</button>
+      </div>
+      <div class="slider-wrap">
+        <input type="range" class="heating-slider" id="temp1Slider" min="10" max="45" step="0.5" value="23.0">
+        <div class="slider-meta"><span>10 C</span><span data-i18n="slider_target">Sollwert</span><span>45 C</span></div>
+      </div>
+      <div class="status-text" id="heater1StatusText">0% Leistung</div>
+    </section>
+
+    <section class="card heater-card">
+      <div class="heater-head">
+        <div class="heater-name" data-i18n="heater2_title">Heizung 2</div>
+        <div class="status-ring" id="statusRing2" style="--pct:0"><span id="status2Pct">0%</span></div>
+      </div>
+      <div class="control-row">
+        <button type="button" class="temp-btn" id="temp2DownBtn">-</button>
+        <div class="set-box">
+          <div class="set-temp"><span id="targetTemp2Display">23.0</span> C</div>
+          <div class="current-temp" id="currentTemp2Display">Ist 0.0 C</div>
+        </div>
+        <button type="button" class="temp-btn" id="temp2UpBtn">+</button>
+      </div>
+      <div class="slider-wrap">
+        <input type="range" class="heating-slider" id="temp2Slider" min="10" max="45" step="0.5" value="23.0">
+        <div class="slider-meta"><span>10 C</span><span data-i18n="slider_target">Sollwert</span><span>45 C</span></div>
+      </div>
+      <div class="status-text" id="heater2StatusText">0% Leistung</div>
+    </section>
+
+    <section class="card" id="advancedCard">
+      <div class="advanced-head">
+        <button type="button" class="advanced-toggle" id="advancedToggle">Erweitert anzeigen</button>
+        <button type="button" class="help-toggle" id="helpToggleBtn">Hilfe anzeigen</button>
+      </div>
+      <div class="advanced-panel hidden" id="advancedPanel">
+        <div class="sub-card" id="sensorSection">
+          <div class="sub-title" data-i18n="sensor_title">Sensor-Zuordnung</div>
+          <div class="setting-line">
+            <div><b data-i18n="sensor_swap_title">Temperaturfuehler tauschen</b><span data-i18n="sensor_swap_desc">Bei vertauschter Verkabelung aktivieren.</span></div>
+            <label class="switch-mock" for="swapSensorsInput"><input type="checkbox" id="swapSensorsInput"><span id="swapOffLabel" class="active" data-i18n="off">AUS</span><span id="swapOnLabel" data-i18n="on">EIN</span></label>
           </div>
-          <div class="slider-container">
-            <input type="range" class="slider" id="temp1Slider" min="10" max="45" step="0.5" value="23.0"
-                   oninput="updateFromSlider('temp1')">
-            <input type="number" id="temp1" name="temp1" value="23.0" step="0.5" min="10" max="45" style="display:none;">
+          <div class="help-text" data-i18n="help_sensor_swap">Nur aktivieren, wenn Heizung 1/2 offensichtlich vertauscht reagieren.</div>
+        </div>
+
+        <div class="sub-card" id="wifiSection">
+          <div class="sub-title" data-i18n="wifi_title">WLAN Einstellungen</div>
+          <div class="field">
+            <label data-i18n="wifi_ssid">Netzwerkname (SSID)</label>
+            <input class="mock-input" id="ssidInput" maxlength="31" value="HeatControl">
           </div>
-        </div>
-        <div id="status1" class="status status-off">Status: 0%</div>
-        <div class="muted">
-          Manual: <span class="diag-value" id="manualH1Enabled">-</span>
-        </div>
-        <div class="muted">
-          Battery 1 (ADC1): <span class="diag-value" id="battery1PackV">-</span> V · Cell: <span class="diag-value" id="battery1CellV">-</span> V · SoC: <span class="diag-value" id="battery1Soc">-</span>% · ADC: <span class="diag-value" id="adc1Value">-</span>
-        </div>
-      </div>
-
-      <div class="box">
-        <h3>Heating 2</h3>
-        <div id="currentTemp2Display">Current: 0.0 C</div>
-        <div class="temp-control">
-          <div class="temp-buttons-display">
-            <button type="button" class="temp-button" onclick="adjustTemp('temp2', -0.5)">-</button>
-            <div class="temp-display"><span id="targetTemp2Display">23.0</span>C</div>
-            <button type="button" class="temp-button" onclick="adjustTemp('temp2', 0.5)">+</button>
+          <div class="field">
+            <label data-i18n="wifi_pass">Passwort</label>
+            <input class="mock-input" id="passwordInput" type="password" maxlength="31" value="">
           </div>
-          <div class="slider-container">
-            <input type="range" class="slider" id="temp2Slider" min="10" max="45" step="0.5" value="23.0"
-                   oninput="updateFromSlider('temp2')">
-            <input type="number" id="temp2" name="temp2" value="23.0" step="0.5" min="10" max="45" style="display:none;">
+          <button type="button" class="btn" id="saveWifiBtn" data-i18n="wifi_save">WLAN speichern (mit Neustart)</button>
+          <div class="help-text" data-i18n="help_wifi">Nach dem WLAN-Speichern ist ein Neustart notwendig, damit die neuen Daten aktiv werden.</div>
+        </div>
+
+        <div class="sub-card">
+          <div class="sub-title" data-i18n="runtime_title">System Laufzeit</div>
+          <div class="runtime-grid">
+            <div><span data-i18n="runtime_total">Gesamtlaufzeit</span><b id="runtimeTotal">0m</b></div>
+            <div><span data-i18n="runtime_current">Aktuelle Laufzeit</span><b id="runtimeCurrent">0s</b></div>
           </div>
+          <button type="button" class="btn warn" id="resetRuntimeBtn" data-i18n="runtime_reset">Gesamtlaufzeit zuruecksetzen</button>
+          <div class="help-text" data-i18n="help_runtime_reset">Diese Aktion setzt nur den Laufzeitzaehler zurueck. Heizparameter bleiben unveraendert.</div>
         </div>
-        <div id="status2" class="status status-off">Status: 0%</div>
-        <div class="muted">
-          Manual: <span class="diag-value" id="manualH2Enabled">-</span>
+
+        <div class="sub-card">
+          <div class="sub-title" data-i18n="ota_title">Firmware Update (OTA)</div>
+          <div class="hint" data-i18n="ota_hint">Lade eine neue firmware.bin hoch, um das Geraet zu aktualisieren.</div>
+          <div class="row-two" style="margin-bottom:8px;">
+            <button type="button" class="btn" id="checkUpdateBtn" data-i18n="update_check_btn">Auf Update pruefen</button>
+            <button type="button" class="btn" id="autoUpdateBtn" data-i18n="update_auto_btn">Automatisch aktualisieren</button>
+          </div>
+          <button type="button" class="btn" id="otaOpenBtn" data-i18n="ota_open">Update-Seite oeffnen</button>
+          <div class="help-text" data-i18n="help_ota">Nutze nur passende Firmware fuer dieses Geraet. Update nicht waehrend instabiler Versorgung starten.</div>
         </div>
-        <div class="muted">
-          Battery 2 (ADC2): <span class="diag-value" id="battery2PackV">-</span> V · Cell: <span class="diag-value" id="battery2CellV">-</span> V · SoC: <span class="diag-value" id="battery2Soc">-</span>% · ADC: <span class="diag-value" id="adc2Value">-</span>
+
+        <div class="sub-card" id="settingsSection">
+          <div class="sub-title" data-i18n="system_actions_title">Systemaktionen</div>
+          <button type="button" class="btn" id="saveSettingsBtn" data-i18n="settings_save">Alle Einstellungen speichern</button>
+          <div class="row-two" style="margin-top:8px;">
+            <button type="button" class="btn" id="restartNormalBtn" data-i18n="restart_normal">Normal neu starten</button>
+            <button type="button" class="btn" id="restartPowerBtn" data-i18n="restart_power">Power-Modus starten</button>
+          </div>
+          <div class="help-text" data-i18n="help_system_actions">Alle Einstellungen speichern betrifft Sollwerte, Sensor-Zuordnung, Batterie-Zellen und das Manual-Fenster. WLAN bleibt separat.</div>
+        </div>
+
+        <div class="sub-card" id="diagSection">
+          <div class="sub-title" data-i18n="diag_title">Diagnose</div>
+          <div class="row-two" style="margin-bottom:8px;">
+            <div class="field">
+              <label for="battery1Cells" data-i18n="diag_batt1_cells">Batterie 1 Zellen</label>
+              <select id="battery1Cells" class="mock-input">
+                <option value="2">2S</option>
+                <option value="3">3S</option>
+                <option value="4">4S</option>
+                <option value="5">5S</option>
+                <option value="6">6S</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="battery2Cells" data-i18n="diag_batt2_cells">Batterie 2 Zellen</label>
+              <select id="battery2Cells" class="mock-input">
+                <option value="2">2S</option>
+                <option value="3">3S</option>
+                <option value="4">4S</option>
+                <option value="5">5S</option>
+                <option value="6">6S</option>
+              </select>
+            </div>
+          </div>
+          <div class="field" style="margin-bottom:8px;">
+            <label for="manualToggleWindowInput" data-i18n="diag_manual_window_input">Manual OFF/ON Fenster (ms)</label>
+            <input type="number" id="manualToggleWindowInput" class="mock-input" min="100" max="5000" step="50" value="1500">
+          </div>
+          <div class="help-text" data-i18n="help_diag_manual">Dieses Fenster bestimmt, wie lange eine Batterie maximal aus sein darf, damit ein Manual-Schaltimpuls erkannt wird.</div>
+          <div class="diag-grid">
+            <div class="diag-item"><span data-i18n="diag_boot">Boot Pin</span><b id="bootPinState">-</b></div>
+            <div class="diag-item"><span data-i18n="diag_manual_window">Manual-Fenster</span><b id="manualToggleWindowDisplay">-</b></div>
+            <div class="diag-item"><span data-i18n="diag_adc1">ADC1</span><b id="adc1Value">-</b></div>
+            <div class="diag-item"><span data-i18n="diag_adc2">ADC2</span><b id="adc2Value">-</b></div>
+            <div class="diag-item"><span data-i18n="diag_battery1">Batterie 1</span><b id="diagBatt1">-</b></div>
+            <div class="diag-item"><span data-i18n="diag_battery2">Batterie 2</span><b id="diagBatt2">-</b></div>
+          </div>
+          <div class="row-two">
+            <button type="button" class="btn" id="vibrationTestBtn" data-i18n="vibration_test">Vibration testen</button>
+            <button type="button" class="btn" id="serialToggle" data-i18n="serial_button">Serielles Protokoll</button>
+          </div>
+          <div class="serial-preview hidden" id="serialPreview">Keine Logdaten geladen.</div>
         </div>
       </div>
+    </section>
+  </main>
 
-      <input type="submit" value="Save Settings">
-    </form>
-
-    <form action="/swapSensors" method="POST" class="box">
-      <label>
-        <input type="checkbox" id="swapCheckbox" name="swap">
-        Swap Sensors
-      </label>
-      <br>
-      <input type="submit" value="Update">
-    </form>
-
-    <form action="/setWiFi" method="POST" class="box">
-      <h3>WiFi Settings</h3>
-      <div>
-        <label>SSID<br><input type="text" id="ssid" name="ssid" value="HeatControl"></label>
-      </div>
-      <div>
-        <label>Password<br><input type="password" id="password" name="password" value=""></label>
-      </div>
-      <input type="submit" value="Save WiFi">
-    </form>
-
-    <div class="box">
-      <h3>Restart Options</h3>
-      <form action="/restart" method="POST" style="display:inline-block;">
-        <input type="hidden" name="mode" value="normal">
-        <input type="submit" value="Restart to Normal">
-      </form>
-      <form action="/restart" method="POST" style="display:inline-block;">
-        <input type="hidden" name="mode" value="power">
-        <input type="submit" value="Restart to Power">
-      </form>
-    </div>
-
-    <div class="box">
-      <h3>System Runtime</h3>
-      <div id="runtimeTotal">Total: 0m</div>
-      <div id="runtimeCurrent">Current: 0s</div>
-      <form action="/resetRuntime" method="POST" style="margin-top:10px;">
-        <input type="submit" value="Reset Total Runtime" onclick="return confirm('Reset total runtime?');">
-      </form>
-    </div>
-
-    <div class="box">
-      <h3>Firmware Update (OTA)</h3>
-      <div class="muted">Upload <b>firmware.bin</b> from the latest release.</div>
-      <form action="/update" method="GET" style="margin-top:10px;">
-        <input type="submit" value="Open OTA Update">
-      </form>
-    </div>
-
-    <div class="box">
-      <h3>Diagnostics</h3>
-      <div>Boot pin: <span class="diag-value" id="bootPinState">-</span></div>
-      <div style="margin-top:8px;">
-        <form action="/setBattery1" method="POST" style="display:inline-block;margin-right:14px;">
-          <label class="muted" style="display:block;margin-bottom:4px;">Battery 1 cells</label>
-          <select id="battery1Cells" name="cells" onchange="markUserEditing()" style="background:#444;border:1px solid #666;color:white;padding:8px;border-radius:4px;">
-            <option value="2">2S</option>
-            <option value="3">3S</option>
-            <option value="4">4S</option>
-            <option value="5">5S</option>
-            <option value="6">6S</option>
-          </select>
-          <input type="submit" value="Save" style="margin-left:8px;">
-        </form>
-        <form action="/setBattery2" method="POST" style="display:inline-block;">
-          <label class="muted" style="display:block;margin-bottom:4px;">Battery 2 cells</label>
-          <select id="battery2Cells" name="cells" onchange="markUserEditing()" style="background:#444;border:1px solid #666;color:white;padding:8px;border-radius:4px;">
-            <option value="2">2S</option>
-            <option value="3">3S</option>
-            <option value="4">4S</option>
-            <option value="5">5S</option>
-            <option value="6">6S</option>
-          </select>
-          <input type="submit" value="Save" style="margin-left:8px;">
-        </form>
-        <div class="muted" style="margin-top:6px;">SoC is estimated from per-cell voltage (see firmware table).</div>
-      </div>
-      <div>Manual OFF/ON window: <span class="diag-value" id="manualToggleWindowDisplay">-</span> ms</div>
-      <form action="/setManualToggle" method="POST" style="margin-top:8px;">
-        <label class="muted" style="display:block;margin-bottom:4px;">
-          OFF/ON detection window (ms)
-          <input type="number" id="manualToggleWindowInput" name="windowMs" min="100" max="5000" step="50" value="1500"
-                 oninput="markUserEditing()">
-        </label>
-        <input type="submit" value="Save" style="margin-left:8px;">
-      </form>
-      <button type="button" onclick="triggerSignalTest()">Test Vibration</button>
-      <button type="button" onclick="toggleSerialPanel()">Show Serial</button>
-      <div id="serialPanel" class="serial-box" style="display:none;">
-        <button type="button" onclick="loadSerialLog()">Refresh Log</button>
-        <pre id="serialLog">No data loaded.</pre>
-      </div>
-    </div>
-  </div>
+  <div class="toast" id="toast">Gespeichert</div>
 
   <script>
-    const USER_EDIT_HOLD_MS = 6000;
-    let userEditingUntilMs = 0;
+  const USER_EDIT_HOLD_MS = 10000;
 
-    function markUserEditing() {
-      userEditingUntilMs = Date.now() + USER_EDIT_HOLD_MS;
+  const advancedToggle = document.getElementById('advancedToggle');
+  const helpToggleBtn = document.getElementById('helpToggleBtn');
+  const advancedPanel = document.getElementById('advancedPanel');
+  const toast = document.getElementById('toast');
+  const serialToggle = document.getElementById('serialToggle');
+  const serialPreview = document.getElementById('serialPreview');
+  const langToggleBtn = document.getElementById('langToggleBtn');
+  const modePill = document.getElementById('modePill');
+  const modeHelpBox = document.getElementById('modeHelpBox');
+
+  const temp1Slider = document.getElementById('temp1Slider');
+  const temp2Slider = document.getElementById('temp2Slider');
+  const targetTemp1Display = document.getElementById('targetTemp1Display');
+  const targetTemp2Display = document.getElementById('targetTemp2Display');
+  const currentTemp1Display = document.getElementById('currentTemp1Display');
+  const currentTemp2Display = document.getElementById('currentTemp2Display');
+  const statusRing1 = document.getElementById('statusRing1');
+  const statusRing2 = document.getElementById('statusRing2');
+  const status1Pct = document.getElementById('status1Pct');
+  const status2Pct = document.getElementById('status2Pct');
+  const heater1StatusText = document.getElementById('heater1StatusText');
+  const heater2StatusText = document.getElementById('heater2StatusText');
+
+  const swapSensorsInput = document.getElementById('swapSensorsInput');
+  const swapOffLabel = document.getElementById('swapOffLabel');
+  const swapOnLabel = document.getElementById('swapOnLabel');
+  const ssidInput = document.getElementById('ssidInput');
+  const passwordInput = document.getElementById('passwordInput');
+  const battery1Cells = document.getElementById('battery1Cells');
+  const battery2Cells = document.getElementById('battery2Cells');
+  const manualToggleWindowInput = document.getElementById('manualToggleWindowInput');
+
+  const saveWifiBtn = document.getElementById('saveWifiBtn');
+  const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+  const restartNormalBtn = document.getElementById('restartNormalBtn');
+  const restartPowerBtn = document.getElementById('restartPowerBtn');
+  const resetRuntimeBtn = document.getElementById('resetRuntimeBtn');
+  const otaOpenBtn = document.getElementById('otaOpenBtn');
+  const checkUpdateBtn = document.getElementById('checkUpdateBtn');
+  const autoUpdateBtn = document.getElementById('autoUpdateBtn');
+  const vibrationTestBtn = document.getElementById('vibrationTestBtn');
+
+  const runtimeTotal = document.getElementById('runtimeTotal');
+  const runtimeCurrent = document.getElementById('runtimeCurrent');
+  const bootPinState = document.getElementById('bootPinState');
+  const manualToggleWindowDisplay = document.getElementById('manualToggleWindowDisplay');
+  const adc1Value = document.getElementById('adc1Value');
+  const adc2Value = document.getElementById('adc2Value');
+  const diagBatt1 = document.getElementById('diagBatt1');
+  const diagBatt2 = document.getElementById('diagBatt2');
+  const summarySsid = document.getElementById('summarySsid');
+  const firmwareVersion = document.getElementById('firmwareVersion');
+  const updateBanner = document.getElementById('updateBanner');
+
+  let toastTimer = null;
+  let userEditingUntilMs = 0;
+  let currentLang = 'de';
+  let showHelp = false;
+  let showModeHelp = false;
+
+  const state = {
+    temp1: 23.0,
+    temp2: 23.0,
+    swap: false,
+    batt1Cells: 3,
+    batt2Cells: 3,
+    windowMs: 1500,
+    modeLabel: 'AUTO',
+    localVersion: '',
+    remoteVersion: '',
+    remoteFirmwareUrl: '',
+    updateAvailable: false
+  };
+
+  const i18n = {
+    de: {
+      mode_auto: 'AUTO',
+      summary_ap_ip: 'AP IP',
+      summary_firmware: 'Firmware',
+      summary_ssid: 'WLAN',
+      update_available: 'Neue Version verfuegbar: {version}',
+      heater1_title: 'Heizung 1',
+      heater2_title: 'Heizung 2',
+      slider_target: 'Sollwert',
+      mode_auto_label: 'AUTO:',
+      mode_auto_desc: 'Automatische Regelung fuer beide Heizkreise anhand der Solltemperaturen.',
+      mode_power_label: 'POWER:',
+      mode_power_desc: 'Beide Heizkreise werden im Leistungsmodus priorisiert betrieben.',
+      mode_manual_label: 'MANUAL:',
+      mode_manual_desc: 'Manuelle Steuerung fuer beide Heizkreise mit festen Leistungswerten.',
+      advanced_show: 'Erweitert anzeigen',
+      advanced_hide: 'Erweitert ausblenden',
+      help_toggle_show: 'Hilfe anzeigen',
+      help_toggle_hide: 'Hilfe ausblenden',
+      sensor_title: 'Sensor-Zuordnung',
+      sensor_swap_title: 'Temperaturfuehler tauschen',
+      sensor_swap_desc: 'Bei vertauschter Verkabelung aktivieren.',
+      off: 'AUS',
+      on: 'EIN',
+      wifi_title: 'WLAN Einstellungen',
+      wifi_ssid: 'Netzwerkname (SSID)',
+      wifi_pass: 'Passwort',
+      wifi_save: 'WLAN speichern (mit Neustart)',
+      runtime_title: 'System Laufzeit',
+      runtime_total: 'Gesamtlaufzeit',
+      runtime_current: 'Aktuelle Laufzeit',
+      runtime_reset: 'Gesamtlaufzeit zuruecksetzen',
+      ota_title: 'Firmware Update (OTA)',
+      ota_hint: 'Lade eine neue firmware.bin hoch, um das Geraet zu aktualisieren.',
+      update_check_btn: 'Auf Update pruefen',
+      update_auto_btn: 'Automatisch aktualisieren',
+      ota_open: 'Update-Seite oeffnen',
+      system_actions_title: 'Systemaktionen',
+      settings_save: 'Alle Einstellungen speichern',
+      restart_normal: 'Normal neu starten',
+      restart_power: 'Power-Modus starten',
+      diag_title: 'Diagnose',
+      diag_batt1_cells: 'Batterie 1 Zellen',
+      diag_batt2_cells: 'Batterie 2 Zellen',
+      diag_manual_window_input: 'Manual OFF/ON Fenster (ms)',
+      diag_boot: 'Boot Pin',
+      diag_manual_window: 'Manual-Fenster',
+      diag_adc1: 'ADC1',
+      diag_adc2: 'ADC2',
+      diag_battery1: 'Batterie 1',
+      diag_battery2: 'Batterie 2',
+      vibration_test: 'Vibration testen',
+      serial_button: 'Serielles Protokoll',
+      help_sensor_swap: 'Nur aktivieren, wenn Heizung 1/2 offensichtlich vertauscht reagieren.',
+      help_wifi: 'Nach dem WLAN-Speichern ist ein Neustart notwendig, damit die neuen Daten aktiv werden.',
+      help_runtime_reset: 'Diese Aktion setzt nur den Laufzeitzaehler zurueck. Heizparameter bleiben unveraendert.',
+      help_ota: 'Nutze nur passende Firmware fuer dieses Geraet. Update nicht waehrend instabiler Versorgung starten.',
+      help_system_actions: 'Alle Einstellungen speichern betrifft Sollwerte, Sensor-Zuordnung, Batterie-Zellen und das Manual-Fenster. WLAN bleibt separat.',
+      help_diag_manual: 'Dieses Fenster bestimmt, wie lange eine Batterie maximal aus sein darf, damit ein Manual-Schaltimpuls erkannt wird.',
+      lang_toggle: 'English',
+      toast_saved: 'Gespeichert',
+      toast_wifi_saved: 'WLAN gespeichert. Neustart...',
+      toast_wifi_error: 'WLAN konnte nicht gespeichert werden',
+      toast_settings_saved: 'Alle Einstellungen gespeichert',
+      toast_settings_error: 'Speichern fehlgeschlagen',
+      toast_restart_normal: 'Normaler Neustart gestartet',
+      toast_restart_power: 'Power-Neustart gestartet',
+      toast_runtime_reset: 'Gesamtlaufzeit zurueckgesetzt',
+      toast_vibration_ok: 'Vibrationstest gestartet',
+      toast_serial_open: 'Serielles Protokoll geoeffnet',
+      toast_serial_close: 'Serielles Protokoll geschlossen',
+      toast_ota: 'OTA Seite wird geoeffnet',
+      toast_update_checking: 'Pruefe auf neue Version...',
+      toast_update_none: 'Keine neuere Version gefunden',
+      toast_update_found: 'Neue Version gefunden: {version}',
+      toast_update_unavailable: 'Update-Check aktuell nicht verfuegbar',
+      toast_auto_update_start: 'Auto-Update wird vorbereitet...',
+      toast_auto_update_download: 'Firmware wird geladen...',
+      toast_auto_update_upload: 'Firmware wird auf das Geraet geladen...',
+      toast_auto_update_done: 'Update gestartet. Geraet startet neu',
+      toast_auto_update_no_asset: 'Kein passendes .bin Release gefunden',
+      toast_auto_update_failed: 'Auto-Update fehlgeschlagen',
+      confirm_auto_update: 'Automatisches Update jetzt starten?',
+      confirm_restart_normal: 'Geraet im Normalmodus neu starten?',
+      confirm_restart_power: 'Geraet im Power-Modus neu starten?',
+      confirm_runtime_reset: 'Gesamtlaufzeit wirklich zuruecksetzen?',
+      status_output_suffix: 'Leistung',
+      current_prefix: 'Ist',
+      serial_empty: 'Keine Logdaten vorhanden.'
+    },
+    en: {
+      mode_auto: 'AUTO',
+      summary_ap_ip: 'AP IP',
+      summary_firmware: 'Firmware',
+      summary_ssid: 'WiFi',
+      update_available: 'New version available: {version}',
+      heater1_title: 'Heating 1',
+      heater2_title: 'Heating 2',
+      slider_target: 'Target',
+      mode_auto_label: 'AUTO:',
+      mode_auto_desc: 'Automatic control for both heating zones based on target temperatures.',
+      mode_power_label: 'POWER:',
+      mode_power_desc: 'Both heating zones are prioritized in power mode.',
+      mode_manual_label: 'MANUAL:',
+      mode_manual_desc: 'Manual control for both heating zones with fixed power levels.',
+      advanced_show: 'Show advanced',
+      advanced_hide: 'Hide advanced',
+      help_toggle_show: 'Show help',
+      help_toggle_hide: 'Hide help',
+      sensor_title: 'Sensor assignment',
+      sensor_swap_title: 'Swap temperature sensors',
+      sensor_swap_desc: 'Enable when sensor wiring is reversed.',
+      off: 'OFF',
+      on: 'ON',
+      wifi_title: 'WiFi settings',
+      wifi_ssid: 'Network name (SSID)',
+      wifi_pass: 'Password',
+      wifi_save: 'Save WiFi (with restart)',
+      runtime_title: 'System runtime',
+      runtime_total: 'Total runtime',
+      runtime_current: 'Current runtime',
+      runtime_reset: 'Reset total runtime',
+      ota_title: 'Firmware update (OTA)',
+      ota_hint: 'Upload a new firmware.bin to update the device.',
+      update_check_btn: 'Check for updates',
+      update_auto_btn: 'Auto update',
+      ota_open: 'Open update page',
+      system_actions_title: 'System actions',
+      settings_save: 'Save all settings',
+      restart_normal: 'Restart normal mode',
+      restart_power: 'Restart power mode',
+      diag_title: 'Diagnostics',
+      diag_batt1_cells: 'Battery 1 cells',
+      diag_batt2_cells: 'Battery 2 cells',
+      diag_manual_window_input: 'Manual OFF/ON window (ms)',
+      diag_boot: 'Boot pin',
+      diag_manual_window: 'Manual window',
+      diag_adc1: 'ADC1',
+      diag_adc2: 'ADC2',
+      diag_battery1: 'Battery 1',
+      diag_battery2: 'Battery 2',
+      vibration_test: 'Test vibration',
+      serial_button: 'Serial log',
+      help_sensor_swap: 'Only enable this when heating zone behavior is clearly swapped.',
+      help_wifi: 'After saving WiFi, a restart is required before new credentials are active.',
+      help_runtime_reset: 'This action only resets runtime counters. Heating parameters stay unchanged.',
+      help_ota: 'Use only matching firmware for this device. Do not update with unstable power.',
+      help_system_actions: 'Save all settings stores targets, sensor mapping, battery cells, and manual window. WiFi remains separate.',
+      help_diag_manual: 'This window defines how long a battery may be OFF for manual toggle detection.',
+      lang_toggle: 'Deutsch',
+      toast_saved: 'Saved',
+      toast_wifi_saved: 'WiFi saved. Rebooting...',
+      toast_wifi_error: 'Could not save WiFi',
+      toast_settings_saved: 'All settings saved',
+      toast_settings_error: 'Save failed',
+      toast_restart_normal: 'Normal restart initiated',
+      toast_restart_power: 'Power restart initiated',
+      toast_runtime_reset: 'Total runtime reset',
+      toast_vibration_ok: 'Vibration test started',
+      toast_serial_open: 'Serial log opened',
+      toast_serial_close: 'Serial log closed',
+      toast_ota: 'Opening OTA page',
+      toast_update_checking: 'Checking for updates...',
+      toast_update_none: 'No newer version found',
+      toast_update_found: 'New version found: {version}',
+      toast_update_unavailable: 'Update check is currently unavailable',
+      toast_auto_update_start: 'Preparing auto update...',
+      toast_auto_update_download: 'Downloading firmware...',
+      toast_auto_update_upload: 'Uploading firmware to device...',
+      toast_auto_update_done: 'Update started. Device will reboot',
+      toast_auto_update_no_asset: 'No matching .bin release asset found',
+      toast_auto_update_failed: 'Auto update failed',
+      confirm_auto_update: 'Start automatic update now?',
+      confirm_restart_normal: 'Restart device in normal mode?',
+      confirm_restart_power: 'Restart device in power mode?',
+      confirm_runtime_reset: 'Reset total runtime?',
+      status_output_suffix: 'Output',
+      current_prefix: 'Current',
+      serial_empty: 'No log entries yet.'
+    }
+  };
+
+  function t(key) {
+    return (i18n[currentLang] && i18n[currentLang][key]) || key;
+  }
+
+  function markUserEditing() {
+    userEditingUntilMs = Date.now() + USER_EDIT_HOLD_MS;
+  }
+
+  function isUserEditing() {
+    return Date.now() < userEditingUntilMs;
+  }
+
+  function clampTemp(value) {
+    return Math.min(45, Math.max(10, Number(value) || 23));
+  }
+
+  function showToast(message) {
+    toast.textContent = message;
+    toast.classList.add('show');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 1700);
+  }
+
+  function fillTemplate(template, values) {
+    let text = String(template || '');
+    Object.keys(values || {}).forEach((key) => {
+      text = text.replace(new RegExp(`\\{${key}\\}`, 'g'), String(values[key]));
+    });
+    return text;
+  }
+
+  function parseVersion(value) {
+    const source = String(value || '').trim().replace(/^v/i, '');
+    const match = source.match(/\d+(?:\.\d+)*/);
+    if (!match) return [];
+    return match[0].split('.').map((part) => Number(part));
+  }
+
+  function compareVersions(a, b) {
+    const av = parseVersion(a);
+    const bv = parseVersion(b);
+    if (av.length === 0 || bv.length === 0) return 0;
+    const maxLen = Math.max(av.length, bv.length);
+    for (let i = 0; i < maxLen; i += 1) {
+      const left = av[i] || 0;
+      const right = bv[i] || 0;
+      if (left > right) return 1;
+      if (left < right) return -1;
+    }
+    return 0;
+  }
+
+  function renderUpdateBanner() {
+    if (!updateBanner) return;
+    if (!state.updateAvailable || !state.remoteVersion) {
+      updateBanner.textContent = '';
+      updateBanner.classList.add('hidden');
+      return;
+    }
+    updateBanner.textContent = fillTemplate(t('update_available'), { version: state.remoteVersion });
+    updateBanner.classList.remove('hidden');
+  }
+
+  async function fetchWithTimeout(url, options, timeoutMs) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, { ...(options || {}), signal: controller.signal });
+      return response;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  async function fetchLatestReleaseInfo() {
+    let releaseVersion = '';
+    let releaseFirmwareUrl = '';
+
+    try {
+      const releaseResponse = await fetchWithTimeout(
+        'https://api.github.com/repos/BubTec/HeatControl/releases/latest',
+        { headers: { Accept: 'application/vnd.github+json' } },
+        5000
+      );
+
+      if (releaseResponse.ok) {
+        const payload = await releaseResponse.json();
+        const tag = typeof payload.tag_name === 'string' ? payload.tag_name.trim() : '';
+        if (tag) {
+          releaseVersion = tag;
+        }
+
+        const assets = Array.isArray(payload.assets) ? payload.assets : [];
+        const binAsset = assets.find((asset) => {
+          const name = typeof asset.name === 'string' ? asset.name : '';
+          const url = typeof asset.browser_download_url === 'string' ? asset.browser_download_url : '';
+          return /\.bin$/i.test(name) && url.length > 0;
+        });
+        if (binAsset && typeof binAsset.browser_download_url === 'string') {
+          releaseFirmwareUrl = binAsset.browser_download_url;
+        }
+      }
+    } catch (_) {
+      // keep fallback path
     }
 
-    function isUserEditing() {
-      return Date.now() < userEditingUntilMs;
+    if (releaseVersion) {
+      return { version: releaseVersion, firmwareUrl: releaseFirmwareUrl };
     }
 
-    function clampTemp(value) {
-      return Math.min(Math.max(value, 10), 45);
+    try {
+      const rawResponse = await fetchWithTimeout(
+        'https://raw.githubusercontent.com/BubTec/HeatControl/main/upload/version.txt',
+        {},
+        5000
+      );
+      if (!rawResponse.ok) {
+        return { version: '', firmwareUrl: '' };
+      }
+      return { version: (await rawResponse.text()).trim(), firmwareUrl: '' };
+    } catch (_) {
+      return { version: '', firmwareUrl: '' };
+    }
+  }
+
+  async function checkForUpdate() {
+    const local = state.localVersion || String(firmwareVersion.textContent || '').trim();
+    if (!local || local === '-') return 'unavailable';
+
+    const releaseInfo = await fetchLatestReleaseInfo();
+    if (!releaseInfo.version) return 'unavailable';
+
+    state.remoteVersion = releaseInfo.version;
+    state.remoteFirmwareUrl = releaseInfo.firmwareUrl || '';
+    state.updateAvailable = compareVersions(releaseInfo.version, local) > 0;
+    renderUpdateBanner();
+    return state.updateAvailable ? 'available' : 'none';
+  }
+
+  async function handleManualUpdateCheck() {
+    showToast(t('toast_update_checking'));
+    const status = await checkForUpdate();
+    if (status === 'available') {
+      showToast(fillTemplate(t('toast_update_found'), { version: state.remoteVersion }));
+      return;
+    }
+    if (status === 'none') {
+      showToast(t('toast_update_none'));
+      return;
+    }
+    showToast(t('toast_update_unavailable'));
+  }
+
+  async function startAutoUpdate() {
+    if (!confirm(t('confirm_auto_update'))) return;
+
+    showToast(t('toast_auto_update_start'));
+
+    const status = await checkForUpdate();
+    if (status === 'unavailable') {
+      showToast(t('toast_update_unavailable'));
+      return;
+    }
+    if (status === 'none') {
+      showToast(t('toast_update_none'));
+      return;
     }
 
-    function updateTempDisplays(id, value) {
-      const input = document.getElementById(id);
-      const slider = document.getElementById(id + 'Slider');
-      const display = document.getElementById('target' + id.charAt(0).toUpperCase() + id.slice(1) + 'Display');
-      const fixed = Number(value).toFixed(1);
-      input.value = fixed;
-      slider.value = fixed;
-      display.textContent = fixed;
+    if (!state.remoteFirmwareUrl) {
+      showToast(t('toast_auto_update_no_asset'));
+      return;
     }
 
-    function adjustTemp(id, change) {
-      markUserEditing();
-      const input = document.getElementById(id);
-      const current = Number(input.value || 23);
-      updateTempDisplays(id, clampTemp(current + change));
+    try {
+      showToast(t('toast_auto_update_download'));
+      const firmwareResponse = await fetchWithTimeout(state.remoteFirmwareUrl, {}, 120000);
+      if (!firmwareResponse.ok) {
+        throw new Error(`DL_${firmwareResponse.status}`);
+      }
+
+      const firmwareBlob = await firmwareResponse.blob();
+      if (!firmwareBlob || firmwareBlob.size < 1024) {
+        throw new Error('DL_EMPTY');
+      }
+
+      showToast(t('toast_auto_update_upload'));
+      const form = new FormData();
+      const fileName = `HeatControl-${state.remoteVersion || 'latest'}.bin`;
+      form.append('firmware', firmwareBlob, fileName);
+
+      const uploadResponse = await fetch('/update', { method: 'POST', body: form });
+      if (!uploadResponse.ok) {
+        throw new Error(`UP_${uploadResponse.status}`);
+      }
+
+      showToast(t('toast_auto_update_done'));
+    } catch (_) {
+      showToast(t('toast_auto_update_failed'));
     }
+  }
 
-    function updateFromSlider(id) {
-      markUserEditing();
-      const slider = document.getElementById(id + 'Slider');
-      updateTempDisplays(id, clampTemp(Number(slider.value)));
+  function setAdvanced(open) {
+    advancedPanel.classList.toggle('hidden', !open);
+    advancedToggle.textContent = open ? t('advanced_hide') : t('advanced_show');
+  }
+
+  function setHelpVisibility(show) {
+    showHelp = show;
+    document.body.classList.toggle('show-help', showHelp);
+    helpToggleBtn.textContent = showHelp ? t('help_toggle_hide') : t('help_toggle_show');
+  }
+
+  function setModeHelpVisibility(show) {
+    showModeHelp = show;
+    modeHelpBox.classList.toggle('hidden', !showModeHelp);
+    modePill.classList.toggle('help-open', showModeHelp);
+  }
+
+  function updateSwapVisual() {
+    swapOffLabel.classList.toggle('active', !state.swap);
+    swapOnLabel.classList.toggle('active', state.swap);
+  }
+
+  function setTempDisplay(channel, value) {
+    const fixed = clampTemp(value).toFixed(1);
+    if (channel === 1) {
+      state.temp1 = Number(fixed);
+      temp1Slider.value = fixed;
+      targetTemp1Display.textContent = fixed;
+    } else {
+      state.temp2 = Number(fixed);
+      temp2Slider.value = fixed;
+      targetTemp2Display.textContent = fixed;
     }
+  }
 
-    function updateStatus() {
-      fetch('/status')
-        .then(response => response.json())
-        .then(data => {
-          const modeHeader = Number(data.manualMode || 0) === 1 ? 'MANUAL' : (data.mode || '-');
-          document.getElementById('modeDisplay').textContent = modeHeader;
-          document.getElementById('currentTemp1Display').textContent = 'Current: ' + Number(data.current1 || 0).toFixed(1) + ' C';
-          document.getElementById('currentTemp2Display').textContent = 'Current: ' + Number(data.current2 || 0).toFixed(1) + ' C';
+  function adjustTemp(channel, delta) {
+    markUserEditing();
+    const cur = channel === 1 ? state.temp1 : state.temp2;
+    setTempDisplay(channel, cur + delta);
+  }
 
-          if (!isUserEditing()) {
-            updateTempDisplays('temp1', Number(data.target1 || 23));
-            updateTempDisplays('temp2', Number(data.target2 || 23));
-          }
+  function formatCurrentTemp(temp) {
+    return `${t('current_prefix')} ${Number(temp).toFixed(1)} C`;
+  }
 
-          const status1 = document.getElementById('status1');
-          const status2 = document.getElementById('status2');
-          const manualModeFlag = Number(data.manualMode || 0) === 1;
-          let status1Percent = 0;
-          let status2Percent = 0;
-          if (manualModeFlag) {
-            status1Percent = Number(data.manualPercent1 || 0);
-            status2Percent = Number(data.manualPercent2 || 0);
-          } else {
-            const h1On = !!data.h1;
-            const h2On = !!data.h2;
-            status1Percent = h1On ? 100 : 0;
-            status2Percent = h2On ? 100 : 0;
-          }
-          status1.textContent = 'Status: ' + String(Math.round(status1Percent)) + '%';
-          status2.textContent = 'Status: ' + String(Math.round(status2Percent)) + '%';
-          status1.className = 'status ' + (status1Percent > 0 ? 'status-on' : 'status-off');
-          status2.className = 'status ' + (status2Percent > 0 ? 'status-on' : 'status-off');
+  function extractNumber(text) {
+    const match = String(text || '').match(/-?\d+(?:\.\d+)?/);
+    return match ? Number(match[0]) : 0;
+  }
 
-          if (!isUserEditing()) {
-            document.getElementById('swapCheckbox').checked = !!data.swap;
-            if (typeof data.ssid === 'string') document.getElementById('ssid').value = data.ssid;
-          }
+  function formatOutput(percent) {
+    return `${Math.round(percent)}% ${t('status_output_suffix')}`;
+  }
 
-          if (typeof data.totalRuntime === 'string') {
-            document.getElementById('runtimeTotal').textContent = 'Total: ' + data.totalRuntime;
-          }
-          if (typeof data.currentRuntime === 'string') {
-            document.getElementById('runtimeCurrent').textContent = 'Current: ' + data.currentRuntime;
-          }
-
-          if (typeof data.bootPin === 'string') {
-            document.getElementById('bootPinState').textContent = data.bootPin;
-          }
-          if (typeof data.adc1Mv === 'number') {
-            document.getElementById('adc1Value').textContent = data.adc1Mv + ' mV';
-          }
-          if (typeof data.adc2Mv === 'number') {
-            document.getElementById('adc2Value').textContent = data.adc2Mv + ' mV';
-          }
-          if (typeof data.batt1V === 'number') {
-            document.getElementById('battery1PackV').textContent = Number(data.batt1V).toFixed(2);
-          }
-          if (typeof data.batt1CellV === 'number') {
-            document.getElementById('battery1CellV').textContent = Number(data.batt1CellV).toFixed(2);
-          }
-          if (typeof data.batt1Soc === 'number') {
-            document.getElementById('battery1Soc').textContent = String(Math.round(Number(data.batt1Soc)));
-          }
-          if (typeof data.batt2V === 'number') {
-            document.getElementById('battery2PackV').textContent = Number(data.batt2V).toFixed(2);
-          }
-          if (typeof data.batt2CellV === 'number') {
-            document.getElementById('battery2CellV').textContent = Number(data.batt2CellV).toFixed(2);
-          }
-          if (typeof data.batt2Soc === 'number') {
-            document.getElementById('battery2Soc').textContent = String(Math.round(Number(data.batt2Soc)));
-          }
-          if (!isUserEditing() && typeof data.batt1Cells === 'number') {
-            document.getElementById('battery1Cells').value = String(Number(data.batt1Cells));
-          }
-          if (!isUserEditing() && typeof data.batt2Cells === 'number') {
-            document.getElementById('battery2Cells').value = String(Number(data.batt2Cells));
-          }
-          if (typeof data.manualH1Enabled === 'number') {
-            document.getElementById('manualH1Enabled').textContent = Number(data.manualH1Enabled) === 1 ? 'ENABLED' : 'DISABLED';
-          }
-          if (typeof data.manualH2Enabled === 'number') {
-            document.getElementById('manualH2Enabled').textContent = Number(data.manualH2Enabled) === 1 ? 'ENABLED' : 'DISABLED';
-          }
-          if (typeof data.manualToggleMaxOffMs === 'number') {
-            const val = Number(data.manualToggleMaxOffMs);
-            document.getElementById('manualToggleWindowDisplay').textContent = String(Math.round(val));
-            if (!isUserEditing()) {
-              document.getElementById('manualToggleWindowInput').value = String(Math.round(val));
-            }
-          }
-        })
-        .catch(() => {});
+  function updateRing(channel, percent) {
+    const p = Math.max(0, Math.min(100, Number(percent) || 0));
+    if (channel === 1) {
+      statusRing1.style.setProperty('--pct', p);
+      status1Pct.textContent = `${Math.round(p)}%`;
+      heater1StatusText.textContent = formatOutput(p);
+    } else {
+      statusRing2.style.setProperty('--pct', p);
+      status2Pct.textContent = `${Math.round(p)}%`;
+      heater2StatusText.textContent = formatOutput(p);
     }
+  }
 
-    function updateVersion() {
-      fetch('/version.txt')
-        .then(response => response.text())
-        .then(version => {
-          document.getElementById('firmwareVersion').textContent = version.trim() || '-';
-        })
-        .catch(() => {});
+  async function postForm(url, values) {
+    const params = new URLSearchParams();
+    Object.keys(values || {}).forEach((k) => {
+      const v = values[k];
+      if (v === undefined || v === null) return;
+      if (typeof v === 'boolean') {
+        params.append(k, v ? '1' : '0');
+      } else {
+        params.append(k, String(v));
+      }
+    });
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString()
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP_${response.status}`);
     }
+    return response;
+  }
 
-    function triggerSignalTest() {
-      fetch('/signalTest', { method: 'POST' }).catch(() => {});
-    }
-
-    function loadSerialLog() {
-      fetch('/logs')
-        .then(response => response.text())
-        .then(text => {
-          const log = text.trim().length > 0 ? text : 'No log entries yet.';
-          const pre = document.getElementById('serialLog');
-          pre.textContent = log;
-          pre.scrollTop = pre.scrollHeight;
-        })
-        .catch(() => {});
-    }
-
-    function toggleSerialPanel() {
-      const panel = document.getElementById('serialPanel');
-      const isHidden = panel.style.display === 'none';
-      panel.style.display = isHidden ? 'block' : 'none';
-      if (isHidden) {
-        loadSerialLog();
+  async function saveAllSettings() {
+    try {
+      await postForm('/saveSettings', {
+        temp1: state.temp1.toFixed(1),
+        temp2: state.temp2.toFixed(1),
+        swap: state.swap,
+        windowMs: Math.round(state.windowMs),
+        batt1Cells: state.batt1Cells,
+        batt2Cells: state.batt2Cells
+      });
+      showToast(t('toast_settings_saved'));
+      userEditingUntilMs = 0;
+      updateStatus();
+    } catch (err) {
+      try {
+        await postForm('/setTemp', { temp1: state.temp1.toFixed(1), temp2: state.temp2.toFixed(1) });
+        await postForm('/swapSensors', state.swap ? { swap: 'on' } : {});
+        await postForm('/setManualToggle', { windowMs: Math.round(state.windowMs) });
+        await postForm('/setBattery1', { cells: state.batt1Cells });
+        await postForm('/setBattery2', { cells: state.batt2Cells });
+        showToast(t('toast_settings_saved'));
+        userEditingUntilMs = 0;
+        updateStatus();
+      } catch (_) {
+        showToast(t('toast_settings_error'));
       }
     }
+  }
 
-    document.getElementById('swapCheckbox').addEventListener('change', markUserEditing);
-    document.getElementById('ssid').addEventListener('input', markUserEditing);
-    document.getElementById('password').addEventListener('input', markUserEditing);
-    document.getElementById('temp1Slider').addEventListener('change', markUserEditing);
-    document.getElementById('temp2Slider').addEventListener('change', markUserEditing);
-    document.getElementById('temp1Slider').addEventListener('click', markUserEditing);
-    document.getElementById('temp2Slider').addEventListener('click', markUserEditing);
-    document.getElementById('manualToggleWindowInput').addEventListener('input', markUserEditing);
+  async function saveWifi() {
+    const ssid = (ssidInput.value || '').trim();
+    if (!ssid) {
+      showToast(t('toast_wifi_error'));
+      return;
+    }
+    try {
+      await postForm('/setWiFi', { ssid: ssid, password: passwordInput.value || '' });
+      showToast(t('toast_wifi_saved'));
+    } catch (_) {
+      showToast(t('toast_wifi_error'));
+    }
+  }
 
-    setInterval(updateStatus, 2000);
-    updateStatus();
-    updateVersion();
-  </script>
+  async function doRestart(mode) {
+    try {
+      await postForm('/restart', { mode: mode });
+      showToast(mode === 'power' ? t('toast_restart_power') : t('toast_restart_normal'));
+    } catch (_) {
+      showToast(t('toast_settings_error'));
+    }
+  }
+
+  async function resetRuntime() {
+    try {
+      await postForm('/resetRuntime', {});
+      showToast(t('toast_runtime_reset'));
+      updateStatus();
+    } catch (_) {
+      showToast(t('toast_settings_error'));
+    }
+  }
+
+  async function triggerSignalTest() {
+    try {
+      await postForm('/signalTest', {});
+      showToast(t('toast_vibration_ok'));
+    } catch (_) {
+      showToast(t('toast_settings_error'));
+    }
+  }
+
+  async function loadSerialLog() {
+    try {
+      const response = await fetch('/logs');
+      if (!response.ok) throw new Error('LOGS_FAIL');
+      const text = await response.text();
+      serialPreview.textContent = text.trim() || t('serial_empty');
+      serialPreview.scrollTop = serialPreview.scrollHeight;
+    } catch (_) {
+      serialPreview.textContent = t('serial_empty');
+    }
+  }
+
+  async function updateVersion() {
+    try {
+      const response = await fetch('/version.txt');
+      if (!response.ok) return;
+      const v = (await response.text()).trim();
+      firmwareVersion.textContent = v || '-';
+      state.localVersion = v || '';
+    } catch (_) {
+      firmwareVersion.textContent = '-';
+      state.localVersion = '';
+    }
+  }
+
+  function applyLanguage(lang) {
+    currentLang = lang === 'en' ? 'en' : 'de';
+    document.documentElement.lang = currentLang;
+
+    document.querySelectorAll('[data-i18n]').forEach((el) => {
+      const key = el.getAttribute('data-i18n');
+      const value = t(key);
+      if (value && value !== key) el.textContent = value;
+    });
+
+    langToggleBtn.textContent = t('lang_toggle');
+    setAdvanced(!advancedPanel.classList.contains('hidden'));
+    setHelpVisibility(showHelp);
+    setModeHelpVisibility(showModeHelp);
+    currentTemp1Display.textContent = formatCurrentTemp(extractNumber(currentTemp1Display.textContent));
+    currentTemp2Display.textContent = formatCurrentTemp(extractNumber(currentTemp2Display.textContent));
+    heater1StatusText.textContent = formatOutput(parseInt(status1Pct.textContent, 10) || 0);
+    heater2StatusText.textContent = formatOutput(parseInt(status2Pct.textContent, 10) || 0);
+    renderUpdateBanner();
+  }
+
+  async function updateStatus() {
+    try {
+      const response = await fetch('/status');
+      if (!response.ok) return;
+      const data = await response.json();
+
+      const manual = Number(data.manualMode || 0) === 1;
+      if (manual) {
+        state.modeLabel = 'MANUAL';
+      } else if (String(data.mode || '').toUpperCase().indexOf('POWER') !== -1) {
+        state.modeLabel = 'POWER';
+      } else {
+        state.modeLabel = 'AUTO';
+      }
+      modePill.textContent = state.modeLabel;
+
+      currentTemp1Display.textContent = formatCurrentTemp(Number(data.current1 || 0));
+      currentTemp2Display.textContent = formatCurrentTemp(Number(data.current2 || 0));
+
+      if (!isUserEditing()) {
+        setTempDisplay(1, Number(data.target1 || 23));
+        setTempDisplay(2, Number(data.target2 || 23));
+
+        state.swap = !!data.swap;
+        swapSensorsInput.checked = state.swap;
+        updateSwapVisual();
+
+        if (typeof data.batt1Cells === 'number') {
+          state.batt1Cells = Number(data.batt1Cells);
+          battery1Cells.value = String(state.batt1Cells);
+        }
+        if (typeof data.batt2Cells === 'number') {
+          state.batt2Cells = Number(data.batt2Cells);
+          battery2Cells.value = String(state.batt2Cells);
+        }
+        if (typeof data.manualToggleMaxOffMs === 'number') {
+          state.windowMs = Number(data.manualToggleMaxOffMs);
+          manualToggleWindowInput.value = String(Math.round(state.windowMs));
+        }
+        if (typeof data.ssid === 'string' && data.ssid.length > 0) {
+          ssidInput.value = data.ssid;
+          summarySsid.textContent = data.ssid;
+        }
+      }
+
+      const out1 = manual ? Number(data.manualPercent1 || 0) : (data.h1 ? 100 : 0);
+      const out2 = manual ? Number(data.manualPercent2 || 0) : (data.h2 ? 100 : 0);
+      updateRing(1, out1);
+      updateRing(2, out2);
+
+      runtimeTotal.textContent = typeof data.totalRuntime === 'string' ? data.totalRuntime : '0m';
+      runtimeCurrent.textContent = typeof data.currentRuntime === 'string' ? data.currentRuntime : '0s';
+      bootPinState.textContent = typeof data.bootPin === 'string' ? data.bootPin : '-';
+      manualToggleWindowDisplay.textContent = typeof data.manualToggleMaxOffMs === 'number' ? `${Math.round(data.manualToggleMaxOffMs)} ms` : '-';
+      adc1Value.textContent = typeof data.adc1Mv === 'number' ? `${data.adc1Mv} mV` : '-';
+      adc2Value.textContent = typeof data.adc2Mv === 'number' ? `${data.adc2Mv} mV` : '-';
+
+      if (typeof data.batt1V === 'number' && typeof data.batt1Soc === 'number') {
+        const c1 = typeof data.batt1CellV === 'number' ? data.batt1CellV.toFixed(2) : '-';
+        diagBatt1.textContent = `${Number(data.batt1V).toFixed(2)}V | ${Math.round(Number(data.batt1Soc))}% | ${c1}V/Cell`;
+      } else {
+        diagBatt1.textContent = '-';
+      }
+
+      if (typeof data.batt2V === 'number' && typeof data.batt2Soc === 'number') {
+        const c2 = typeof data.batt2CellV === 'number' ? data.batt2CellV.toFixed(2) : '-';
+        diagBatt2.textContent = `${Number(data.batt2V).toFixed(2)}V | ${Math.round(Number(data.batt2Soc))}% | ${c2}V/Cell`;
+      } else {
+        diagBatt2.textContent = '-';
+      }
+    } catch (_) {
+      // ignore polling errors
+    }
+  }
+
+  advancedToggle.addEventListener('click', () => {
+    setAdvanced(advancedPanel.classList.contains('hidden'));
+  });
+
+  helpToggleBtn.addEventListener('click', () => {
+    setHelpVisibility(!showHelp);
+  });
+
+  modePill.addEventListener('click', () => {
+    setModeHelpVisibility(!showModeHelp);
+  });
+
+  langToggleBtn.addEventListener('click', () => {
+    applyLanguage(currentLang === 'de' ? 'en' : 'de');
+  });
+
+  temp1Slider.addEventListener('input', () => { markUserEditing(); setTempDisplay(1, temp1Slider.value); });
+  temp2Slider.addEventListener('input', () => { markUserEditing(); setTempDisplay(2, temp2Slider.value); });
+  document.getElementById('temp1DownBtn').addEventListener('click', () => adjustTemp(1, -0.5));
+  document.getElementById('temp1UpBtn').addEventListener('click', () => adjustTemp(1, 0.5));
+  document.getElementById('temp2DownBtn').addEventListener('click', () => adjustTemp(2, -0.5));
+  document.getElementById('temp2UpBtn').addEventListener('click', () => adjustTemp(2, 0.5));
+
+  swapSensorsInput.addEventListener('change', () => {
+    markUserEditing();
+    state.swap = !!swapSensorsInput.checked;
+    updateSwapVisual();
+  });
+
+  ssidInput.addEventListener('input', markUserEditing);
+  passwordInput.addEventListener('input', markUserEditing);
+  battery1Cells.addEventListener('change', () => { markUserEditing(); state.batt1Cells = Number(battery1Cells.value || 3); });
+  battery2Cells.addEventListener('change', () => { markUserEditing(); state.batt2Cells = Number(battery2Cells.value || 3); });
+  manualToggleWindowInput.addEventListener('input', () => {
+    markUserEditing();
+    const clamped = Math.min(5000, Math.max(100, Number(manualToggleWindowInput.value || 1500)));
+    state.windowMs = clamped;
+    manualToggleWindowInput.value = String(Math.round(clamped));
+  });
+
+  saveSettingsBtn.addEventListener('click', saveAllSettings);
+  saveWifiBtn.addEventListener('click', saveWifi);
+  restartNormalBtn.addEventListener('click', () => {
+    if (confirm(t('confirm_restart_normal'))) doRestart('normal');
+  });
+  restartPowerBtn.addEventListener('click', () => {
+    if (confirm(t('confirm_restart_power'))) doRestart('power');
+  });
+  resetRuntimeBtn.addEventListener('click', () => {
+    if (confirm(t('confirm_runtime_reset'))) resetRuntime();
+  });
+  otaOpenBtn.addEventListener('click', () => {
+    showToast(t('toast_ota'));
+    setTimeout(() => { window.location.href = '/update'; }, 200);
+  });
+  checkUpdateBtn.addEventListener('click', handleManualUpdateCheck);
+  autoUpdateBtn.addEventListener('click', startAutoUpdate);
+  vibrationTestBtn.addEventListener('click', triggerSignalTest);
+
+  serialToggle.addEventListener('click', () => {
+    const open = serialPreview.classList.contains('hidden');
+    serialPreview.classList.toggle('hidden', !open);
+    showToast(open ? t('toast_serial_open') : t('toast_serial_close'));
+    if (open) loadSerialLog();
+  });
+
+  applyLanguage('de');
+  setAdvanced(false);
+  setHelpVisibility(false);
+  setModeHelpVisibility(false);
+  updateSwapVisual();
+  updateVersion().then(checkForUpdate);
+  updateStatus();
+  setInterval(updateStatus, 2000);
+</script>
 </body>
 </html>
+
+
