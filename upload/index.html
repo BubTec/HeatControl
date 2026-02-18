@@ -794,6 +794,7 @@
 
   <script>
   const USER_EDIT_HOLD_MS = 10000;
+  const TEMP_PUSH_DEBOUNCE_MS = 350;
 
   const advancedToggle = document.getElementById('advancedToggle');
   const helpToggleBtn = document.getElementById('helpToggleBtn');
@@ -859,6 +860,9 @@
   let currentLang = 'de';
   let showHelp = false;
   let showModeHelp = false;
+  let tempPushTimer = null;
+  let tempPushInFlight = false;
+  let tempPushQueued = false;
 
   const state = {
     temp1: 23.0,
@@ -1364,6 +1368,7 @@
     markUserEditing();
     const cur = channel === 1 ? state.temp1 : state.temp2;
     setTempDisplay(channel, cur + delta);
+    scheduleTempPush();
   }
 
   function isSensorDisconnected(temp) {
@@ -1410,6 +1415,36 @@
       throw new Error(`HTTP_${response.status}`);
     }
     return response;
+  }
+
+  async function pushTempsNow() {
+    if (tempPushInFlight) {
+      tempPushQueued = true;
+      return;
+    }
+
+    tempPushInFlight = true;
+    try {
+      await postForm('/setTemp', { temp1: state.temp1.toFixed(1), temp2: state.temp2.toFixed(1) });
+    } catch (err) {
+      console.warn('[ui] failed to push set temperatures', err);
+    } finally {
+      tempPushInFlight = false;
+      if (tempPushQueued) {
+        tempPushQueued = false;
+        void pushTempsNow();
+      }
+    }
+  }
+
+  function scheduleTempPush() {
+    if (tempPushTimer) {
+      clearTimeout(tempPushTimer);
+    }
+    tempPushTimer = setTimeout(() => {
+      tempPushTimer = null;
+      void pushTempsNow();
+    }, TEMP_PUSH_DEBOUNCE_MS);
   }
 
   async function saveAllSettings() {
@@ -1685,8 +1720,8 @@
     applyLanguage(currentLang === 'de' ? 'en' : 'de');
   });
 
-  temp1Slider.addEventListener('input', () => { markUserEditing(); setTempDisplay(1, temp1Slider.value); });
-  temp2Slider.addEventListener('input', () => { markUserEditing(); setTempDisplay(2, temp2Slider.value); });
+  temp1Slider.addEventListener('input', () => { markUserEditing(); setTempDisplay(1, temp1Slider.value); scheduleTempPush(); });
+  temp2Slider.addEventListener('input', () => { markUserEditing(); setTempDisplay(2, temp2Slider.value); scheduleTempPush(); });
   document.getElementById('temp1DownBtn').addEventListener('click', () => adjustTemp(1, -0.5));
   document.getElementById('temp1UpBtn').addEventListener('click', () => adjustTemp(1, 0.5));
   document.getElementById('temp2DownBtn').addEventListener('click', () => adjustTemp(2, -0.5));
