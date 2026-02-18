@@ -137,6 +137,10 @@ void appendSerialLogLine(const String &line) {
   serialLogBuffer[serialLogLength] = '\0';
 }
 
+}  // namespace
+
+namespace HeatControl {
+
 void logLine(const String &line) {
   Serial.println(line);
   appendSerialLogLine(line);
@@ -152,7 +156,7 @@ void logf(const char *fmt, ...) {
   appendSerialLogLine(String(buffer));
 }
 
-}  // namespace
+}  // namespace HeatControl
 
 void setup() {
   Serial.begin(115200);

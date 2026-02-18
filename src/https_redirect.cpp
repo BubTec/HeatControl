@@ -2,10 +2,14 @@
 
 #include <cstring>
 
+#include <esp_err.h>
 #include <esp_http_server.h>
 #include <esp_https_server.h>
 
 namespace HeatControl {
+
+void logf(const char *fmt, ...);
+
 namespace {
 
 httpd_handle_t httpsRedirectServer = nullptr;
@@ -74,15 +78,31 @@ esp_err_t httpsRedirectHandler(httpd_req_t *request) {
 
 void startHttpsRedirectServer() {
   if (httpsRedirectServer != nullptr) {
+    logf("[https] Redirect-Server bereits aktiv.");
     return;
   }
 
   httpd_ssl_config_t httpsConfig = HTTPD_SSL_CONFIG_DEFAULT();
   httpsConfig.cacert_pem = reinterpret_cast<const uint8_t *>(kHttpsRedirectCertPem);
-  httpsConfig.cacert_len = std::strlen(kHttpsRedirectCertPem);
+  httpsConfig.cacert_len = sizeof(kHttpsRedirectCertPem);
   httpsConfig.prvtkey_pem = reinterpret_cast<const uint8_t *>(kHttpsRedirectKeyPem);
-  httpsConfig.prvtkey_len = std::strlen(kHttpsRedirectKeyPem);
+  httpsConfig.prvtkey_len = sizeof(kHttpsRedirectKeyPem);
   httpsConfig.httpd.uri_match_fn = httpd_uri_match_wildcard;
+  httpsConfig.httpd.max_open_sockets = 1;
+  httpsConfig.httpd.max_uri_handlers = 4;
+  httpsConfig.httpd.max_resp_headers = 4;
+  httpsConfig.httpd.backlog_conn = 1;
+  httpsConfig.httpd.lru_purge_enable = true;
+  httpsConfig.httpd.stack_size = 6144;
+
+  logf("[https] Starte Redirect-Server auf Port %u ...", static_cast<unsigned>(httpsConfig.port_secure));
+  const esp_err_t startResult = httpd_ssl_start(&httpsRedirectServer, &httpsConfig);
+  if (startResult != ESP_OK) {
+    httpsRedirectServer = nullptr;
+    logf("[https] Start fehlgeschlagen: %s (0x%X)", esp_err_to_name(startResult), static_cast<unsigned>(startResult));
+    return;
+  }
+  logf("[https] Redirect-Server laeuft.");
 
   if (httpd_ssl_start(&httpsRedirectServer, &httpsConfig) != ESP_OK) {
     httpsRedirectServer = nullptr;
@@ -113,8 +133,10 @@ void startHttpsRedirectServer() {
 #endif
   };
 
-  httpd_register_uri_handler(httpsRedirectServer, &redirectGet);
-  httpd_register_uri_handler(httpsRedirectServer, &redirectHead);
+  if (httpd_register_uri_handler(httpsRedirectServer, &redirectGet) != ESP_OK ||
+      httpd_register_uri_handler(httpsRedirectServer, &redirectHead) != ESP_OK) {
+    logf("[https] Registrierung der Redirect-Handler fehlgeschlagen.");
+  }
 }
 
 }  // namespace HeatControl

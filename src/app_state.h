@@ -114,4 +114,7 @@ extern DNSServer dnsServer;
 extern bool restartScheduled;
 extern unsigned long restartAtMs;
 
+void logLine(const String &line);
+void logf(const char *fmt, ...);
+
 }  // namespace HeatControl
