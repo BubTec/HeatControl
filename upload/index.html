@@ -593,14 +593,54 @@
       border-radius: 8px;
       background: #141b21;
       color: #d6dfe6;
-      font-family: "Consolas", monospace;
-      font-size: 0.71rem;
-      padding: 8px;
-      line-height: 1.36;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
     }
 
     .serial-preview.hidden {
       display: none;
+    }
+
+    .serial-preview-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+
+    .serial-auto-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.72rem;
+      color: #d6dfe6;
+      cursor: pointer;
+    }
+
+    .serial-auto-toggle input {
+      accent-color: #4cb5ff;
+      width: 16px;
+      height: 16px;
+    }
+
+    .serial-log-window {
+      margin: 0;
+      border: 1px solid #324552;
+      border-radius: 6px;
+      background: #0d141a;
+      font-family: "Consolas", monospace;
+      font-size: 0.71rem;
+      line-height: 1.36;
+      padding: 8px;
+      height: clamp(160px, 26vh, 320px);
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      scrollbar-width: thin;
     }
 
     .toast {
@@ -804,7 +844,16 @@
             <button type="button" class="btn" id="serialToggle" data-i18n="serial_button">Serielles Protokoll</button>
             <button type="button" class="btn warn" id="resetOvertempBtn" data-i18n="overtemp_reset_btn">MOSFET Overtemp-Historie reset</button>
           </div>
-          <div class="serial-preview hidden" id="serialPreview">Keine Logdaten geladen.</div>
+          <div class="serial-preview hidden" id="serialPreview">
+            <div class="serial-preview-toolbar">
+              <div class="serial-preview-title" data-i18n="serial_button">Serielles Protokoll</div>
+              <label class="serial-auto-toggle">
+                <input type="checkbox" id="serialAutoScroll" checked>
+                <span data-i18n="serial_autoscroll">Auto-Scroll</span>
+              </label>
+            </div>
+            <pre class="serial-log-window" id="serialLogWindow">Keine Logdaten geladen.</pre>
+          </div>
         </div>
       </div>
     </section>
@@ -822,6 +871,10 @@
   const toast = document.getElementById('toast');
   const serialToggle = document.getElementById('serialToggle');
   const serialPreview = document.getElementById('serialPreview');
+  const serialLogWindow = document.getElementById('serialLogWindow');
+  const serialAutoScrollInput = document.getElementById('serialAutoScroll');
+  let serialAutoScrollEnabled = serialAutoScrollInput ? serialAutoScrollInput.checked : true;
+  let serialHasLogData = false;
   const langToggleBtn = document.getElementById('langToggleBtn');
   const modePill = document.getElementById('modePill');
   const modeHelpBox = document.getElementById('modeHelpBox');
@@ -961,6 +1014,7 @@
       vibration_test: 'Vibration testen',
       overtemp_reset_btn: 'MOSFET Overtemp-Historie reset',
       serial_button: 'Serielles Protokoll',
+      serial_autoscroll: 'Auto-Scroll',
       badge_hot: 'MOSFET HEISS',
       badge_trip: 'MOSFET VORFALL',
       help_sensor_swap: 'Nur aktivieren, wenn Heizung 1/2 offensichtlich vertauscht reagieren.',
@@ -1063,6 +1117,7 @@
       vibration_test: 'Test vibration',
       overtemp_reset_btn: 'Reset MOSFET overtemp history',
       serial_button: 'Serial log',
+      serial_autoscroll: 'Auto-scroll',
       badge_hot: 'MOSFET HOT',
       badge_trip: 'MOSFET EVENT',
       help_sensor_swap: 'Only enable this when heating zone behavior is clearly swapped.',
@@ -1541,15 +1596,27 @@
     }
   }
 
+  function scrollSerialToBottom() {
+    if (!serialLogWindow) return;
+    if (!serialAutoScrollEnabled) return;
+    requestAnimationFrame(() => {
+      serialLogWindow.scrollTop = serialLogWindow.scrollHeight;
+    });
+  }
+
   async function loadSerialLog() {
+    if (!serialLogWindow) return;
     try {
       const response = await fetch('/logs');
       if (!response.ok) throw new Error('LOGS_FAIL');
-      const text = await response.text();
-      serialPreview.textContent = text.trim() || t('serial_empty');
-      serialPreview.scrollTop = serialPreview.scrollHeight;
+      const text = (await response.text()).trim();
+      serialHasLogData = text.length > 0;
+      serialLogWindow.textContent = serialHasLogData ? text : t('serial_empty');
+      scrollSerialToBottom();
     } catch (_) {
-      serialPreview.textContent = t('serial_empty');
+      serialHasLogData = false;
+      serialLogWindow.textContent = t('serial_empty');
+      scrollSerialToBottom();
     }
   }
 
@@ -1583,6 +1650,9 @@
     currentTemp1Display.textContent = formatCurrentTemp(state.current1);
     currentTemp2Display.textContent = formatCurrentTemp(state.current2);
     renderUpdateBanner();
+    if (!serialHasLogData && serialLogWindow) {
+      serialLogWindow.textContent = t('serial_empty');
+    }
   }
 
   async function updateStatus() {
@@ -1733,6 +1803,13 @@
     applyLanguage(currentLang === 'de' ? 'en' : 'de');
   });
 
+  if (serialAutoScrollInput) {
+    serialAutoScrollInput.addEventListener('change', () => {
+      serialAutoScrollEnabled = !!serialAutoScrollInput.checked;
+      if (serialAutoScrollEnabled) scrollSerialToBottom();
+    });
+  }
+
   temp1Slider.addEventListener('input', () => { markUserEditing(); setTempDisplay(1, temp1Slider.value); scheduleTempPush(); });
   temp2Slider.addEventListener('input', () => { markUserEditing(); setTempDisplay(2, temp2Slider.value); scheduleTempPush(); });
   document.getElementById('temp1DownBtn').addEventListener('click', () => adjustTemp(1, -0.5));
@@ -1795,5 +1872,3 @@
 </script>
 </body>
 </html>
-
-
