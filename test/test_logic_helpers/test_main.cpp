@@ -14,6 +14,11 @@ void test_voltage_to_soc_bounds() {
   TEST_ASSERT_TRUE(voltageToSocFloat(2.70F) < 0.0F);
 }
 
+void test_voltage_to_soc_extrapolates_below_table() {
+  const float soc = voltageToSocFloat(2.70F);
+  TEST_ASSERT_FLOAT_WITHIN(0.05F, -2.62F, soc);
+}
+
 void test_voltage_to_soc_interpolation() {
   const float soc = voltageToSocFloat(3.90F);
   TEST_ASSERT_FLOAT_WITHIN(0.5F, 73.0F, soc);
@@ -62,6 +67,12 @@ void test_ntc_valid_values() {
   TEST_ASSERT_FLOAT_WITHIN(0.5F, -13.78F, temp);
 }
 
+void test_ntc_high_voltage_value() {
+  float temp = 0.0F;
+  TEST_ASSERT_TRUE(ntcMilliVoltsToTempC(2800U, 3300.0F, 10000.0F, 10000.0F, 3950.0F, 25.0F, temp));
+  TEST_ASSERT_FLOAT_WITHIN(0.5F, 69.56F, temp);
+}
+
 void test_log_buffer_within_bounds() {
   char buffer[32] = {0};
   size_t len = 0;
@@ -79,23 +90,40 @@ void test_log_buffer_overflow_discards_oldest() {
   TEST_ASSERT_EQUAL_STRING("67890ABCDEFGHIJ", buffer);
 }
 
+void test_log_buffer_overwrites_when_line_exceeds_capacity() {
+  char buffer[8] = {0};
+  size_t len = 0;
+  appendLineToRollingBuffer(buffer, sizeof(buffer), len, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", 26);
+  TEST_ASSERT_EQUAL_UINT32(7U, static_cast<uint32_t>(len));
+  TEST_ASSERT_EQUAL_STRING("TUVWXYZ", buffer);
+}
+
 void test_json_escape() {
   const std::string raw = "Line\"1\"\nLine\\2\rX";
   const std::string escaped = jsonEscape(raw);
   TEST_ASSERT_EQUAL_STRING("Line\\\"1\\\"\\nLine\\\\2\\rX", escaped.c_str());
 }
 
+void test_json_escape_plain_text_remains_same() {
+  const std::string raw = "PlainText123";
+  TEST_ASSERT_EQUAL_STRING(raw.c_str(), jsonEscape(raw).c_str());
+}
+
 int main() {
   UNITY_BEGIN();
   RUN_TEST(test_voltage_to_soc_bounds);
+  RUN_TEST(test_voltage_to_soc_extrapolates_below_table);
   RUN_TEST(test_voltage_to_soc_interpolation);
   RUN_TEST(test_clamp_soc_percent);
   RUN_TEST(test_update_battery_from_adc_defaults);
   RUN_TEST(test_update_battery_from_adc_custom_cells);
   RUN_TEST(test_ntc_rejects_invalid_ranges);
   RUN_TEST(test_ntc_valid_values);
+  RUN_TEST(test_ntc_high_voltage_value);
   RUN_TEST(test_log_buffer_within_bounds);
   RUN_TEST(test_log_buffer_overflow_discards_oldest);
+  RUN_TEST(test_log_buffer_overwrites_when_line_exceeds_capacity);
   RUN_TEST(test_json_escape);
+  RUN_TEST(test_json_escape_plain_text_remains_same);
   return UNITY_END();
 }

@@ -35,9 +35,46 @@ void test_mid_band_resets_counters() {
   TEST_ASSERT_TRUE(final.offNow);
 }
 
+void test_off_edge_emits_only_once_per_transition() {
+  BatteryToggleDetector detector(80, 300, 2);
+  detector.update(70);
+  auto second = detector.update(60);
+  TEST_ASSERT_TRUE(second.offEdge);
+  auto third = detector.update(60);
+  TEST_ASSERT_TRUE(third.offNow);
+  TEST_ASSERT_FALSE(third.offEdge);
+}
+
+void test_mid_band_noise_never_sets_flags() {
+  BatteryToggleDetector detector(80, 300, 2);
+  auto first = detector.update(200);
+  auto second = detector.update(220);
+  TEST_ASSERT_FALSE(first.offNow);
+  TEST_ASSERT_FALSE(first.onNow);
+  TEST_ASSERT_FALSE(second.offNow);
+  TEST_ASSERT_FALSE(second.onNow);
+  TEST_ASSERT_FALSE(second.offEdge);
+  TEST_ASSERT_FALSE(second.onEdge);
+}
+
+void test_switching_back_to_on_requires_two_samples() {
+  BatteryToggleDetector detector(80, 300, 2);
+  detector.update(60);
+  detector.update(60);
+  auto singleHigh = detector.update(320);
+  TEST_ASSERT_FALSE(singleHigh.onNow);
+  TEST_ASSERT_FALSE(singleHigh.onEdge);
+  auto secondHigh = detector.update(330);
+  TEST_ASSERT_TRUE(secondHigh.onNow);
+  TEST_ASSERT_TRUE(secondHigh.onEdge);
+}
+
 int main() {
   UNITY_BEGIN();
   RUN_TEST(test_requires_stable_samples_before_trigger);
   RUN_TEST(test_mid_band_resets_counters);
+  RUN_TEST(test_off_edge_emits_only_once_per_transition);
+  RUN_TEST(test_mid_band_noise_never_sets_flags);
+  RUN_TEST(test_switching_back_to_on_requires_two_samples);
   return UNITY_END();
 }

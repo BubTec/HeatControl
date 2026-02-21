@@ -62,8 +62,28 @@ void test_status_json_basic_fields() {
   TEST_ASSERT_NOT_EQUAL(std::string::npos, json.find("\"totalRuntime\":\"1h 2m\""));
 }
 
+void test_status_json_handles_zero_values() {
+  StatusMetrics metrics;
+  metrics.modeText = "NORMAL";
+  metrics.manualMode = false;
+  metrics.manualPercent1 = 0;
+  metrics.manualPercent2 = 0;
+  metrics.bootPinText = "LOW";
+  metrics.ssid = "";
+  metrics.ntcMosfet1Valid = false;
+  metrics.ntcMosfet2Valid = false;
+  metrics.mosfet1TripValid = false;
+  metrics.mosfet2TripValid = false;
+  const std::string json = buildStatusJson(metrics);
+  TEST_ASSERT_NOT_EQUAL(std::string::npos, json.find("\"manualMode\":0"));
+  TEST_ASSERT_NOT_EQUAL(std::string::npos, json.find("\"ntcMosfet1C\":null"));
+  TEST_ASSERT_NOT_EQUAL(std::string::npos, json.find("\"mosfet1OvertempTripC\":null"));
+  TEST_ASSERT_NOT_EQUAL(std::string::npos, json.find("\"bootPin\":\"LOW\""));
+}
+
 int main() {
   UNITY_BEGIN();
   RUN_TEST(test_status_json_basic_fields);
+  RUN_TEST(test_status_json_handles_zero_values);
   return UNITY_END();
 }

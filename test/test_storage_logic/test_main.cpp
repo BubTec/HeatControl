@@ -18,11 +18,22 @@ void test_manual_power_clamp() {
   TEST_ASSERT_EQUAL_UINT8(75, clampManualPowerPercent(75));
 }
 
+void test_manual_power_clamp_accepts_all_valid_values() {
+  TEST_ASSERT_EQUAL_UINT8(25, clampManualPowerPercent(25));
+  TEST_ASSERT_EQUAL_UINT8(50, clampManualPowerPercent(50));
+  TEST_ASSERT_EQUAL_UINT8(75, clampManualPowerPercent(75));
+  TEST_ASSERT_EQUAL_UINT8(100, clampManualPowerPercent(100));
+}
+
 void test_manual_power_cycle() {
   TEST_ASSERT_EQUAL_UINT8(50, nextManualPowerPercent(25));
   TEST_ASSERT_EQUAL_UINT8(75, nextManualPowerPercent(50));
   TEST_ASSERT_EQUAL_UINT8(100, nextManualPowerPercent(75));
   TEST_ASSERT_EQUAL_UINT8(25, nextManualPowerPercent(100));
+}
+
+void test_manual_power_cycle_handles_invalid_input() {
+  TEST_ASSERT_EQUAL_UINT8(50, nextManualPowerPercent(0));
 }
 
 void test_manual_toggle_window() {
@@ -33,6 +44,7 @@ void test_manual_toggle_window() {
 
 void test_battery_cell_clamp() {
   TEST_ASSERT_EQUAL_UINT8(3, clampBatteryCellCount(0));
+  TEST_ASSERT_EQUAL_UINT8(2, clampBatteryCellCount(2));
   TEST_ASSERT_EQUAL_UINT8(6, clampBatteryCellCount(6));
   TEST_ASSERT_EQUAL_UINT8(3, clampBatteryCellCount(10));
 }
@@ -41,7 +53,9 @@ int main() {
   UNITY_BEGIN();
   RUN_TEST(test_clamp_target_limits);
   RUN_TEST(test_manual_power_clamp);
+  RUN_TEST(test_manual_power_clamp_accepts_all_valid_values);
   RUN_TEST(test_manual_power_cycle);
+  RUN_TEST(test_manual_power_cycle_handles_invalid_input);
   RUN_TEST(test_manual_toggle_window);
   RUN_TEST(test_battery_cell_clamp);
   return UNITY_END();
