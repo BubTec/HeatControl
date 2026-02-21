@@ -9,6 +9,7 @@
 #include <esp_system.h>
 
 #include "app_state.h"
+#include "battery_toggle.h"
 #include "control.h"
 #include "logic_helpers.h"
 #include "storage.h"
@@ -25,6 +26,12 @@ constexpr float NTC_SERIES_RESISTOR_OHM = 10000.0F;
 constexpr float NTC_NOMINAL_RESISTANCE_OHM = 10000.0F;
 constexpr float NTC_BETA = 3950.0F;
 constexpr float NTC_NOMINAL_TEMP_C = 25.0F;
+constexpr uint16_t BATTERY_ADC_OFF_THRESHOLD_MV = 80;
+constexpr uint16_t BATTERY_ADC_ON_THRESHOLD_MV = 300;
+constexpr uint8_t BATTERY_STABLE_SAMPLES = 2;
+
+BatteryToggleDetector battery1Detector(BATTERY_ADC_OFF_THRESHOLD_MV, BATTERY_ADC_ON_THRESHOLD_MV, BATTERY_STABLE_SAMPLES);
+BatteryToggleDetector battery2Detector(BATTERY_ADC_OFF_THRESHOLD_MV, BATTERY_ADC_ON_THRESHOLD_MV, BATTERY_STABLE_SAMPLES);
 
 void appendSerialLogLine(const String &line) {
   char lineBuf[320];
@@ -202,52 +209,20 @@ void loop() {
                                         battery2CellVoltage, battery2SocPercent);
 
     // Robust OFF/ON detection based on raw ADC with hysteresis and debounce.
-    constexpr uint16_t adcOffMvThreshold = 80;
-    constexpr uint16_t adcOnMvThreshold = 300;
-    constexpr uint8_t stableSamplesRequired = 2;  // 2 * 50ms = 100ms
-    static uint8_t batt1OffStableCount = 0;
-    static uint8_t batt1OnStableCount = 0;
-    static uint8_t batt2OffStableCount = 0;
-    static uint8_t batt2OnStableCount = 0;
-    static bool batt1OffNowPrev = false;
-    static bool batt1OnNowPrev = false;
-    static bool batt2OffNowPrev = false;
-    static bool batt2OnNowPrev = false;
-
-    if (adc1MilliVolts <= adcOffMvThreshold) {
-      if (batt1OffStableCount < 255) ++batt1OffStableCount;
-      batt1OnStableCount = 0;
-    } else if (adc1MilliVolts >= adcOnMvThreshold) {
-      if (batt1OnStableCount < 255) ++batt1OnStableCount;
-      batt1OffStableCount = 0;
-    } else {
-      batt1OffStableCount = 0;
-      batt1OnStableCount = 0;
-    }
-
-    if (adc2MilliVolts <= adcOffMvThreshold) {
-      if (batt2OffStableCount < 255) ++batt2OffStableCount;
-      batt2OnStableCount = 0;
-    } else if (adc2MilliVolts >= adcOnMvThreshold) {
-      if (batt2OnStableCount < 255) ++batt2OnStableCount;
-      batt2OffStableCount = 0;
-    } else {
-      batt2OffStableCount = 0;
-      batt2OnStableCount = 0;
-    }
-
-    const bool batt1OffNow = batt1OffStableCount >= stableSamplesRequired;
-    const bool batt1OnNow = batt1OnStableCount >= stableSamplesRequired;
-    const bool batt2OffNow = batt2OffStableCount >= stableSamplesRequired;
-    const bool batt2OnNow = batt2OnStableCount >= stableSamplesRequired;
+    const auto batt1Sample = battery1Detector.update(adc1MilliVolts);
+    const auto batt2Sample = battery2Detector.update(adc2MilliVolts);
+    const bool batt1OffNow = batt1Sample.offNow;
+    const bool batt1OnNow = batt1Sample.onNow;
+    const bool batt2OffNow = batt2Sample.offNow;
+    const bool batt2OnNow = batt2Sample.onNow;
 
     // Persist last known battery presence mask (bit0 = battery1, bit1 = battery2)
     // only when it changes, to avoid unnecessary EEPROM wear.
     uint8_t currentMask = 0;
-    if (adc1MilliVolts >= adcOnMvThreshold) {
+    if (adc1MilliVolts >= BATTERY_ADC_ON_THRESHOLD_MV) {
       currentMask |= 0x01U;
     }
-    if (adc2MilliVolts >= adcOnMvThreshold) {
+    if (adc2MilliVolts >= BATTERY_ADC_ON_THRESHOLD_MV) {
       currentMask |= 0x02U;
     }
     static uint8_t lastSavedMask = 0xFFU;
@@ -257,25 +232,21 @@ void loop() {
     }
 
     // Edge logging for OFF/ON detection flags to debug threshold behavior.
-    if (batt1OffNow != batt1OffNowPrev) {
-      batt1OffNowPrev = batt1OffNow;
+    if (batt1Sample.offEdge) {
       logf("Batt1OffNow changed -> %d | adc1_mv=%u (off_thresh=%u, on_thresh=%u)", batt1OffNow ? 1 : 0,
-           adc1MilliVolts, adcOffMvThreshold, adcOnMvThreshold);
+           adc1MilliVolts, BATTERY_ADC_OFF_THRESHOLD_MV, BATTERY_ADC_ON_THRESHOLD_MV);
     }
-    if (batt1OnNow != batt1OnNowPrev) {
-      batt1OnNowPrev = batt1OnNow;
+    if (batt1Sample.onEdge) {
       logf("Batt1OnNow changed  -> %d | adc1_mv=%u (off_thresh=%u, on_thresh=%u)", batt1OnNow ? 1 : 0,
-           adc1MilliVolts, adcOffMvThreshold, adcOnMvThreshold);
+           adc1MilliVolts, BATTERY_ADC_OFF_THRESHOLD_MV, BATTERY_ADC_ON_THRESHOLD_MV);
     }
-    if (batt2OffNow != batt2OffNowPrev) {
-      batt2OffNowPrev = batt2OffNow;
+    if (batt2Sample.offEdge) {
       logf("Batt2OffNow changed -> %d | adc2_mv=%u (off_thresh=%u, on_thresh=%u)", batt2OffNow ? 1 : 0,
-           adc2MilliVolts, adcOffMvThreshold, adcOnMvThreshold);
+           adc2MilliVolts, BATTERY_ADC_OFF_THRESHOLD_MV, BATTERY_ADC_ON_THRESHOLD_MV);
     }
-    if (batt2OnNow != batt2OnNowPrev) {
-      batt2OnNowPrev = batt2OnNow;
+    if (batt2Sample.onEdge) {
       logf("Batt2OnNow changed  -> %d | adc2_mv=%u (off_thresh=%u, on_thresh=%u)", batt2OnNow ? 1 : 0,
-           adc2MilliVolts, adcOffMvThreshold, adcOnMvThreshold);
+           adc2MilliVolts, BATTERY_ADC_OFF_THRESHOLD_MV, BATTERY_ADC_ON_THRESHOLD_MV);
     }
 
     // Battery switch detection: treat an OFF period as a user trigger to cycle the manual PWM step
