@@ -5,10 +5,13 @@
 #include <Update.h>
 #include <WiFi.h>
 #include <cmath>
+#include <string>
 
 #include "app_state.h"
 #include "control.h"
 #include "generated/embedded_files_registry.h"
+#include "logic_helpers.h"
+#include "status_builder.h"
 #include "storage.h"
 
 namespace HeatControl {
@@ -19,25 +22,6 @@ bool otaUploadStarted = false;
 bool otaUploadOk = false;
 String otaUploadMessage;
 size_t otaUploadBytes = 0;
-
-String jsonEscape(const String &value) {
-  String out;
-  out.reserve(value.length() + 8);
-  for (size_t i = 0; i < value.length(); ++i) {
-    const char c = value[i];
-    if (c == '\\' || c == '"') {
-      out += '\\';
-      out += c;
-    } else if (c == '\n') {
-      out += "\\n";
-    } else if (c == '\r') {
-      out += "\\r";
-    } else {
-      out += c;
-    }
-  }
-  return out;
-}
 
 bool sendEmbeddedFile(AsyncWebServerRequest *request, const String &path) {
   String normalized = path;
@@ -112,50 +96,62 @@ void setupWebServer() {
     const String modeText = manualMode ? ("MANUAL H1 " + String(manualPowerPercent1) + "% / H2 " + String(manualPowerPercent2) + "%")
                                        : (powerMode ? "POWER" : "NORMAL");
     const String bootPinText = (digitalRead(INPUT_PIN) == HIGH) ? "HIGH" : "LOW";
-    const String ntc1TempJson = std::isnan(ntcMosfet1TempC) ? "null" : String(ntcMosfet1TempC, 2);
-    const String ntc2TempJson = std::isnan(ntcMosfet2TempC) ? "null" : String(ntcMosfet2TempC, 2);
-    const String trip1TempJson = std::isnan(mosfet1OvertempTripTempC) ? "null" : String(mosfet1OvertempTripTempC, 2);
-    const String trip2TempJson = std::isnan(mosfet2OvertempTripTempC) ? "null" : String(mosfet2OvertempTripTempC, 2);
-    String json = "{\"mode\":\"" + modeText + "\"" +
-                  ",\"manualMode\":" + String(manualMode ? 1 : 0) +
-                  ",\"manualPercent1\":" + String(manualPowerPercent1) +
-                  ",\"manualPercent2\":" + String(manualPowerPercent2) +
-                  ",\"manualH1Enabled\":" + String(manualHeater1Enabled ? 1 : 0) +
-                  ",\"manualH2Enabled\":" + String(manualHeater2Enabled ? 1 : 0) +
-                  ",\"bootPin\":\"" + bootPinText + "\"" +
-                  ",\"adc1Mv\":" + String(adc1MilliVolts) +
-                  ",\"adc2Mv\":" + String(adc2MilliVolts) +
-                  ",\"ntcMosfet1Mv\":" + String(ntcMosfet1MilliVolts) +
-                  ",\"ntcMosfet2Mv\":" + String(ntcMosfet2MilliVolts) +
-                  ",\"ntcMosfet1C\":" + ntc1TempJson +
-                  ",\"ntcMosfet2C\":" + ntc2TempJson +
-                  ",\"mosfet1OvertempActive\":" + String(mosfet1OvertempActive ? 1 : 0) +
-                  ",\"mosfet2OvertempActive\":" + String(mosfet2OvertempActive ? 1 : 0) +
-                  ",\"mosfet1OvertempLatched\":" + String(mosfet1OvertempLatched ? 1 : 0) +
-                  ",\"mosfet2OvertempLatched\":" + String(mosfet2OvertempLatched ? 1 : 0) +
-                  ",\"mosfet1OvertempTripC\":" + trip1TempJson +
-                  ",\"mosfet2OvertempTripC\":" + trip2TempJson +
-                  ",\"mosfetOvertempLimitC\":" + String(MOSFET_OVERTEMP_LIMIT_C, 1) +
-                  ",\"batt1Cells\":" + String(battery1CellCount) +
-                  ",\"batt1V\":" + String(battery1PackVoltage, 2) +
-                  ",\"batt1CellV\":" + String(battery1CellVoltage, 2) +
-                  ",\"batt1Soc\":" + String(battery1SocPercent) +
-                  ",\"batt2Cells\":" + String(battery2CellCount) +
-                  ",\"batt2V\":" + String(battery2PackVoltage, 2) +
-                  ",\"batt2CellV\":" + String(battery2CellVoltage, 2) +
-                  ",\"batt2Soc\":" + String(battery2SocPercent) +
-                  ",\"manualToggleMaxOffMs\":" + String(manualPowerToggleMaxOffMs) +
-                  ",\"current1\":" + String(displayTemp1, 2) +
-                  ",\"current2\":" + String(displayTemp2, 2) +
-                  ",\"target1\":" + String(targetTemp1, 1) +
-                  ",\"target2\":" + String(targetTemp2, 1) +
-                  ",\"swap\":" + String(swapAssignment ? 1 : 0) +
-                  ",\"ssid\":\"" + jsonEscape(activeSsid) + "\"" +
-                  ",\"h1\":" + String(digitalRead(SSR_PIN_1) == LOW ? 1 : 0) +
-                  ",\"h2\":" + String(digitalRead(SSR_PIN_2) == LOW ? 1 : 0) +
-                  ",\"totalRuntime\":\"" + formatRuntime(savedRuntimeMinutes * 60UL, false) + "\"" +
-                  ",\"currentRuntime\":\"" + formatRuntime(currentSessionSeconds, true) + "\"}";
-    request->send(200, "application/json", json);
+    const bool heater1On = (digitalRead(SSR_PIN_1) == LOW);
+    const bool heater2On = (digitalRead(SSR_PIN_2) == LOW);
+    const bool ntc1Valid = !std::isnan(ntcMosfet1TempC);
+    const bool ntc2Valid = !std::isnan(ntcMosfet2TempC);
+    const bool trip1Valid = !std::isnan(mosfet1OvertempTripTempC);
+    const bool trip2Valid = !std::isnan(mosfet2OvertempTripTempC);
+    const String totalRuntime = formatRuntime(savedRuntimeMinutes * 60UL, false);
+    const String currentRuntime = formatRuntime(currentSessionSeconds, true);
+
+    StatusMetrics metrics;
+    metrics.modeText = modeText.c_str();
+    metrics.manualMode = manualMode;
+    metrics.manualPercent1 = manualPowerPercent1;
+    metrics.manualPercent2 = manualPowerPercent2;
+    metrics.manualHeater1Enabled = manualHeater1Enabled;
+    metrics.manualHeater2Enabled = manualHeater2Enabled;
+    metrics.bootPinText = bootPinText.c_str();
+    metrics.adc1MilliVolts = adc1MilliVolts;
+    metrics.adc2MilliVolts = adc2MilliVolts;
+    metrics.ntcMosfet1MilliVolts = ntcMosfet1MilliVolts;
+    metrics.ntcMosfet2MilliVolts = ntcMosfet2MilliVolts;
+    metrics.ntcMosfet1Valid = ntc1Valid;
+    metrics.ntcMosfet1TempC = ntcMosfet1TempC;
+    metrics.ntcMosfet2Valid = ntc2Valid;
+    metrics.ntcMosfet2TempC = ntcMosfet2TempC;
+    metrics.mosfet1OvertempActive = mosfet1OvertempActive;
+    metrics.mosfet2OvertempActive = mosfet2OvertempActive;
+    metrics.mosfet1OvertempLatched = mosfet1OvertempLatched;
+    metrics.mosfet2OvertempLatched = mosfet2OvertempLatched;
+    metrics.mosfet1TripValid = trip1Valid;
+    metrics.mosfet1TripTempC = mosfet1OvertempTripTempC;
+    metrics.mosfet2TripValid = trip2Valid;
+    metrics.mosfet2TripTempC = mosfet2OvertempTripTempC;
+    metrics.mosfetOvertempLimitC = MOSFET_OVERTEMP_LIMIT_C;
+    metrics.battery1CellCount = battery1CellCount;
+    metrics.battery1PackVoltage = battery1PackVoltage;
+    metrics.battery1CellVoltage = battery1CellVoltage;
+    metrics.battery1SocPercent = battery1SocPercent;
+    metrics.battery2CellCount = battery2CellCount;
+    metrics.battery2PackVoltage = battery2PackVoltage;
+    metrics.battery2CellVoltage = battery2CellVoltage;
+    metrics.battery2SocPercent = battery2SocPercent;
+    metrics.manualToggleMaxOffMs = manualPowerToggleMaxOffMs;
+    metrics.displayTemp1 = displayTemp1;
+    metrics.displayTemp2 = displayTemp2;
+    metrics.targetTemp1 = targetTemp1;
+    metrics.targetTemp2 = targetTemp2;
+    metrics.swapAssignment = swapAssignment;
+    metrics.ssid = activeSsid.c_str();
+    metrics.heater1On = heater1On;
+    metrics.heater2On = heater2On;
+    metrics.totalRuntime = totalRuntime.c_str();
+    metrics.currentRuntime = currentRuntime.c_str();
+
+    const std::string json = buildStatusJson(metrics);
+    request->send(200, "application/json", json.c_str());
   });
 
   server.on("/setBattery1", HTTP_POST, [](AsyncWebServerRequest *request) {

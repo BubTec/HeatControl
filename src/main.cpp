@@ -10,22 +10,13 @@
 
 #include "app_state.h"
 #include "control.h"
+#include "logic_helpers.h"
 #include "storage.h"
 #include "web_server.h"
 
 using namespace HeatControl;
 
 namespace {
-
-struct VoltToSoc {
-  float volt;
-  uint8_t soc;
-};
-
-constexpr VoltToSoc VOLT_TO_SOC[] = {
-    {4.18F, 100}, {4.10F, 96}, {3.99F, 82}, {3.85F, 68}, {3.77F, 58}, {3.58F, 34},
-    {3.42F, 20},  {3.33F, 14}, {3.21F, 8},  {3.00F, 2},  {2.87F, 0},
-};
 
 // NTC input model:
 // 3.3V -> NTC (10k, B3950) -> ADC node -> 10k resistor -> GND
@@ -35,78 +26,6 @@ constexpr float NTC_NOMINAL_RESISTANCE_OHM = 10000.0F;
 constexpr float NTC_BETA = 3950.0F;
 constexpr float NTC_NOMINAL_TEMP_C = 25.0F;
 
-float voltageToSocFloat(float cellVolt) {
-  const size_t last = (sizeof(VOLT_TO_SOC) / sizeof(VOLT_TO_SOC[0])) - 1;
-
-  // Above top range: clamp.
-  if (cellVolt >= VOLT_TO_SOC[0].volt) {
-    return static_cast<float>(VOLT_TO_SOC[0].soc);
-  }
-
-  // Below bottom range: extrapolate using the last segment to allow negative values
-  // (used to detect a battery switch OFF/ON event).
-  if (cellVolt <= VOLT_TO_SOC[last].volt) {
-    const float vHigh = VOLT_TO_SOC[last - 1].volt;
-    const float vLow = VOLT_TO_SOC[last].volt;
-    const float socHigh = static_cast<float>(VOLT_TO_SOC[last - 1].soc);
-    const float socLow = static_cast<float>(VOLT_TO_SOC[last].soc);
-    const float t = (cellVolt - vLow) / (vHigh - vLow);
-    return socLow + t * (socHigh - socLow);
-  }
-
-  // Inside table range: interpolate.
-  for (size_t i = 0; i < last; ++i) {
-    const float vHigh = VOLT_TO_SOC[i].volt;
-    const float vLow = VOLT_TO_SOC[i + 1].volt;
-    if (cellVolt <= vHigh && cellVolt > vLow) {
-      const float socHigh = static_cast<float>(VOLT_TO_SOC[i].soc);
-      const float socLow = static_cast<float>(VOLT_TO_SOC[i + 1].soc);
-      const float t = (cellVolt - vLow) / (vHigh - vLow);
-      return socLow + t * (socHigh - socLow);
-    }
-  }
-
-  return 0.0F;
-}
-
-uint8_t clampSocPercent(float soc) {
-  if (soc <= 0.0F) return 0;
-  if (soc >= 100.0F) return 100;
-  return static_cast<uint8_t>(soc + 0.5F);
-}
-
-float updateBatteryFromAdc(uint16_t adcMilliVolts, uint8_t cellCount, float &packV, float &cellV, uint8_t &socPercent) {
-  const float adcV = static_cast<float>(adcMilliVolts) / 1000.0F;
-  packV = adcV * BATTERY_DIVIDER_RATIO;
-  const uint8_t cells = cellCount == 0 ? 3 : cellCount;
-  cellV = packV / static_cast<float>(cells);
-  const float socRaw = voltageToSocFloat(cellV);
-  socPercent = clampSocPercent(socRaw);
-  return socRaw;
-}
-
-bool ntcMilliVoltsToTempC(uint16_t adcMilliVolts, float &tempC) {
-  const float vNodeMv = static_cast<float>(adcMilliVolts);
-  if (vNodeMv <= 0.0F || vNodeMv >= NTC_VCC_MV) {
-    return false;
-  }
-
-  // Divider solved for top resistor (NTC): Rntc = Rfixed * (Vcc / Vnode - 1)
-  const float ntcOhm = NTC_SERIES_RESISTOR_OHM * ((NTC_VCC_MV / vNodeMv) - 1.0F);
-  if (ntcOhm <= 0.0F) {
-    return false;
-  }
-
-  const float nominalTempK = NTC_NOMINAL_TEMP_C + 273.15F;
-  const float invT = (1.0F / nominalTempK) + (1.0F / NTC_BETA) * std::log(ntcOhm / NTC_NOMINAL_RESISTANCE_OHM);
-  if (invT <= 0.0F) {
-    return false;
-  }
-
-  tempC = (1.0F / invT) - 273.15F;
-  return true;
-}
-
 void appendSerialLogLine(const String &line) {
   char lineBuf[320];
   const int written = snprintf(lineBuf, sizeof(lineBuf), "%s\n", line.c_str());
@@ -114,27 +33,10 @@ void appendSerialLogLine(const String &line) {
     return;
   }
 
-  const size_t appendLen = static_cast<size_t>(written >= static_cast<int>(sizeof(lineBuf))
-                                                    ? sizeof(lineBuf) - 1
-                                                    : written);
-  constexpr size_t maxLen = sizeof(serialLogBuffer) - 1;
-
-  if (appendLen >= maxLen) {
-    memcpy(serialLogBuffer, lineBuf + (appendLen - maxLen), maxLen);
-    serialLogBuffer[maxLen] = '\0';
-    serialLogLength = maxLen;
-    return;
-  }
-
-  if (serialLogLength + appendLen > maxLen) {
-    const size_t overflow = (serialLogLength + appendLen) - maxLen;
-    memmove(serialLogBuffer, serialLogBuffer + overflow, serialLogLength - overflow);
-    serialLogLength -= overflow;
-  }
-
-  memcpy(serialLogBuffer + serialLogLength, lineBuf, appendLen);
-  serialLogLength += appendLen;
-  serialLogBuffer[serialLogLength] = '\0';
+  const size_t appendLen =
+      static_cast<size_t>(written >= static_cast<int>(sizeof(lineBuf)) ? sizeof(lineBuf) - 1 : written);
+  logic_helpers::appendLineToRollingBuffer(serialLogBuffer, sizeof(serialLogBuffer), serialLogLength, lineBuf,
+                                           appendLen);
 }
 
 }  // namespace
@@ -294,8 +196,10 @@ void loop() {
     // Read ADC inputs (millivolts) and update battery state.
     adc1MilliVolts = static_cast<uint16_t>(analogReadMilliVolts(ADC_PIN_1));
     adc2MilliVolts = static_cast<uint16_t>(analogReadMilliVolts(ADC_PIN_2));
-    updateBatteryFromAdc(adc1MilliVolts, battery1CellCount, battery1PackVoltage, battery1CellVoltage, battery1SocPercent);
-    updateBatteryFromAdc(adc2MilliVolts, battery2CellCount, battery2PackVoltage, battery2CellVoltage, battery2SocPercent);
+    logic_helpers::updateBatteryFromAdc(adc1MilliVolts, battery1CellCount, BATTERY_DIVIDER_RATIO, battery1PackVoltage,
+                                        battery1CellVoltage, battery1SocPercent);
+    logic_helpers::updateBatteryFromAdc(adc2MilliVolts, battery2CellCount, BATTERY_DIVIDER_RATIO, battery2PackVoltage,
+                                        battery2CellVoltage, battery2SocPercent);
 
     // Robust OFF/ON detection based on raw ADC with hysteresis and debounce.
     constexpr uint16_t adcOffMvThreshold = 80;
@@ -423,8 +327,12 @@ void loop() {
 
     ntcMosfet1MilliVolts = static_cast<uint16_t>(analogReadMilliVolts(ADC_PIN_NTC_MOSFET_1));
     ntcMosfet2MilliVolts = static_cast<uint16_t>(analogReadMilliVolts(ADC_PIN_NTC_MOSFET_2));
-    const bool ntc1Valid = ntcMilliVoltsToTempC(ntcMosfet1MilliVolts, ntcMosfet1TempC);
-    const bool ntc2Valid = ntcMilliVoltsToTempC(ntcMosfet2MilliVolts, ntcMosfet2TempC);
+    const bool ntc1Valid = logic_helpers::ntcMilliVoltsToTempC(ntcMosfet1MilliVolts, NTC_VCC_MV, NTC_SERIES_RESISTOR_OHM,
+                                                              NTC_NOMINAL_RESISTANCE_OHM, NTC_BETA, NTC_NOMINAL_TEMP_C,
+                                                              ntcMosfet1TempC);
+    const bool ntc2Valid = logic_helpers::ntcMilliVoltsToTempC(ntcMosfet2MilliVolts, NTC_VCC_MV, NTC_SERIES_RESISTOR_OHM,
+                                                              NTC_NOMINAL_RESISTANCE_OHM, NTC_BETA, NTC_NOMINAL_TEMP_C,
+                                                              ntcMosfet2TempC);
     if (!ntc1Valid) {
       ntcMosfet1TempC = NAN;
     }
@@ -473,8 +381,10 @@ void loop() {
     if (!manualMode) {
       adc1MilliVolts = static_cast<uint16_t>(analogReadMilliVolts(ADC_PIN_1));
       adc2MilliVolts = static_cast<uint16_t>(analogReadMilliVolts(ADC_PIN_2));
-      updateBatteryFromAdc(adc1MilliVolts, battery1CellCount, battery1PackVoltage, battery1CellVoltage, battery1SocPercent);
-      updateBatteryFromAdc(adc2MilliVolts, battery2CellCount, battery2PackVoltage, battery2CellVoltage, battery2SocPercent);
+      logic_helpers::updateBatteryFromAdc(adc1MilliVolts, battery1CellCount, BATTERY_DIVIDER_RATIO, battery1PackVoltage,
+                                          battery1CellVoltage, battery1SocPercent);
+      logic_helpers::updateBatteryFromAdc(adc2MilliVolts, battery2CellCount, BATTERY_DIVIDER_RATIO, battery2PackVoltage,
+                                          battery2CellVoltage, battery2SocPercent);
     }
     
     // Check for heater state changes (motor/vibration)

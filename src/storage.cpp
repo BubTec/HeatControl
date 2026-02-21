@@ -1,9 +1,10 @@
 #include "storage.h"
 
-#include <cmath>
 #include <EEPROM.h>
+#include <cmath>
 
 #include "app_state.h"
+#include "storage_logic.h"
 
 namespace HeatControl {
 
@@ -27,32 +28,6 @@ float readFloatFromEeprom(int addr) {
 
 }  // namespace
 
-namespace {
-
-uint8_t nextManualPowerPercent(uint8_t value) {
-  const uint8_t current = clampManualPowerPercent(value);
-  if (current == 25) return 50;
-  if (current == 50) return 75;
-  if (current == 75) return 100;
-  return 25;
-}
-
-}  // namespace
-
-uint8_t clampManualPowerPercent(uint8_t value) {
-  if (value == 25 || value == 50 || value == 75 || value == 100) {
-    return value;
-  }
-  return 25;
-}
-
-uint16_t clampManualToggleOffMs(uint16_t value) {
-  // Limit the OFF/ON detection window to a sane, safe range (100ms..5000ms).
-  if (value < 100U) return 100U;
-  if (value > 5000U) return 5000U;
-  return value;
-}
-
 void setNextBootMode(uint8_t mode) {
   EEPROM.write(EEPROM_BOOT_MODE_ADDR, mode);
   EEPROM.commit();
@@ -63,12 +38,6 @@ uint8_t getAndClearBootMode() {
   EEPROM.write(EEPROM_BOOT_MODE_ADDR, 0);
   EEPROM.commit();
   return mode;
-}
-
-float clampTarget(float value) {
-  if (value < 10.0F) return 10.0F;
-  if (value > 45.0F) return 45.0F;
-  return value;
 }
 
 void loadTemperatureTargets() {
@@ -197,14 +166,6 @@ void cycleManualPowerPercents() {
   manualPowerPercent1 = nextManualPowerPercent(manualPowerPercent1);
   manualPowerPercent2 = nextManualPowerPercent(manualPowerPercent2);
   saveManualPowerPercents();
-}
-
-uint8_t clampBatteryCellCount(uint8_t value) {
-  // Keep it simple and safe: 2S..6S, default 3S.
-  if (value >= 2 && value <= 6) {
-    return value;
-  }
-  return 3;
 }
 
 void loadBatteryCellCounts() {

@@ -154,5 +154,9 @@ The web interface provides:
 4. Configure targets and monitor status
 5. Optional OTA update: open `/update` and upload `firmware.bin`
 
+## Testing & Simulation
+- Native logic/unit-tests: `export PATH=$PATH:~/.local/bin && pio test -e native`
+- Simulation tips (PlatformIO + Wokwi) are documented in `documentation/simulation.md`
+
 ## License
 This project is licensed under GPL-3.0. See `LICENSE`.
