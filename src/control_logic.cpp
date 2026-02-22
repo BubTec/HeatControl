@@ -25,12 +25,12 @@ bool shouldManualHeaterBeOn(uint8_t manualPowerPercent, unsigned long nowMs) {
 }
 
 void controlHeater(IGpio &gpio, int pin, bool forceOn, float currentTemp, float targetTemp) {
-  // Inverted logic: LOW = ON, HIGH = OFF.
-  gpio.writePin(pin, shouldHeaterBeOn(forceOn, currentTemp, targetTemp) ? PIN_LOW : PIN_HIGH);
+  // Active-high logic: HIGH = ON, LOW = OFF.
+  gpio.writePin(pin, shouldHeaterBeOn(forceOn, currentTemp, targetTemp) ? PIN_HIGH : PIN_LOW);
 }
 
 const char *heaterStateTextFromLevel(int level) {
-  return level == PIN_LOW ? "ON" : "OFF";
+  return level == PIN_HIGH ? "ON" : "OFF";
 }
 
 void updateSensorsAndHeaters(ITemperatureSensors &sensors, IGpio &gpio, bool powerMode, bool manualMode,
@@ -44,8 +44,8 @@ void updateSensorsAndHeaters(ITemperatureSensors &sensors, IGpio &gpio, bool pow
   if (manualMode) {
     const bool manualOn1 = shouldManualHeaterBeOn(manualPowerPercent1, nowMs);
     const bool manualOn2 = shouldManualHeaterBeOn(manualPowerPercent2, nowMs);
-    gpio.writePin(heaterPin1, (manualHeater1Enabled && manualOn1) ? PIN_LOW : PIN_HIGH);
-    gpio.writePin(heaterPin2, (manualHeater2Enabled && manualOn2) ? PIN_LOW : PIN_HIGH);
+    gpio.writePin(heaterPin1, (manualHeater1Enabled && manualOn1) ? PIN_HIGH : PIN_LOW);
+    gpio.writePin(heaterPin2, (manualHeater2Enabled && manualOn2) ? PIN_HIGH : PIN_LOW);
     return;
   }
 

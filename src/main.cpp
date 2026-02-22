@@ -78,9 +78,9 @@ void setup() {
   pinMode(INPUT_PIN, INPUT_PULLDOWN);
   pinMode(SIGNAL_PIN, OUTPUT);
 
-  digitalWrite(SSR_PIN_1, HIGH);
-  digitalWrite(SSR_PIN_2, HIGH);
-  digitalWrite(SIGNAL_PIN, LOW);
+  digitalWrite(SSR_PIN_1, LOW);
+  digitalWrite(SSR_PIN_2, LOW);
+  digitalWrite(SIGNAL_PIN, HIGH);
 
   // ADC setup (ESP32-C3): 12-bit readings, extended input range.
   analogReadResolution(12);
@@ -90,9 +90,9 @@ void setup() {
   analogSetPinAttenuation(ADC_PIN_NTC_MOSFET_2, ADC_11db);
   
   // Initialize state tracking
-  lastHeater1State = (digitalRead(SSR_PIN_1) == LOW);
-  lastHeater2State = (digitalRead(SSR_PIN_2) == LOW);
-  lastSignalPinState = (digitalRead(SIGNAL_PIN) == HIGH);
+  lastHeater1State = (digitalRead(SSR_PIN_1) == HIGH);
+  lastHeater2State = (digitalRead(SSR_PIN_2) == HIGH);
+  lastSignalPinState = (digitalRead(SIGNAL_PIN) == LOW);
   lastInputPinState = (digitalRead(INPUT_PIN) == HIGH);
 
   const uint8_t savedBootMode = getAndClearBootMode();
@@ -332,10 +332,10 @@ void loop() {
     }
 
     if (mosfet1OvertempActive) {
-      digitalWrite(SSR_PIN_1, HIGH);
+      digitalWrite(SSR_PIN_1, LOW);
     }
     if (mosfet2OvertempActive) {
-      digitalWrite(SSR_PIN_2, HIGH);
+      digitalWrite(SSR_PIN_2, LOW);
     }
 
     static unsigned long lastNtcLogMs = 0;
@@ -359,8 +359,8 @@ void loop() {
     }
     
     // Check for heater state changes (motor/vibration)
-    const bool currentHeater1State = (digitalRead(SSR_PIN_1) == LOW);
-    const bool currentHeater2State = (digitalRead(SSR_PIN_2) == LOW);
+    const bool currentHeater1State = (digitalRead(SSR_PIN_1) == HIGH);
+    const bool currentHeater2State = (digitalRead(SSR_PIN_2) == HIGH);
     
     if (currentHeater1State != lastHeater1State) {
       Serial.printf("Motor/Vibration H1: %s -> %s\n", 
@@ -377,7 +377,7 @@ void loop() {
     }
     
     // Check for signal pin state changes
-    const bool currentSignalPinState = (digitalRead(SIGNAL_PIN) == HIGH);
+    const bool currentSignalPinState = (digitalRead(SIGNAL_PIN) == LOW);
     if (currentSignalPinState != lastSignalPinState) {
       Serial.printf("Signal pin: %s -> %s\n",
                     lastSignalPinState ? "ON" : "OFF",
@@ -400,8 +400,8 @@ void loop() {
     const String modeLabel =
         manualMode ? ("MANUAL H1 " + String(manualPowerPercent1) + "% / H2 " + String(manualPowerPercent2) + "%")
                    : (powerMode ? "POWER" : "NORMAL");
-    const bool heater1On = (digitalRead(SSR_PIN_1) == LOW);
-    const bool heater2On = (digitalRead(SSR_PIN_2) == LOW);
+    const bool heater1On = (digitalRead(SSR_PIN_1) == HIGH);
+    const bool heater2On = (digitalRead(SSR_PIN_2) == HIGH);
 
     constexpr unsigned long aliveHeartbeatMs = 30000UL;
     constexpr float tempDeltaLogC = 0.2F;

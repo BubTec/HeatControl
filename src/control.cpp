@@ -28,9 +28,9 @@ class DallasSensorsAdapter : public logic::ITemperatureSensors {
 void signalManualPowerPattern(uint8_t manualPowerPercent, bool includeIntroPulse) {
   if (includeIntroPulse) {
     // Manual mode intro pulse.
-    digitalWrite(SIGNAL_PIN, HIGH);
-    delay(500);
     digitalWrite(SIGNAL_PIN, LOW);
+    delay(500);
+    digitalWrite(SIGNAL_PIN, HIGH);
     delay(220);
   }
 
@@ -44,9 +44,9 @@ void signalManualPowerPattern(uint8_t manualPowerPercent, bool includeIntroPulse
     stepPulses = 2;
   }
   for (int i = 0; i < stepPulses; ++i) {
-    digitalWrite(SIGNAL_PIN, HIGH);
-    delay(130);
     digitalWrite(SIGNAL_PIN, LOW);
+    delay(130);
+    digitalWrite(SIGNAL_PIN, HIGH);
     delay(130);
   }
 }
@@ -60,9 +60,9 @@ void startupSignal(bool isPowerMode, bool isManualMode, uint8_t manualPowerPerce
 
   const int pulseCount = isPowerMode ? 2 : 1;
   for (int i = 0; i < pulseCount; ++i) {
-    digitalWrite(SIGNAL_PIN, HIGH);
-    delay(300);
     digitalWrite(SIGNAL_PIN, LOW);
+    delay(300);
+    digitalWrite(SIGNAL_PIN, HIGH);
     delay(200);
   }
 }

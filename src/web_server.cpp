@@ -96,8 +96,8 @@ void setupWebServer() {
     const String modeText = manualMode ? ("MANUAL H1 " + String(manualPowerPercent1) + "% / H2 " + String(manualPowerPercent2) + "%")
                                        : (powerMode ? "POWER" : "NORMAL");
     const String bootPinText = (digitalRead(INPUT_PIN) == HIGH) ? "HIGH" : "LOW";
-    const bool heater1On = (digitalRead(SSR_PIN_1) == LOW);
-    const bool heater2On = (digitalRead(SSR_PIN_2) == LOW);
+    const bool heater1On = (digitalRead(SSR_PIN_1) == HIGH);
+    const bool heater2On = (digitalRead(SSR_PIN_2) == HIGH);
     const bool ntc1Valid = !std::isnan(ntcMosfet1TempC);
     const bool ntc2Valid = !std::isnan(ntcMosfet2TempC);
     const bool trip1Valid = !std::isnan(mosfet1OvertempTripTempC);
@@ -346,9 +346,9 @@ void setupWebServer() {
       request->send(403, "text/plain", "Forbidden");
       return;
     }
-    digitalWrite(SIGNAL_PIN, HIGH);
-    delay(120);
     digitalWrite(SIGNAL_PIN, LOW);
+    delay(120);
+    digitalWrite(SIGNAL_PIN, HIGH);
     request->send(200, "text/plain", "OK");
   });
 
