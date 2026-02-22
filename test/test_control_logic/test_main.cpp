@@ -73,13 +73,13 @@ void test_should_turn_on_based_on_temperature_delta() {
   TEST_ASSERT_FALSE(HeatControl::logic::shouldHeaterBeOn(false, 25.0F, 23.0F));
 }
 
-void test_control_heater_sets_inverted_output() {
+void test_control_heater_sets_active_high_output() {
   MockGpio gpio;
   HeatControl::logic::controlHeater(gpio, 4, false, 20.0F, 23.0F);
-  TEST_ASSERT_EQUAL_INT(HeatControl::logic::PIN_LOW, gpio.readPin(4));
+  TEST_ASSERT_EQUAL_INT(HeatControl::logic::PIN_HIGH, gpio.readPin(4));
 
   HeatControl::logic::controlHeater(gpio, 4, false, 24.0F, 23.0F);
-  TEST_ASSERT_EQUAL_INT(HeatControl::logic::PIN_HIGH, gpio.readPin(4));
+  TEST_ASSERT_EQUAL_INT(HeatControl::logic::PIN_LOW, gpio.readPin(4));
 }
 
 void test_update_sensors_and_heaters_without_swap() {
@@ -97,8 +97,8 @@ void test_update_sensors_and_heaters_without_swap() {
   TEST_ASSERT_EQUAL_INT(1, sensors.requestCount);
   TEST_ASSERT_EQUAL_FLOAT(21.0F, current0);
   TEST_ASSERT_EQUAL_FLOAT(26.0F, current1);
-  TEST_ASSERT_EQUAL_INT(HeatControl::logic::PIN_LOW, gpio.readPin(4));
-  TEST_ASSERT_EQUAL_INT(HeatControl::logic::PIN_HIGH, gpio.readPin(5));
+  TEST_ASSERT_EQUAL_INT(HeatControl::logic::PIN_HIGH, gpio.readPin(4));
+  TEST_ASSERT_EQUAL_INT(HeatControl::logic::PIN_LOW, gpio.readPin(5));
 }
 
 void test_update_sensors_and_heaters_power_mode_forces_on() {
@@ -116,8 +116,8 @@ void test_update_sensors_and_heaters_power_mode_forces_on() {
   TEST_ASSERT_EQUAL_INT(1, sensors.requestCount);
   TEST_ASSERT_EQUAL_FLOAT(35.0F, current0);
   TEST_ASSERT_EQUAL_FLOAT(36.0F, current1);
-  TEST_ASSERT_EQUAL_INT(HeatControl::logic::PIN_LOW, gpio.readPin(6));
-  TEST_ASSERT_EQUAL_INT(HeatControl::logic::PIN_LOW, gpio.readPin(7));
+  TEST_ASSERT_EQUAL_INT(HeatControl::logic::PIN_HIGH, gpio.readPin(6));
+  TEST_ASSERT_EQUAL_INT(HeatControl::logic::PIN_HIGH, gpio.readPin(7));
   TEST_ASSERT_EQUAL_UINT32(2U, gpio.writes.size());
 }
 
@@ -133,8 +133,8 @@ void test_update_sensors_and_heaters_with_swap() {
   HeatControl::logic::updateSensorsAndHeaters(sensors, gpio, false, false, 25, 25, true, true, true, 23.0F, 23.0F,
                                               current0, current1, 4, 5, 0);
 
-  TEST_ASSERT_EQUAL_INT(HeatControl::logic::PIN_LOW, gpio.readPin(4));
-  TEST_ASSERT_EQUAL_INT(HeatControl::logic::PIN_HIGH, gpio.readPin(5));
+  TEST_ASSERT_EQUAL_INT(HeatControl::logic::PIN_HIGH, gpio.readPin(4));
+  TEST_ASSERT_EQUAL_INT(HeatControl::logic::PIN_LOW, gpio.readPin(5));
 }
 
 void test_update_sensors_and_heaters_with_swap_and_distinct_targets() {
@@ -151,13 +151,13 @@ void test_update_sensors_and_heaters_with_swap_and_distinct_targets() {
 
   TEST_ASSERT_EQUAL_FLOAT(26.0F, current0);
   TEST_ASSERT_EQUAL_FLOAT(21.0F, current1);
-  TEST_ASSERT_EQUAL_INT(HeatControl::logic::PIN_LOW, gpio.readPin(8));
-  TEST_ASSERT_EQUAL_INT(HeatControl::logic::PIN_HIGH, gpio.readPin(9));
+  TEST_ASSERT_EQUAL_INT(HeatControl::logic::PIN_HIGH, gpio.readPin(8));
+  TEST_ASSERT_EQUAL_INT(HeatControl::logic::PIN_LOW, gpio.readPin(9));
 }
 
 void test_heater_state_text_from_level() {
-  TEST_ASSERT_EQUAL_STRING("ON", HeatControl::logic::heaterStateTextFromLevel(HeatControl::logic::PIN_LOW));
-  TEST_ASSERT_EQUAL_STRING("OFF", HeatControl::logic::heaterStateTextFromLevel(HeatControl::logic::PIN_HIGH));
+  TEST_ASSERT_EQUAL_STRING("ON", HeatControl::logic::heaterStateTextFromLevel(HeatControl::logic::PIN_HIGH));
+  TEST_ASSERT_EQUAL_STRING("OFF", HeatControl::logic::heaterStateTextFromLevel(HeatControl::logic::PIN_LOW));
 }
 
 void test_manual_pwm_decision() {
@@ -194,20 +194,20 @@ void test_update_sensors_and_heaters_manual_mode() {
   TEST_ASSERT_EQUAL_INT(1, sensors.requestCount);
   TEST_ASSERT_EQUAL_FLOAT(22.0F, current0);
   TEST_ASSERT_EQUAL_FLOAT(24.0F, current1);
-  TEST_ASSERT_EQUAL_INT(HeatControl::logic::PIN_HIGH, gpio.readPin(4));  // 25% at t=300ms -> OFF
-  TEST_ASSERT_EQUAL_INT(HeatControl::logic::PIN_HIGH, gpio.readPin(5));
+  TEST_ASSERT_EQUAL_INT(HeatControl::logic::PIN_LOW, gpio.readPin(4));  // 25% at t=300ms -> OFF
+  TEST_ASSERT_EQUAL_INT(HeatControl::logic::PIN_LOW, gpio.readPin(5));
 
   HeatControl::logic::updateSensorsAndHeaters(sensors, gpio, false, true, 25, 75, true, false, false, 23.0F, 23.0F,
                                               current0, current1, 4, 5, 100);
   TEST_ASSERT_EQUAL_INT(2, sensors.requestCount);
-  TEST_ASSERT_EQUAL_INT(HeatControl::logic::PIN_LOW, gpio.readPin(4));    // 25% at t=100ms -> ON
-  TEST_ASSERT_EQUAL_INT(HeatControl::logic::PIN_HIGH, gpio.readPin(5));   // Disabled channel stays OFF
+  TEST_ASSERT_EQUAL_INT(HeatControl::logic::PIN_HIGH, gpio.readPin(4));   // 25% at t=100ms -> ON
+  TEST_ASSERT_EQUAL_INT(HeatControl::logic::PIN_LOW, gpio.readPin(5));    // Disabled channel stays OFF
 
   HeatControl::logic::updateSensorsAndHeaters(sensors, gpio, false, true, 80, 100, false, true, false, 23.0F, 23.0F,
                                               current0, current1, 4, 5, 50);
   TEST_ASSERT_EQUAL_INT(3, sensors.requestCount);
-  TEST_ASSERT_EQUAL_INT(HeatControl::logic::PIN_HIGH, gpio.readPin(4));   // Disabled heater stays OFF
-  TEST_ASSERT_EQUAL_INT(HeatControl::logic::PIN_LOW, gpio.readPin(5));    // Enabled heater with 100% power stays ON
+  TEST_ASSERT_EQUAL_INT(HeatControl::logic::PIN_LOW, gpio.readPin(4));    // Disabled heater stays OFF
+  TEST_ASSERT_EQUAL_INT(HeatControl::logic::PIN_HIGH, gpio.readPin(5));   // Enabled heater with 100% power stays ON
 }
 
 }  // namespace
@@ -218,7 +218,7 @@ int main() {
   RUN_TEST(test_is_sensor_error_boundaries);
   RUN_TEST(test_should_turn_on_for_sensor_error);
   RUN_TEST(test_should_turn_on_based_on_temperature_delta);
-  RUN_TEST(test_control_heater_sets_inverted_output);
+  RUN_TEST(test_control_heater_sets_active_high_output);
   RUN_TEST(test_update_sensors_and_heaters_without_swap);
   RUN_TEST(test_update_sensors_and_heaters_power_mode_forces_on);
   RUN_TEST(test_update_sensors_and_heaters_with_swap);
