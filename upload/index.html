@@ -709,6 +709,7 @@
         <div class="set-box">
           <div class="set-temp"><span id="targetTemp1Display">23.0</span> C</div>
           <div class="current-temp" id="currentTemp1Display">Ist 0.0 C</div>
+          <div class="current-temp" id="supply1Display">Versorgung -</div>
         </div>
         <button type="button" class="temp-btn" id="temp1UpBtn">+</button>
       </div>
@@ -731,6 +732,7 @@
         <div class="set-box">
           <div class="set-temp"><span id="targetTemp2Display">23.0</span> C</div>
           <div class="current-temp" id="currentTemp2Display">Ist 0.0 C</div>
+          <div class="current-temp" id="supply2Display">Versorgung -</div>
         </div>
         <button type="button" class="temp-btn" id="temp2UpBtn">+</button>
       </div>
@@ -866,6 +868,7 @@
   <script>
   const USER_EDIT_HOLD_MS = 10000;
   const TEMP_PUSH_DEBOUNCE_MS = 350;
+  const BATTERY_SUPPLY_ON_THRESHOLD_MV = 300;
 
   const advancedToggle = document.getElementById('advancedToggle');
   const helpToggleBtn = document.getElementById('helpToggleBtn');
@@ -887,6 +890,8 @@
   const targetTemp2Display = document.getElementById('targetTemp2Display');
   const currentTemp1Display = document.getElementById('currentTemp1Display');
   const currentTemp2Display = document.getElementById('currentTemp2Display');
+  const supply1Display = document.getElementById('supply1Display');
+  const supply2Display = document.getElementById('supply2Display');
   const statusRing1 = document.getElementById('statusRing1');
   const statusRing2 = document.getElementById('statusRing2');
   const status1Pct = document.getElementById('status1Pct');
@@ -943,6 +948,8 @@
     temp2: 23.0,
     current1: 0,
     current2: 0,
+    adc1Mv: NaN,
+    adc2Mv: NaN,
     swap: false,
     batt1Cells: 3,
     batt2Cells: 3,
@@ -963,6 +970,10 @@
       update_available: 'Neue Version verfuegbar: {version}',
       heater1_title: 'Heizung 1',
       heater2_title: 'Heizung 2',
+      supply_prefix: 'Versorgung',
+      supply_on: 'AN',
+      supply_off: 'AUS',
+      supply_unknown: '-',
       slider_target: 'Sollwert',
       mode_auto_label: 'AUTO:',
       mode_auto_desc: 'Automatische Regelung fuer beide Heizkreise anhand der Solltemperaturen.',
@@ -1068,6 +1079,10 @@
       update_available: 'New version available: {version}',
       heater1_title: 'Heating 1',
       heater2_title: 'Heating 2',
+      supply_prefix: 'Supply',
+      supply_on: 'ON',
+      supply_off: 'OFF',
+      supply_unknown: '-',
       slider_target: 'Target',
       mode_auto_label: 'AUTO:',
       mode_auto_desc: 'Automatic control for both heating zones based on target temperatures.',
@@ -1456,6 +1471,14 @@
     return `${t('current_prefix')} ${Number(temp).toFixed(1)} C`;
   }
 
+  function formatSupplyState(adcMilliVolts) {
+    if (!Number.isFinite(adcMilliVolts)) {
+      return `${t('supply_prefix')} ${t('supply_unknown')}`;
+    }
+    const isOn = Number(adcMilliVolts) >= BATTERY_SUPPLY_ON_THRESHOLD_MV;
+    return `${t('supply_prefix')} ${isOn ? t('supply_on') : t('supply_off')}`;
+  }
+
   function updateRing(channel, percent) {
     const p = Math.max(0, Math.min(100, Number(percent) || 0));
     if (channel === 1) {
@@ -1670,6 +1693,8 @@
     setModeHelpVisibility(showModeHelp);
     currentTemp1Display.textContent = formatCurrentTemp(state.current1);
     currentTemp2Display.textContent = formatCurrentTemp(state.current2);
+    supply1Display.textContent = formatSupplyState(state.adc1Mv);
+    supply2Display.textContent = formatSupplyState(state.adc2Mv);
     renderUpdateBanner();
     if (!serialHasLogData && serialLogWindow) {
       serialLogWindow.textContent = t('serial_empty');
@@ -1736,6 +1761,10 @@
       manualToggleWindowDisplay.textContent = typeof data.manualToggleMaxOffMs === 'number' ? `${Math.round(data.manualToggleMaxOffMs)} ms` : '-';
       adc1Value.textContent = typeof data.adc1Mv === 'number' ? `${data.adc1Mv} mV` : '-';
       adc2Value.textContent = typeof data.adc2Mv === 'number' ? `${data.adc2Mv} mV` : '-';
+      state.adc1Mv = typeof data.adc1Mv === 'number' ? Number(data.adc1Mv) : NaN;
+      state.adc2Mv = typeof data.adc2Mv === 'number' ? Number(data.adc2Mv) : NaN;
+      supply1Display.textContent = formatSupplyState(state.adc1Mv);
+      supply2Display.textContent = formatSupplyState(state.adc2Mv);
 
       const ntc1C = typeof data.ntcMosfet1C === 'number' ? Number(data.ntcMosfet1C) : NaN;
       const ntc2C = typeof data.ntcMosfet2C === 'number' ? Number(data.ntcMosfet2C) : NaN;
