@@ -192,6 +192,37 @@ void setupWebServer() {
     request->redirect("/");
   });
 
+  server.on("/cycleManualPower", HTTP_POST, [](AsyncWebServerRequest *request) {
+    if (!isFromLocalApSubnet(request)) {
+      request->send(403, "text/plain", "Forbidden");
+      return;
+    }
+    if (!manualMode) {
+      request->send(409, "text/plain", "Manual mode required");
+      return;
+    }
+    if (!request->hasParam("channel", true)) {
+      request->send(400, "text/plain", "Missing channel");
+      return;
+    }
+
+    const int channel = request->getParam("channel", true)->value().toInt();
+    if (channel == 1) {
+      cycleManualPowerPercent1();
+      signalManualPowerChange(manualPowerPercent1);
+      request->send(200, "text/plain", "OK");
+      return;
+    }
+    if (channel == 2) {
+      cycleManualPowerPercent2();
+      signalManualPowerChange(manualPowerPercent2);
+      request->send(200, "text/plain", "OK");
+      return;
+    }
+
+    request->send(400, "text/plain", "Invalid channel");
+  });
+
   server.on("/runtime", HTTP_GET, [](AsyncWebServerRequest *request) {
     const uint32_t currentSessionSeconds = static_cast<uint32_t>((millis() - startTimeMs) / 1000UL);
     String json = "{\"total\":\"" + formatRuntime(savedRuntimeMinutes * 60UL, false) +

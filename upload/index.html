@@ -227,6 +227,8 @@
       font-size: 0.72rem;
       font-weight: 700;
       color: #ffd9d9;
+      cursor: pointer;
+      user-select: none;
     }
 
     .status-ring span {
@@ -1047,6 +1049,8 @@
       toast_auto_update_done: 'Update gestartet. Geraet startet neu',
       toast_auto_update_no_asset: 'Kein passendes .bin Release gefunden',
       toast_auto_update_failed: 'Auto-Update fehlgeschlagen',
+      toast_manual_step_changed: 'Manuelle Heizstufe geaendert',
+      toast_manual_only: 'Diese Funktion ist nur im MANUAL-Modus verfuegbar',
       confirm_auto_update: 'Automatisches Update jetzt starten?',
       confirm_auto_update_force_same: 'Aktuelle Version bereits installiert ({version}). Trotzdem Update erneut durchfuehren?',
       confirm_restart_normal: 'Geraet im Normalmodus neu starten?',
@@ -1150,6 +1154,8 @@
       toast_auto_update_done: 'Update started. Device will reboot',
       toast_auto_update_no_asset: 'No matching .bin release asset found',
       toast_auto_update_failed: 'Auto update failed',
+      toast_manual_step_changed: 'Manual power step changed',
+      toast_manual_only: 'This action is available in MANUAL mode only',
       confirm_auto_update: 'Start automatic update now?',
       confirm_auto_update_force_same: 'This version ({version}) is already installed. Run the update again anyway?',
       confirm_restart_normal: 'Restart device in normal mode?',
@@ -1596,6 +1602,21 @@
     }
   }
 
+  async function cycleManualPower(channel) {
+    if (channel !== 1 && channel !== 2) return;
+    if (state.modeLabel !== 'MANUAL') {
+      showToast(t('toast_manual_only'));
+      return;
+    }
+    try {
+      await postForm('/cycleManualPower', { channel: channel });
+      showToast(t('toast_manual_step_changed'));
+      updateStatus();
+    } catch (_) {
+      showToast(t('toast_settings_error'));
+    }
+  }
+
   function scrollSerialToBottom() {
     if (!serialLogWindow) return;
     if (!serialAutoScrollEnabled) return;
@@ -1797,6 +1818,13 @@
 
   modePill.addEventListener('click', () => {
     setModeHelpVisibility(!showModeHelp);
+  });
+
+  statusRing1.addEventListener('click', () => {
+    cycleManualPower(1);
+  });
+  statusRing2.addEventListener('click', () => {
+    cycleManualPower(2);
   });
 
   langToggleBtn.addEventListener('click', () => {
