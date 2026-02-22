@@ -31,16 +31,49 @@ constexpr int EEPROM_RUNTIME_ADDR = 200;
 constexpr uint8_t BOOT_MODE_NORMAL = 0x01;
 constexpr uint8_t BOOT_MODE_POWER = 0x02;
 
-constexpr int SSR_PIN_1 = 4;
+// GPIO2/GPIO8/GPIO9 are ESP32-C3 strapping pins.
+// Never place fixed voltage-divider signals (NTC/battery sensing) on those pins.
+constexpr int SSR_PIN_1 = 2;
 constexpr int SSR_PIN_2 = 5;
 constexpr int INPUT_PIN = 10;
 constexpr int SIGNAL_PIN = 6;
 constexpr int ADC_PIN_1 = 0;
 constexpr int ADC_PIN_2 = 1;
 constexpr int ADC_PIN_NTC_MOSFET_1 = 3;
-constexpr int ADC_PIN_NTC_MOSFET_2 = 2;
+constexpr int ADC_PIN_NTC_MOSFET_2 = 4;
 constexpr int ONE_WIRE_BUS = 7;
 constexpr int AP_MAX_CLIENTS = 4;
+
+// Keep UART0 free on final PCB for external flashing/debug adapter.
+constexpr int UART0_RX_RESERVED_PIN = 20;
+constexpr int UART0_TX_RESERVED_PIN = 21;
+// Keep native USB pins free for potential future USB use.
+constexpr int USB_DM_RESERVED_PIN = 18;
+constexpr int USB_DP_RESERVED_PIN = 19;
+
+constexpr bool isForbiddenDividerStrappingPin(const int pin) {
+  return pin == 2 || pin == 8 || pin == 9;
+}
+
+constexpr bool isReservedFuturePin(const int pin) {
+  return pin == UART0_RX_RESERVED_PIN || pin == UART0_TX_RESERVED_PIN || pin == USB_DM_RESERVED_PIN ||
+         pin == USB_DP_RESERVED_PIN;
+}
+
+static_assert(!isForbiddenDividerStrappingPin(ADC_PIN_1),
+              "ADC_PIN_1 must not use GPIO2/GPIO8/GPIO9 (ESP32-C3 strapping pins).");
+static_assert(!isForbiddenDividerStrappingPin(ADC_PIN_2),
+              "ADC_PIN_2 must not use GPIO2/GPIO8/GPIO9 (ESP32-C3 strapping pins).");
+static_assert(!isForbiddenDividerStrappingPin(ADC_PIN_NTC_MOSFET_1),
+              "ADC_PIN_NTC_MOSFET_1 must not use GPIO2/GPIO8/GPIO9 (ESP32-C3 strapping pins).");
+static_assert(!isForbiddenDividerStrappingPin(ADC_PIN_NTC_MOSFET_2),
+              "ADC_PIN_NTC_MOSFET_2 must not use GPIO2/GPIO8/GPIO9 (ESP32-C3 strapping pins).");
+
+static_assert(!isReservedFuturePin(SSR_PIN_1) && !isReservedFuturePin(SSR_PIN_2) && !isReservedFuturePin(INPUT_PIN) &&
+                  !isReservedFuturePin(SIGNAL_PIN) && !isReservedFuturePin(ADC_PIN_1) &&
+                  !isReservedFuturePin(ADC_PIN_2) && !isReservedFuturePin(ADC_PIN_NTC_MOSFET_1) &&
+                  !isReservedFuturePin(ADC_PIN_NTC_MOSFET_2) && !isReservedFuturePin(ONE_WIRE_BUS),
+              "GPIO18/GPIO19 (USB) and GPIO20/GPIO21 (UART0) are reserved and must stay free.");
 
 constexpr float DEFAULT_TARGET_TEMP = 23.0F;
 constexpr float BATTERY_DIVIDER_RATIO = 4.0F;  // Adjust to your resistor divider (V_batt = V_adc * ratio).

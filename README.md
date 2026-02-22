@@ -38,21 +38,24 @@ HeatControl is a dual-zone heating control system for drysuit diving, based on E
 
 ### Pin Mapping (current firmware)
 - `GPIO7` -> OneWire bus (`ONE_WIRE_BUS`)
-- `GPIO4` -> Heater channel 1 (`SSR_PIN_1`)
+- `GPIO2` -> Heater channel 1 (`SSR_PIN_1`)
 - `GPIO5` -> Heater channel 2 (`SSR_PIN_2`)
 - `GPIO10` -> Boot mode input (`INPUT_PIN`)
 - `GPIO6` -> Startup signal output (`SIGNAL_PIN`)
 - `GPIO0` -> ADC voltage input 1 (`ADC_PIN_1`)
 - `GPIO1` -> ADC voltage input 2 (`ADC_PIN_2`)
 - `GPIO3` -> MOSFET 1 NTC ADC input (`ADC_PIN_NTC_MOSFET_1`)
-- `GPIO2` -> MOSFET 2 NTC ADC input (`ADC_PIN_NTC_MOSFET_2`)
+- `GPIO4` -> MOSFET 2 NTC ADC input (`ADC_PIN_NTC_MOSFET_2`)
 - `GPIO20`/`GPIO21` -> UART0 reserved (left free by firmware)
+- `GPIO18`/`GPIO19` -> Native USB reserved (left free by firmware)
+- `GPIO2`/`GPIO8`/`GPIO9` -> Strapping pins; do not use for fixed voltage-divider inputs
 
 ### NTC Wiring (per MOSFET channel)
 - Divider topology used by firmware: `3.3V -> NTC (10k, B3950) -> ADC node -> 10k resistor -> GND`
 - Channel 1 ADC node -> `GPIO3` (`ADC_PIN_NTC_MOSFET_1`)
-- Channel 2 ADC node -> `GPIO2` (`ADC_PIN_NTC_MOSFET_2`)
+- Channel 2 ADC node -> `GPIO4` (`ADC_PIN_NTC_MOSFET_2`)
 - Important: keep ADC pin voltage within `0..3.3V`
+- Important: avoid `GPIO2`/`GPIO8`/`GPIO9` for NTC or battery divider inputs (ESP32-C3 strapping pins)
 
 ## Interface
 ### Pinout
@@ -69,17 +72,19 @@ HeatControl is a dual-zone heating control system for drysuit diving, based on E
 | GPIO | Board label | Function              | Connect to                          |
 |------|------------|------------------------|-------------------------------------|
 | **7**  | **D5 / SS**     | OneWire bus            | DS18B20 data line (with 4.7kΩ pull-up to 3.3V) |
-| **4**  | **D2 / A2**     | Heater channel 1       | SSR/MOSFET control (SSR_PIN_1)      |
+| **2**  | **A2**          | Heater channel 1       | SSR/MOSFET control (SSR_PIN_1)      |
 | **5**  | **D3 / A3**     | Heater channel 2       | SSR/MOSFET control (SSR_PIN_2)      |
 | **6**  | **D4 / SDA**    | Startup signal output  | Optional status LED or external signal (SIGNAL_PIN) |
 | **10** | **D10 / MOSI**  | Boot mode input        | Optional: hold low/high for power vs normal mode (INPUT_PIN) |
 | **0**  | **ADC1-0 / A0** | ADC voltage input 1    | Voltage sense input (use a divider; max 3.3V at the pin) |
 | **1**  | **ADC1-1**      | ADC voltage input 2    | Voltage sense input (use a divider; max 3.3V at the pin) |
 | **3**  | **D1 / A1**     | MOSFET 1 NTC ADC input | NTC divider on MOSFET 1 (`ADC_PIN_NTC_MOSFET_1`, max 3.3V at pin) |
-| **2**  | **A2**          | MOSFET 2 NTC ADC input | NTC divider on MOSFET 2 (`ADC_PIN_NTC_MOSFET_2`, max 3.3V at pin) |
+| **4**  | **D2 / A2**     | MOSFET 2 NTC ADC input | NTC divider on MOSFET 2 (`ADC_PIN_NTC_MOSFET_2`, max 3.3V at pin) |
 | **20/21** | **RX/TX**    | UART0                  | Reserved/free for serial adapter or debugging |
+| **18/19** | **USB D-/D+**| Native USB             | Reserved/free for optional native USB |
 
 **Note:** `INPUT_PIN` here is a project-specific boot-mode input on **GPIO10 / D10** (not the ESP32-C3 BOOT button/strapping pin).
+**Note:** `GPIO2`, `GPIO8`, and `GPIO9` are ESP32-C3 strapping pins. Keep fixed dividers (NTC/battery) off these pins to avoid boot issues.
 **Note:** ADC readings are reported in the UI/Serial as **millivolts** (`analogReadMilliVolts`).
 **Note:** MOSFET overtemperature protection uses both NTC channels and blocks the affected heater above **80C** (re-enable below 75C). The trip is persisted as a latched diagnostics event (incl. trip temperature), shown as `HOT/TRIP` in the heater cards, and can be acknowledged via the Diagnostics reset button.
 
