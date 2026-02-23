@@ -61,6 +61,24 @@ HeatControl is a dual-zone heating control system for drysuit diving, based on E
 ### Pinout
 ![ESP32-C3 Pinout](documentation/PinOut.jpg)
 
+<details>
+<summary>Show rotated pinout (+90°)</summary>
+
+![ESP32-C3 Pinout rotated 90 degrees](documentation/PinOut-90.jpg)
+</details>
+
+<details>
+<summary>Show rotated pinout (+180°)</summary>
+
+![ESP32-C3 Pinout rotated 180 degrees](documentation/PinOut-180.jpg)
+</details>
+
+<details>
+<summary>Show rotated pinout (+270°)</summary>
+
+![ESP32-C3 Pinout rotated 270 degrees](documentation/PinOut-270.jpg)
+</details>
+
 **Important note about pin names (GPIO vs D-labels):**
 
 - The firmware uses **GPIO numbers** (e.g. `GPIO4`) in `src/app_state.h`.
