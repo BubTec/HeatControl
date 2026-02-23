@@ -186,6 +186,7 @@ void setup() {
   loadApCredentials();
   loadApAutoOffMinutes();
   loadBatteryCellCounts();
+  loadBatteryChemistries();
   loadManualToggleOffMs();
   loadMosfetOvertempEvents();
   logf("Manual toggle window: %u ms (min=100, max=5000)", manualPowerToggleMaxOffMs);
@@ -275,9 +276,11 @@ void loop() {
     adc1MilliVolts = static_cast<uint16_t>(analogReadMilliVolts(ADC_PIN_1));
     adc2MilliVolts = static_cast<uint16_t>(analogReadMilliVolts(ADC_PIN_2));
     logic_helpers::updateBatteryFromAdc(adc1MilliVolts, battery1CellCount, BATTERY_DIVIDER_RATIO, battery1PackVoltage,
-                                        battery1CellVoltage, battery1SocPercent);
+                                        battery1CellVoltage, battery1Chemistry, battery1SocSmoothed,
+                                        battery1SocSmoothingInitialized, battery1SocPercent);
     logic_helpers::updateBatteryFromAdc(adc2MilliVolts, battery2CellCount, BATTERY_DIVIDER_RATIO, battery2PackVoltage,
-                                        battery2CellVoltage, battery2SocPercent);
+                                        battery2CellVoltage, battery2Chemistry, battery2SocSmoothed,
+                                        battery2SocSmoothingInitialized, battery2SocPercent);
 
     // Robust OFF/ON detection based on raw ADC with hysteresis and debounce.
     const auto batt1Sample = battery1Detector.update(adc1MilliVolts);
@@ -424,9 +427,11 @@ void loop() {
       adc1MilliVolts = static_cast<uint16_t>(analogReadMilliVolts(ADC_PIN_1));
       adc2MilliVolts = static_cast<uint16_t>(analogReadMilliVolts(ADC_PIN_2));
       logic_helpers::updateBatteryFromAdc(adc1MilliVolts, battery1CellCount, BATTERY_DIVIDER_RATIO, battery1PackVoltage,
-                                          battery1CellVoltage, battery1SocPercent);
+                                          battery1CellVoltage, battery1Chemistry, battery1SocSmoothed,
+                                          battery1SocSmoothingInitialized, battery1SocPercent);
       logic_helpers::updateBatteryFromAdc(adc2MilliVolts, battery2CellCount, BATTERY_DIVIDER_RATIO, battery2PackVoltage,
-                                          battery2CellVoltage, battery2SocPercent);
+                                          battery2CellVoltage, battery2Chemistry, battery2SocSmoothed,
+                                          battery2SocSmoothingInitialized, battery2SocPercent);
     }
     
     // Check for heater state changes (motor/vibration)

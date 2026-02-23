@@ -56,6 +56,15 @@ void test_battery_cell_clamp() {
   TEST_ASSERT_EQUAL_UINT8(3, clampBatteryCellCount(10));
 }
 
+void test_battery_chemistry_clamp() {
+  TEST_ASSERT_EQUAL_UINT8(BATTERY_CHEMISTRY_LI_ION, clampBatteryChemistry(0));
+  TEST_ASSERT_EQUAL_UINT8(BATTERY_CHEMISTRY_LI_PO, clampBatteryChemistry(1));
+  TEST_ASSERT_EQUAL_UINT8(BATTERY_CHEMISTRY_LI_FE_PO4, clampBatteryChemistry(2));
+  TEST_ASSERT_EQUAL_UINT8(BATTERY_CHEMISTRY_NI_MH, clampBatteryChemistry(3));
+  TEST_ASSERT_EQUAL_UINT8(BATTERY_CHEMISTRY_LEAD_GEL, clampBatteryChemistry(4));
+  TEST_ASSERT_EQUAL_UINT8(BATTERY_CHEMISTRY_LI_ION, clampBatteryChemistry(9));
+}
+
 int main() {
   UNITY_BEGIN();
   RUN_TEST(test_clamp_target_limits);
@@ -66,5 +75,6 @@ int main() {
   RUN_TEST(test_manual_toggle_window);
   RUN_TEST(test_ap_auto_off_minutes_clamp);
   RUN_TEST(test_battery_cell_clamp);
+  RUN_TEST(test_battery_chemistry_clamp);
   return UNITY_END();
 }

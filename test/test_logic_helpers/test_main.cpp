@@ -3,6 +3,7 @@
 #include <unity.h>
 
 #include "logic_helpers.h"
+#include "storage_logic.h"
 
 using namespace HeatControl::logic_helpers;
 
@@ -10,17 +11,17 @@ void setUp() {}
 void tearDown() {}
 
 void test_voltage_to_soc_bounds() {
-  TEST_ASSERT_FLOAT_WITHIN(0.01F, 100.0F, voltageToSocFloat(4.50F));
-  TEST_ASSERT_TRUE(voltageToSocFloat(2.70F) < 0.0F);
+  TEST_ASSERT_FLOAT_WITHIN(0.01F, 100.0F, voltageToSocFloat(4.50F, HeatControl::BATTERY_CHEMISTRY_LI_ION));
+  TEST_ASSERT_TRUE(voltageToSocFloat(2.70F, HeatControl::BATTERY_CHEMISTRY_LI_ION) < 0.0F);
 }
 
 void test_voltage_to_soc_extrapolates_below_table() {
-  const float soc = voltageToSocFloat(2.70F);
+  const float soc = voltageToSocFloat(2.70F, HeatControl::BATTERY_CHEMISTRY_LI_ION);
   TEST_ASSERT_FLOAT_WITHIN(0.05F, -2.62F, soc);
 }
 
 void test_voltage_to_soc_interpolation() {
-  const float soc = voltageToSocFloat(3.90F);
+  const float soc = voltageToSocFloat(3.90F, HeatControl::BATTERY_CHEMISTRY_LI_ION);
   TEST_ASSERT_FLOAT_WITHIN(0.5F, 73.0F, soc);
 }
 
@@ -34,22 +35,69 @@ void test_update_battery_from_adc_defaults() {
   float packV = 0.0F;
   float cellV = 0.0F;
   uint8_t socPercent = 0;
-  const float soc = updateBatteryFromAdc(2500U, 0, 4.0F, packV, cellV, socPercent);
+  float socSmoothed = 0.0F;
+  bool smoothingInitialized = false;
+  const float soc = updateBatteryFromAdc(2500U, 0, 4.0F, packV, cellV, HeatControl::BATTERY_CHEMISTRY_LI_ION, socSmoothed,
+                                         smoothingInitialized, socPercent);
   TEST_ASSERT_FLOAT_WITHIN(0.01F, 10.0F, packV);
   TEST_ASSERT_FLOAT_WITHIN(0.01F, 3.3333F, cellV);
   TEST_ASSERT_EQUAL_UINT8(14, socPercent);
   TEST_ASSERT_FLOAT_WITHIN(0.1F, 14.22F, soc);
+  TEST_ASSERT_TRUE(smoothingInitialized);
+  TEST_ASSERT_FLOAT_WITHIN(0.1F, soc, socSmoothed);
 }
 
 void test_update_battery_from_adc_custom_cells() {
   float packV = 0.0F;
   float cellV = 0.0F;
   uint8_t socPercent = 0;
-  const float soc = updateBatteryFromAdc(3000U, 4, 4.0F, packV, cellV, socPercent);
+  float socSmoothed = 0.0F;
+  bool smoothingInitialized = false;
+  const float soc = updateBatteryFromAdc(3000U, 4, 4.0F, packV, cellV, HeatControl::BATTERY_CHEMISTRY_LI_ION, socSmoothed,
+                                         smoothingInitialized, socPercent);
   TEST_ASSERT_FLOAT_WITHIN(0.01F, 12.0F, packV);
   TEST_ASSERT_FLOAT_WITHIN(0.01F, 3.0F, cellV);
   TEST_ASSERT_EQUAL_UINT8(2, socPercent);
   TEST_ASSERT_FLOAT_WITHIN(0.1F, 2.0F, soc);
+}
+
+void test_update_battery_from_adc_chemistry_changes_soc() {
+  float packV = 0.0F;
+  float cellV = 0.0F;
+  uint8_t socLiIon = 0;
+  uint8_t socLiFe = 0;
+  float smoothedLiIon = 0.0F;
+  float smoothedLiFe = 0.0F;
+  bool initializedLiIon = false;
+  bool initializedLiFe = false;
+
+  const float rawLiIon = updateBatteryFromAdc(2500U, 3, 4.0F, packV, cellV, HeatControl::BATTERY_CHEMISTRY_LI_ION, smoothedLiIon,
+                                              initializedLiIon, socLiIon);
+  const float rawLiFe = updateBatteryFromAdc(2500U, 3, 4.0F, packV, cellV, HeatControl::BATTERY_CHEMISTRY_LI_FE_PO4, smoothedLiFe,
+                                             initializedLiFe, socLiFe);
+
+  TEST_ASSERT_TRUE(rawLiFe > rawLiIon);
+  TEST_ASSERT_TRUE(socLiFe > socLiIon);
+}
+
+void test_soc_smoothing_uses_ema() {
+  float packV = 0.0F;
+  float cellV = 0.0F;
+  uint8_t socPercent = 0;
+  float smoothedSoc = 0.0F;
+  bool smoothingInitialized = false;
+
+  updateBatteryFromAdc(2600U, 3, 4.0F, packV, cellV, HeatControl::BATTERY_CHEMISTRY_LI_ION, smoothedSoc, smoothingInitialized,
+                       socPercent);
+  const float firstSmoothed = smoothedSoc;
+  const uint8_t firstPercent = socPercent;
+
+  updateBatteryFromAdc(3000U, 3, 4.0F, packV, cellV, HeatControl::BATTERY_CHEMISTRY_LI_ION, smoothedSoc, smoothingInitialized,
+                       socPercent);
+
+  TEST_ASSERT_TRUE(smoothedSoc > firstSmoothed);
+  TEST_ASSERT_TRUE(socPercent >= firstPercent);
+  TEST_ASSERT_TRUE(socPercent < 100);
 }
 
 void test_ntc_rejects_invalid_ranges() {
@@ -117,6 +165,8 @@ int main() {
   RUN_TEST(test_clamp_soc_percent);
   RUN_TEST(test_update_battery_from_adc_defaults);
   RUN_TEST(test_update_battery_from_adc_custom_cells);
+  RUN_TEST(test_update_battery_from_adc_chemistry_changes_soc);
+  RUN_TEST(test_soc_smoothing_uses_ema);
   RUN_TEST(test_ntc_rejects_invalid_ranges);
   RUN_TEST(test_ntc_valid_values);
   RUN_TEST(test_ntc_high_voltage_value);

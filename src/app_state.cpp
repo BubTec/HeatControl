@@ -1,4 +1,5 @@
 #include "app_state.h"
+#include "storage_logic.h"
 
 namespace HeatControl {
 
@@ -39,10 +40,16 @@ uint8_t battery1CellCount = 3;
 float battery1PackVoltage = 0.0F;
 float battery1CellVoltage = 0.0F;
 uint8_t battery1SocPercent = 0;
+uint8_t battery1Chemistry = BATTERY_CHEMISTRY_LI_ION;
 uint8_t battery2CellCount = 3;
 float battery2PackVoltage = 0.0F;
 float battery2CellVoltage = 0.0F;
 uint8_t battery2SocPercent = 0;
+uint8_t battery2Chemistry = BATTERY_CHEMISTRY_LI_ION;
+float battery1SocSmoothed = 0.0F;
+float battery2SocSmoothed = 0.0F;
+bool battery1SocSmoothingInitialized = false;
+bool battery2SocSmoothingInitialized = false;
 uint16_t ntcMosfet1MilliVolts = 0;
 uint16_t ntcMosfet2MilliVolts = 0;
 float ntcMosfet1TempC = NAN;

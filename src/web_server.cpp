@@ -165,10 +165,12 @@ void setupWebServer() {
     metrics.mosfet2TripTempC = mosfet2OvertempTripTempC;
     metrics.mosfetOvertempLimitC = MOSFET_OVERTEMP_LIMIT_C;
     metrics.battery1CellCount = battery1CellCount;
+    metrics.battery1Chemistry = battery1Chemistry;
     metrics.battery1PackVoltage = battery1PackVoltage;
     metrics.battery1CellVoltage = battery1CellVoltage;
     metrics.battery1SocPercent = battery1SocPercent;
     metrics.battery2CellCount = battery2CellCount;
+    metrics.battery2Chemistry = battery2Chemistry;
     metrics.battery2PackVoltage = battery2PackVoltage;
     metrics.battery2CellVoltage = battery2CellVoltage;
     metrics.battery2SocPercent = battery2SocPercent;
@@ -200,10 +202,21 @@ void setupWebServer() {
       request->send(403, "text/plain", "Forbidden");
       return;
     }
+    bool changed = false;
     if (request->hasParam("cells", true)) {
       battery1CellCount = clampBatteryCellCount(static_cast<uint8_t>(request->getParam("cells", true)->value().toInt()));
+      changed = true;
+    }
+    if (request->hasParam("chem", true)) {
+      battery1Chemistry = clampBatteryChemistry(static_cast<uint8_t>(request->getParam("chem", true)->value().toInt()));
+      changed = true;
+    }
+    if (changed) {
       saveBatteryCellCounts();
-      logf("HTTP /setBattery1 | client=%s | batt1_cells=%u", clientIpText(request).c_str(), battery1CellCount);
+      saveBatteryChemistries();
+      battery1SocSmoothingInitialized = false;
+      logf("HTTP /setBattery1 | client=%s | batt1_cells=%u | batt1_chem=%u", clientIpText(request).c_str(),
+           battery1CellCount, battery1Chemistry);
     }
     request->redirect("/");
   });
@@ -214,10 +227,21 @@ void setupWebServer() {
       request->send(403, "text/plain", "Forbidden");
       return;
     }
+    bool changed = false;
     if (request->hasParam("cells", true)) {
       battery2CellCount = clampBatteryCellCount(static_cast<uint8_t>(request->getParam("cells", true)->value().toInt()));
+      changed = true;
+    }
+    if (request->hasParam("chem", true)) {
+      battery2Chemistry = clampBatteryChemistry(static_cast<uint8_t>(request->getParam("chem", true)->value().toInt()));
+      changed = true;
+    }
+    if (changed) {
       saveBatteryCellCounts();
-      logf("HTTP /setBattery2 | client=%s | batt2_cells=%u", clientIpText(request).c_str(), battery2CellCount);
+      saveBatteryChemistries();
+      battery2SocSmoothingInitialized = false;
+      logf("HTTP /setBattery2 | client=%s | batt2_cells=%u | batt2_chem=%u", clientIpText(request).c_str(),
+           battery2CellCount, battery2Chemistry);
     }
     request->redirect("/");
   });
@@ -314,6 +338,7 @@ void setupWebServer() {
     bool swapChanged = false;
     bool manualWindowChanged = false;
     bool batteryChanged = false;
+    bool batteryChemChanged = false;
     bool apTimeoutChanged = false;
 
     if (request->hasParam("temp1", true)) {
@@ -351,6 +376,14 @@ void setupWebServer() {
       battery2CellCount = clampBatteryCellCount(static_cast<uint8_t>(request->getParam("batt2Cells", true)->value().toInt()));
       batteryChanged = true;
     }
+    if (request->hasParam("batt1Chem", true)) {
+      battery1Chemistry = clampBatteryChemistry(static_cast<uint8_t>(request->getParam("batt1Chem", true)->value().toInt()));
+      batteryChemChanged = true;
+    }
+    if (request->hasParam("batt2Chem", true)) {
+      battery2Chemistry = clampBatteryChemistry(static_cast<uint8_t>(request->getParam("batt2Chem", true)->value().toInt()));
+      batteryChemChanged = true;
+    }
 
     if (tempChanged) {
       saveTemperatureTargets();
@@ -364,13 +397,18 @@ void setupWebServer() {
     if (batteryChanged) {
       saveBatteryCellCounts();
     }
+    if (batteryChemChanged) {
+      saveBatteryChemistries();
+      battery1SocSmoothingInitialized = false;
+      battery2SocSmoothingInitialized = false;
+    }
     if (apTimeoutChanged) {
       saveApAutoOffMinutes();
     }
 
-    logf("HTTP /saveSettings | client=%s | temp=%d | swap=%d | manual_window=%d | battery=%d | ap_timeout=%d",
+    logf("HTTP /saveSettings | client=%s | temp=%d | swap=%d | manual_window=%d | battery=%d | battery_chem=%d | ap_timeout=%d",
          clientIpText(request).c_str(), tempChanged ? 1 : 0, swapChanged ? 1 : 0, manualWindowChanged ? 1 : 0,
-         batteryChanged ? 1 : 0, apTimeoutChanged ? 1 : 0);
+         batteryChanged ? 1 : 0, batteryChemChanged ? 1 : 0, apTimeoutChanged ? 1 : 0);
     request->send(200, "text/plain", "OK");
   });
 

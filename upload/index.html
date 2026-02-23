@@ -722,6 +722,7 @@
           <div class="set-temp"><span id="targetTemp1Display">23.0</span> C</div>
           <div class="current-temp" id="currentTemp1Display">Ist 0.0 C</div>
           <div class="current-temp" id="supply1Display">Versorgung -</div>
+          <div class="current-temp" id="soc1Display">SoC -</div>
         </div>
         <button type="button" class="temp-btn" id="temp1UpBtn">+</button>
       </div>
@@ -745,6 +746,7 @@
           <div class="set-temp"><span id="targetTemp2Display">23.0</span> C</div>
           <div class="current-temp" id="currentTemp2Display">Ist 0.0 C</div>
           <div class="current-temp" id="supply2Display">Versorgung -</div>
+          <div class="current-temp" id="soc2Display">SoC -</div>
         </div>
         <button type="button" class="temp-btn" id="temp2UpBtn">+</button>
       </div>
@@ -851,6 +853,28 @@
               </select>
             </div>
           </div>
+          <div class="row-two" style="margin-bottom:8px;">
+            <div class="field">
+              <label for="battery1Chem" data-i18n="diag_batt1_chem">Batterie 1 Chemie</label>
+              <select id="battery1Chem" class="mock-input">
+                <option value="0" data-i18n="chem_liion">Li-Ion (NMC/NCA)</option>
+                <option value="1" data-i18n="chem_lipo">LiPo</option>
+                <option value="2" data-i18n="chem_lifepo4">LiFePO4</option>
+                <option value="3" data-i18n="chem_nimh">NiMH</option>
+                <option value="4" data-i18n="chem_lead_gel">Bleigel</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="battery2Chem" data-i18n="diag_batt2_chem">Batterie 2 Chemie</label>
+              <select id="battery2Chem" class="mock-input">
+                <option value="0" data-i18n="chem_liion">Li-Ion (NMC/NCA)</option>
+                <option value="1" data-i18n="chem_lipo">LiPo</option>
+                <option value="2" data-i18n="chem_lifepo4">LiFePO4</option>
+                <option value="3" data-i18n="chem_nimh">NiMH</option>
+                <option value="4" data-i18n="chem_lead_gel">Bleigel</option>
+              </select>
+            </div>
+          </div>
           <div class="field" style="margin-bottom:8px;">
             <label for="manualToggleWindowInput" data-i18n="diag_manual_window_input">Manual OFF/ON Fenster (ms)</label>
             <input type="number" id="manualToggleWindowInput" class="mock-input" min="100" max="5000" step="50" value="1500">
@@ -921,6 +945,8 @@
   const currentTemp2Display = document.getElementById('currentTemp2Display');
   const supply1Display = document.getElementById('supply1Display');
   const supply2Display = document.getElementById('supply2Display');
+  const soc1Display = document.getElementById('soc1Display');
+  const soc2Display = document.getElementById('soc2Display');
   const statusRing1 = document.getElementById('statusRing1');
   const statusRing2 = document.getElementById('statusRing2');
   const status1Pct = document.getElementById('status1Pct');
@@ -938,6 +964,8 @@
   const apTimeoutMinutesInput = document.getElementById('apTimeoutMinutesInput');
   const battery1Cells = document.getElementById('battery1Cells');
   const battery2Cells = document.getElementById('battery2Cells');
+  const battery1Chem = document.getElementById('battery1Chem');
+  const battery2Chem = document.getElementById('battery2Chem');
   const manualToggleWindowInput = document.getElementById('manualToggleWindowInput');
 
   const saveWifiBtn = document.getElementById('saveWifiBtn');
@@ -987,9 +1015,13 @@
     current2: 0,
     adc1Mv: NaN,
     adc2Mv: NaN,
+    batt1Soc: NaN,
+    batt2Soc: NaN,
     swap: false,
     batt1Cells: 3,
     batt2Cells: 3,
+    batt1Chem: 0,
+    batt2Chem: 0,
     apTimeoutMin: 10,
     windowMs: 1500,
     apIp: '4.3.2.1',
@@ -1027,6 +1059,8 @@
       supply_on: 'AN',
       supply_off: 'AUS',
       supply_unknown: '-',
+      soc_label: 'SoC',
+      soc_unknown: '-',
       slider_target: 'Sollwert',
       mode_auto_label: 'AUTO:',
       mode_auto_desc: 'Automatische Regelung fuer beide Heizkreise anhand der Solltemperaturen.',
@@ -1065,6 +1099,13 @@
       diag_title: 'Diagnose',
       diag_batt1_cells: 'Batterie 1 Zellen',
       diag_batt2_cells: 'Batterie 2 Zellen',
+      diag_batt1_chem: 'Batterie 1 Chemie',
+      diag_batt2_chem: 'Batterie 2 Chemie',
+      chem_liion: 'Li-Ion (NMC/NCA)',
+      chem_lipo: 'LiPo',
+      chem_lifepo4: 'LiFePO4',
+      chem_nimh: 'NiMH',
+      chem_lead_gel: 'Bleigel',
       diag_manual_window_input: 'Manual OFF/ON Fenster (ms)',
       diag_boot: 'Boot Pin',
       diag_manual_window: 'Manual-Fenster',
@@ -1150,6 +1191,8 @@
       supply_on: 'ON',
       supply_off: 'OFF',
       supply_unknown: '-',
+      soc_label: 'SoC',
+      soc_unknown: '-',
       slider_target: 'Target',
       mode_auto_label: 'AUTO:',
       mode_auto_desc: 'Automatic control for both heating zones based on target temperatures.',
@@ -1188,6 +1231,13 @@
       diag_title: 'Diagnostics',
       diag_batt1_cells: 'Battery 1 cells',
       diag_batt2_cells: 'Battery 2 cells',
+      diag_batt1_chem: 'Battery 1 chemistry',
+      diag_batt2_chem: 'Battery 2 chemistry',
+      chem_liion: 'Li-Ion (NMC/NCA)',
+      chem_lipo: 'LiPo',
+      chem_lifepo4: 'LiFePO4',
+      chem_nimh: 'NiMH',
+      chem_lead_gel: 'Lead-gel',
       diag_manual_window_input: 'Manual OFF/ON window (ms)',
       diag_boot: 'Boot pin',
       diag_manual_window: 'Manual window',
@@ -1552,6 +1602,23 @@
     return `${t('supply_prefix')} ${isOn ? t('supply_on') : t('supply_off')}`;
   }
 
+  function formatSocState(socPercent) {
+    if (!Number.isFinite(socPercent)) {
+      return `${t('soc_label')} ${t('soc_unknown')}`;
+    }
+    const clamped = Math.max(0, Math.min(100, Number(socPercent)));
+    return `${t('soc_label')} ${Math.round(clamped)}%`;
+  }
+
+  function chemistryLabel(chemValue) {
+    const chem = Number(chemValue);
+    if (chem === 4) return t('chem_lead_gel');
+    if (chem === 3) return t('chem_nimh');
+    if (chem === 2) return t('chem_lifepo4');
+    if (chem === 1) return t('chem_lipo');
+    return t('chem_liion');
+  }
+
   function updateRing(channel, percent) {
     const p = Math.max(0, Math.min(100, Number(percent) || 0));
     if (channel === 1) {
@@ -1626,7 +1693,9 @@
         apTimeoutMin: state.apTimeoutMin,
         windowMs: Math.round(state.windowMs),
         batt1Cells: state.batt1Cells,
-        batt2Cells: state.batt2Cells
+        batt2Cells: state.batt2Cells,
+        batt1Chem: state.batt1Chem,
+        batt2Chem: state.batt2Chem
       });
       showToast(t('toast_settings_saved'));
       userEditingUntilMs = 0;
@@ -1636,8 +1705,8 @@
         await postForm('/setTemp', { temp1: state.temp1.toFixed(1), temp2: state.temp2.toFixed(1) });
         await postForm('/swapSensors', state.swap ? { swap: 'on' } : {});
         await postForm('/setManualToggle', { windowMs: Math.round(state.windowMs) });
-        await postForm('/setBattery1', { cells: state.batt1Cells });
-        await postForm('/setBattery2', { cells: state.batt2Cells });
+        await postForm('/setBattery1', { cells: state.batt1Cells, chem: state.batt1Chem });
+        await postForm('/setBattery2', { cells: state.batt2Cells, chem: state.batt2Chem });
         showToast(t('toast_settings_saved'));
         userEditingUntilMs = 0;
         updateStatus();
@@ -1776,6 +1845,8 @@
     currentTemp2Display.textContent = formatCurrentTemp(state.current2);
     supply1Display.textContent = formatSupplyState(state.adc1Mv);
     supply2Display.textContent = formatSupplyState(state.adc2Mv);
+    soc1Display.textContent = formatSocState(state.batt1Soc);
+    soc2Display.textContent = formatSocState(state.batt2Soc);
     renderWifiSummary();
     renderUpdateBanner();
     if (!serialHasLogData && serialLogWindow) {
@@ -1813,6 +1884,8 @@
       const current2 = Number(data.current2);
       state.current1 = Number.isFinite(current1) ? current1 : 0;
       state.current2 = Number.isFinite(current2) ? current2 : 0;
+      state.batt1Soc = typeof data.batt1Soc === 'number' ? Number(data.batt1Soc) : NaN;
+      state.batt2Soc = typeof data.batt2Soc === 'number' ? Number(data.batt2Soc) : NaN;
       state.staIp = typeof data.staIp === 'string' ? data.staIp : '';
       state.staConnected = Number(data.staConnected || 0) === 1;
       state.apEnabled = Number(data.apEnabled || 0) === 1;
@@ -1835,6 +1908,14 @@
         if (typeof data.batt2Cells === 'number') {
           state.batt2Cells = Number(data.batt2Cells);
           battery2Cells.value = String(state.batt2Cells);
+        }
+        if (typeof data.batt1Chem === 'number') {
+          state.batt1Chem = Number(data.batt1Chem);
+          battery1Chem.value = String(state.batt1Chem);
+        }
+        if (typeof data.batt2Chem === 'number') {
+          state.batt2Chem = Number(data.batt2Chem);
+          battery2Chem.value = String(state.batt2Chem);
         }
         if (typeof data.apTimeoutMin === 'number') {
           state.apTimeoutMin = Math.max(0, Math.min(240, Number(data.apTimeoutMin)));
@@ -1877,6 +1958,8 @@
       state.adc2Mv = typeof data.adc2Mv === 'number' ? Number(data.adc2Mv) : NaN;
       supply1Display.textContent = formatSupplyState(state.adc1Mv);
       supply2Display.textContent = formatSupplyState(state.adc2Mv);
+      soc1Display.textContent = formatSocState(state.batt1Soc);
+      soc2Display.textContent = formatSocState(state.batt2Soc);
 
       const ntc1C = typeof data.ntcMosfet1C === 'number' ? Number(data.ntcMosfet1C) : NaN;
       const ntc2C = typeof data.ntcMosfet2C === 'number' ? Number(data.ntcMosfet2C) : NaN;
@@ -1932,15 +2015,19 @@
       renderProtectBadge(heater2ProtectBadge, protect2Active, protect2Latched);
 
       if (typeof data.batt1V === 'number' && typeof data.batt1Soc === 'number') {
+        const chem1 = typeof data.batt1Chem === 'number' ? Number(data.batt1Chem) : state.batt1Chem;
+        const chem1Text = chemistryLabel(chem1);
         const c1 = typeof data.batt1CellV === 'number' ? data.batt1CellV.toFixed(2) : '-';
-        diagBatt1.textContent = `${Number(data.batt1V).toFixed(2)}V | ${Math.round(Number(data.batt1Soc))}% | ${c1}V/Cell`;
+        diagBatt1.textContent = `${Number(data.batt1V).toFixed(2)}V | ${Math.round(Number(data.batt1Soc))}% | ${c1}V/Cell | ${chem1Text}`;
       } else {
         diagBatt1.textContent = '-';
       }
 
       if (typeof data.batt2V === 'number' && typeof data.batt2Soc === 'number') {
+        const chem2 = typeof data.batt2Chem === 'number' ? Number(data.batt2Chem) : state.batt2Chem;
+        const chem2Text = chemistryLabel(chem2);
         const c2 = typeof data.batt2CellV === 'number' ? data.batt2CellV.toFixed(2) : '-';
-        diagBatt2.textContent = `${Number(data.batt2V).toFixed(2)}V | ${Math.round(Number(data.batt2Soc))}% | ${c2}V/Cell`;
+        diagBatt2.textContent = `${Number(data.batt2V).toFixed(2)}V | ${Math.round(Number(data.batt2Soc))}% | ${c2}V/Cell | ${chem2Text}`;
       } else {
         diagBatt2.textContent = '-';
       }
@@ -1998,6 +2085,8 @@
   apPasswordInput.addEventListener('input', markUserEditing);
   battery1Cells.addEventListener('change', () => { markUserEditing(); state.batt1Cells = Number(battery1Cells.value || 3); });
   battery2Cells.addEventListener('change', () => { markUserEditing(); state.batt2Cells = Number(battery2Cells.value || 3); });
+  battery1Chem.addEventListener('change', () => { markUserEditing(); state.batt1Chem = Number(battery1Chem.value || 0); });
+  battery2Chem.addEventListener('change', () => { markUserEditing(); state.batt2Chem = Number(battery2Chem.value || 0); });
   apTimeoutMinutesInput.addEventListener('input', () => {
     markUserEditing();
     const clamped = Math.min(240, Math.max(0, Number(apTimeoutMinutesInput.value || 10)));

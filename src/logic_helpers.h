@@ -7,10 +7,10 @@
 namespace HeatControl {
 namespace logic_helpers {
 
-float voltageToSocFloat(float cellVolt);
+float voltageToSocFloat(float cellVolt, uint8_t chemistry);
 uint8_t clampSocPercent(float soc);
 float updateBatteryFromAdc(uint16_t adcMilliVolts, uint8_t cellCount, float dividerRatio, float &packV, float &cellV,
-                           uint8_t &socPercent);
+                           uint8_t chemistry, float &socSmoothed, bool &smoothingInitialized, uint8_t &socPercent);
 
 bool ntcMilliVoltsToTempC(uint16_t adcMilliVolts, float vccMilliVolts, float seriesResistorOhm,
                           float nominalResistorOhm, float betaValue, float nominalTempC, float &tempC);

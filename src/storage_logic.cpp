@@ -33,6 +33,14 @@ uint8_t clampBatteryCellCount(uint8_t value) {
   return 3;
 }
 
+uint8_t clampBatteryChemistry(uint8_t value) {
+  if (value == BATTERY_CHEMISTRY_LI_ION || value == BATTERY_CHEMISTRY_LI_PO || value == BATTERY_CHEMISTRY_LI_FE_PO4 ||
+      value == BATTERY_CHEMISTRY_NI_MH || value == BATTERY_CHEMISTRY_LEAD_GEL) {
+    return value;
+  }
+  return BATTERY_CHEMISTRY_LI_ION;
+}
+
 uint8_t nextManualPowerPercent(uint8_t value) {
   const uint8_t current = clampManualPowerPercent(value);
   if (current == 25) return 50;

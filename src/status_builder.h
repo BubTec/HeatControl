@@ -31,10 +31,12 @@ struct StatusMetrics {
   float mosfet2TripTempC = 0.0F;
   float mosfetOvertempLimitC = 0.0F;
   uint8_t battery1CellCount = 0;
+  uint8_t battery1Chemistry = 0;
   float battery1PackVoltage = 0.0F;
   float battery1CellVoltage = 0.0F;
   uint8_t battery1SocPercent = 0;
   uint8_t battery2CellCount = 0;
+  uint8_t battery2Chemistry = 0;
   float battery2PackVoltage = 0.0F;
   float battery2CellVoltage = 0.0F;
   uint8_t battery2SocPercent = 0;

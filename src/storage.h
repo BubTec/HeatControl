@@ -33,6 +33,8 @@ void saveManualToggleOffMs();
 
 void loadBatteryCellCounts();
 void saveBatteryCellCounts();
+void loadBatteryChemistries();
+void saveBatteryChemistries();
 
 void writeRuntimeToEeprom(uint32_t minutes);
 uint32_t readRuntimeFromEeprom();

@@ -257,6 +257,19 @@ void saveBatteryCellCounts() {
   EEPROM.commit();
 }
 
+void loadBatteryChemistries() {
+  const uint8_t stored1 = EEPROM.read(EEPROM_BATTERY1_CHEM_ADDR);
+  const uint8_t stored2 = EEPROM.read(EEPROM_BATTERY2_CHEM_ADDR);
+  battery1Chemistry = clampBatteryChemistry(stored1);
+  battery2Chemistry = clampBatteryChemistry(stored2);
+}
+
+void saveBatteryChemistries() {
+  EEPROM.write(EEPROM_BATTERY1_CHEM_ADDR, clampBatteryChemistry(battery1Chemistry));
+  EEPROM.write(EEPROM_BATTERY2_CHEM_ADDR, clampBatteryChemistry(battery2Chemistry));
+  EEPROM.commit();
+}
+
 void writeRuntimeToEeprom(uint32_t minutes) {
   uint8_t *bytes = reinterpret_cast<uint8_t *>(&minutes);
   for (size_t i = 0; i < sizeof(uint32_t); ++i) {

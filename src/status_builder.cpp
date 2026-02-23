@@ -55,10 +55,12 @@ std::string buildStatusJson(const StatusMetrics &m) {
   json += ",\"mosfet2OvertempTripC\":" + formatOptionalFloat(m.mosfet2TripValid, m.mosfet2TripTempC, 2);
   json += ",\"mosfetOvertempLimitC\":" + formatFloat(m.mosfetOvertempLimitC, 1);
   json += ",\"batt1Cells\":" + std::to_string(m.battery1CellCount);
+  json += ",\"batt1Chem\":" + std::to_string(m.battery1Chemistry);
   json += ",\"batt1V\":" + formatFloat(m.battery1PackVoltage, 2);
   json += ",\"batt1CellV\":" + formatFloat(m.battery1CellVoltage, 2);
   json += ",\"batt1Soc\":" + std::to_string(m.battery1SocPercent);
   json += ",\"batt2Cells\":" + std::to_string(m.battery2CellCount);
+  json += ",\"batt2Chem\":" + std::to_string(m.battery2Chemistry);
   json += ",\"batt2V\":" + formatFloat(m.battery2PackVoltage, 2);
   json += ",\"batt2CellV\":" + formatFloat(m.battery2CellVoltage, 2);
   json += ",\"batt2Soc\":" + std::to_string(m.battery2SocPercent);
