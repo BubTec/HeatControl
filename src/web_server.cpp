@@ -22,6 +22,7 @@ bool otaUploadStarted = false;
 bool otaUploadOk = false;
 String otaUploadMessage;
 size_t otaUploadBytes = 0;
+constexpr uint32_t kTempPersistDebounceMs = 1500UL;
 
 bool sendEmbeddedFile(AsyncWebServerRequest *request, const String &path) {
   String normalized = path;
@@ -310,21 +311,57 @@ void setupWebServer() {
     request->send(200, "application/json", json);
   });
 
+  server.on("/setLogLevel", HTTP_POST, [](AsyncWebServerRequest *request) {
+    if (!isAllowedWebClient(request)) {
+      logDeniedRequest("/setLogLevel", request);
+      request->send(403, "text/plain", "Forbidden");
+      return;
+    }
+    if (!request->hasParam("level", true)) {
+      request->send(400, "text/plain", "Missing level");
+      return;
+    }
+
+    bool parseOk = false;
+    const LogLevel parsed = parseLogLevel(request->getParam("level", true)->value(), &parseOk);
+    if (!parseOk) {
+      request->send(400, "text/plain", "Invalid level (use error|info|debug or 0|1|2)");
+      return;
+    }
+
+    setLogLevel(parsed);
+    logf("HTTP /setLogLevel | client=%s | level=%s", clientIpText(request).c_str(), logLevelToText(parsed));
+    request->send(200, "text/plain", "OK");
+  });
+
   server.on("/setTemp", HTTP_POST, [](AsyncWebServerRequest *request) {
     if (!isAllowedWebClient(request)) {
       logDeniedRequest("/setTemp", request);
       request->send(403, "text/plain", "Forbidden");
       return;
     }
+    bool changed = false;
     if (request->hasParam("temp1", true)) {
-      targetTemp1 = clampTarget(request->getParam("temp1", true)->value().toFloat());
+      const float newTarget1 = clampTarget(request->getParam("temp1", true)->value().toFloat());
+      if (std::fabs(newTarget1 - targetTemp1) >= 0.05F) {
+        targetTemp1 = newTarget1;
+        changed = true;
+      }
     }
     if (request->hasParam("temp2", true)) {
-      targetTemp2 = clampTarget(request->getParam("temp2", true)->value().toFloat());
+      const float newTarget2 = clampTarget(request->getParam("temp2", true)->value().toFloat());
+      if (std::fabs(newTarget2 - targetTemp2) >= 0.05F) {
+        targetTemp2 = newTarget2;
+        changed = true;
+      }
     }
-    saveTemperatureTargets();
-    logf("HTTP /setTemp | client=%s | target1=%.1f | target2=%.1f", clientIpText(request).c_str(), targetTemp1, targetTemp2);
-    request->redirect("/");
+    if (changed) {
+      pendingTempPersist = true;
+      pendingTempPersistAtMs = millis() + kTempPersistDebounceMs;
+    }
+    logf(LogLevel::Debug, "HTTP /setTemp | client=%s | target1=%.1f | target2=%.1f | changed=%d | persist_due_ms=%lu",
+         clientIpText(request).c_str(), targetTemp1, targetTemp2, changed ? 1 : 0, pendingTempPersistAtMs);
+    request->send(200, "text/plain", "OK");
   });
 
   server.on("/saveSettings", HTTP_POST, [](AsyncWebServerRequest *request) {
@@ -387,6 +424,7 @@ void setupWebServer() {
 
     if (tempChanged) {
       saveTemperatureTargets();
+      pendingTempPersist = false;
     }
     if (swapChanged) {
       saveSwapAssignment();

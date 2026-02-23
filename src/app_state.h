@@ -164,7 +164,24 @@ extern DNSServer dnsServer;
 extern bool restartScheduled;
 extern unsigned long restartAtMs;
 
-void logLine(const String &line);
+enum class LogLevel : uint8_t {
+  Error = 0,
+  Info = 1,
+  Debug = 2,
+};
+
+extern LogLevel currentLogLevel;
+extern bool pendingTempPersist;
+extern unsigned long pendingTempPersistAtMs;
+
+const char *logLevelToText(LogLevel level);
+LogLevel parseLogLevel(const String &value, bool *ok = nullptr);
+void setLogLevel(LogLevel level);
+bool shouldLog(LogLevel level);
+
+void logLine(const char *line, LogLevel level = LogLevel::Info);
+void logLine(const String &line, LogLevel level = LogLevel::Info);
+void logf(LogLevel level, const char *fmt, ...);
 void logf(const char *fmt, ...);
 
 }  // namespace HeatControl

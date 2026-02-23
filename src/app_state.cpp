@@ -80,5 +80,8 @@ DNSServer dnsServer;
 
 bool restartScheduled = false;
 unsigned long restartAtMs = 0;
+LogLevel currentLogLevel = LogLevel::Info;
+bool pendingTempPersist = false;
+unsigned long pendingTempPersistAtMs = 0;
 
 }  // namespace HeatControl

@@ -98,9 +98,12 @@ void handleWifiLifetime(unsigned long now) {
   disableAllWifiRadios();
 }
 
-void appendSerialLogLine(const String &line) {
+void appendSerialLogLine(const char *line) {
+  if (line == nullptr) {
+    return;
+  }
   char lineBuf[320];
-  const int written = snprintf(lineBuf, sizeof(lineBuf), "%s\n", line.c_str());
+  const int written = snprintf(lineBuf, sizeof(lineBuf), "%s\n", line);
   if (written <= 0) {
     return;
   }
@@ -115,19 +118,95 @@ void appendSerialLogLine(const String &line) {
 
 namespace HeatControl {
 
-void logLine(const String &line) {
+const char *logLevelToText(LogLevel level) {
+  switch (level) {
+    case LogLevel::Error:
+      return "ERROR";
+    case LogLevel::Info:
+      return "INFO";
+    case LogLevel::Debug:
+      return "DEBUG";
+    default:
+      return "INFO";
+  }
+}
+
+LogLevel parseLogLevel(const String &value, bool *ok) {
+  String normalized = value;
+  normalized.trim();
+  normalized.toLowerCase();
+  if (normalized == "0" || normalized == "error") {
+    if (ok != nullptr) {
+      *ok = true;
+    }
+    return LogLevel::Error;
+  }
+  if (normalized == "1" || normalized == "info") {
+    if (ok != nullptr) {
+      *ok = true;
+    }
+    return LogLevel::Info;
+  }
+  if (normalized == "2" || normalized == "debug") {
+    if (ok != nullptr) {
+      *ok = true;
+    }
+    return LogLevel::Debug;
+  }
+  if (ok != nullptr) {
+    *ok = false;
+  }
+  return currentLogLevel;
+}
+
+void setLogLevel(LogLevel level) {
+  currentLogLevel = level;
+}
+
+bool shouldLog(LogLevel level) {
+  return static_cast<uint8_t>(level) <= static_cast<uint8_t>(currentLogLevel);
+}
+
+void logLine(const char *line, LogLevel level) {
+  if (!shouldLog(level) || line == nullptr) {
+    return;
+  }
   Serial.println(line);
   appendSerialLogLine(line);
 }
 
-void logf(const char *fmt, ...) {
+void logLine(const String &line, LogLevel level) {
+  if (!shouldLog(level)) {
+    return;
+  }
+  Serial.println(line);
+  appendSerialLogLine(line.c_str());
+}
+
+void logf(LogLevel level, const char *fmt, ...) {
+  if (!shouldLog(level) || fmt == nullptr) {
+    return;
+  }
   char buffer[256];
   va_list args;
   va_start(args, fmt);
   vsnprintf(buffer, sizeof(buffer), fmt, args);
   va_end(args);
   Serial.println(buffer);
-  appendSerialLogLine(String(buffer));
+  appendSerialLogLine(buffer);
+}
+
+void logf(const char *fmt, ...) {
+  if (!shouldLog(LogLevel::Info) || fmt == nullptr) {
+    return;
+  }
+  char buffer[256];
+  va_list args;
+  va_start(args, fmt);
+  vsnprintf(buffer, sizeof(buffer), fmt, args);
+  va_end(args);
+  Serial.println(buffer);
+  appendSerialLogLine(buffer);
 }
 
 }  // namespace HeatControl
@@ -307,7 +386,7 @@ void setup() {
   logf("AP SSID: %s", activeApSsid.c_str());
   logf("Configured STA SSID: %s", activeSsid.c_str());
   logf("LittleFS: %s", fileSystemReady ? "ready" : "not ready");
-  logLine("HTTP: /, /status, /runtime, /setTemp, /saveSettings, /swapSensors, /setWiFi, /restart, /resetRuntime, /update, /signalTest, /logs");
+  logLine("HTTP: /, /status, /runtime, /setTemp, /setLogLevel, /saveSettings, /swapSensors, /setWiFi, /restart, /resetRuntime, /update, /signalTest, /logs");
   logf("SSR1: %s | SSR2: %s", heaterStateText(SSR_PIN_1).c_str(), heaterStateText(SSR_PIN_2).c_str());
 }
 
@@ -316,6 +395,11 @@ void loop() {
 
   if (restartScheduled && (static_cast<long>(now - restartAtMs) >= 0)) {
     restartScheduled = false;
+    if (pendingTempPersist) {
+      saveTemperatureTargets();
+      pendingTempPersist = false;
+      logf(LogLevel::Info, "Pending temperature targets persisted before restart.");
+    }
     logLine("Restart scheduled: rebooting now.");
     delay(80);
     ESP.restart();
@@ -361,19 +445,19 @@ void loop() {
 
     // Edge logging for OFF/ON detection flags to debug threshold behavior.
     if (batt1Sample.offEdge) {
-      logf("Batt1OffNow changed -> %d | adc1_mv=%u (off_thresh=%u, on_thresh=%u)", batt1OffNow ? 1 : 0,
+      logf(LogLevel::Debug, "Batt1OffNow changed -> %d | adc1_mv=%u (off_thresh=%u, on_thresh=%u)", batt1OffNow ? 1 : 0,
            adc1MilliVolts, BATTERY_ADC_OFF_THRESHOLD_MV, BATTERY_ADC_ON_THRESHOLD_MV);
     }
     if (batt1Sample.onEdge) {
-      logf("Batt1OnNow changed  -> %d | adc1_mv=%u (off_thresh=%u, on_thresh=%u)", batt1OnNow ? 1 : 0,
+      logf(LogLevel::Debug, "Batt1OnNow changed  -> %d | adc1_mv=%u (off_thresh=%u, on_thresh=%u)", batt1OnNow ? 1 : 0,
            adc1MilliVolts, BATTERY_ADC_OFF_THRESHOLD_MV, BATTERY_ADC_ON_THRESHOLD_MV);
     }
     if (batt2Sample.offEdge) {
-      logf("Batt2OffNow changed -> %d | adc2_mv=%u (off_thresh=%u, on_thresh=%u)", batt2OffNow ? 1 : 0,
+      logf(LogLevel::Debug, "Batt2OffNow changed -> %d | adc2_mv=%u (off_thresh=%u, on_thresh=%u)", batt2OffNow ? 1 : 0,
            adc2MilliVolts, BATTERY_ADC_OFF_THRESHOLD_MV, BATTERY_ADC_ON_THRESHOLD_MV);
     }
     if (batt2Sample.onEdge) {
-      logf("Batt2OnNow changed  -> %d | adc2_mv=%u (off_thresh=%u, on_thresh=%u)", batt2OnNow ? 1 : 0,
+      logf(LogLevel::Debug, "Batt2OnNow changed  -> %d | adc2_mv=%u (off_thresh=%u, on_thresh=%u)", batt2OnNow ? 1 : 0,
            adc2MilliVolts, BATTERY_ADC_OFF_THRESHOLD_MV, BATTERY_ADC_ON_THRESHOLD_MV);
     }
 
@@ -382,38 +466,38 @@ void loop() {
     if (batt1OffNow && !battery1Off) {
       battery1Off = true;
       battery1OffSinceMs = now;
-      logf("Battery 1 OFF edge detected | now_ms=%lu | adc1_mv=%u", now, adc1MilliVolts);
+      logf(LogLevel::Debug, "Battery 1 OFF edge detected | now_ms=%lu | adc1_mv=%u", now, adc1MilliVolts);
     } else if (!batt1OffNow && batt1OnNow && battery1Off) {
       const unsigned long offMs = now - battery1OffSinceMs;
       battery1Off = false;
-      logf("Battery 1 ON edge detected  | off_ms=%lu (limit=%u) | adc1_mv=%u", offMs,
+      logf(LogLevel::Debug, "Battery 1 ON edge detected  | off_ms=%lu (limit=%u) | adc1_mv=%u", offMs,
            static_cast<unsigned int>(manualPowerToggleMaxOffMs), adc1MilliVolts);
       if (offMs <= static_cast<unsigned long>(manualPowerToggleMaxOffMs)) {
         cycleManualPowerPercent1();
-        logf("Battery 1 OFF/ON trigger (%lums) -> manual power 1 = %u%%", offMs, manualPowerPercent1);
+        logf(LogLevel::Info, "Battery 1 OFF/ON trigger (%lums) -> manual power 1 = %u%%", offMs, manualPowerPercent1);
         // Haptic feedback for manual heater 1 power change.
         signalManualPowerChange(manualPowerPercent1);
       } else {
-        logf("Battery 1 OFF/ON ignored (off_ms too long for toggle window)");
+        logf(LogLevel::Debug, "Battery 1 OFF/ON ignored (off_ms too long for toggle window)");
       }
     }
 
     if (batt2OffNow && !battery2Off) {
       battery2Off = true;
       battery2OffSinceMs = now;
-      logf("Battery 2 OFF edge detected | now_ms=%lu | adc2_mv=%u", now, adc2MilliVolts);
+      logf(LogLevel::Debug, "Battery 2 OFF edge detected | now_ms=%lu | adc2_mv=%u", now, adc2MilliVolts);
     } else if (!batt2OffNow && batt2OnNow && battery2Off) {
       const unsigned long offMs = now - battery2OffSinceMs;
       battery2Off = false;
-      logf("Battery 2 ON edge detected  | off_ms=%lu (limit=%u) | adc2_mv=%u", offMs,
+      logf(LogLevel::Debug, "Battery 2 ON edge detected  | off_ms=%lu (limit=%u) | adc2_mv=%u", offMs,
            static_cast<unsigned int>(manualPowerToggleMaxOffMs), adc2MilliVolts);
       if (offMs <= static_cast<unsigned long>(manualPowerToggleMaxOffMs)) {
         cycleManualPowerPercent2();
-        logf("Battery 2 OFF/ON trigger (%lums) -> manual power 2 = %u%%", offMs, manualPowerPercent2);
+        logf(LogLevel::Info, "Battery 2 OFF/ON trigger (%lums) -> manual power 2 = %u%%", offMs, manualPowerPercent2);
         // Haptic feedback for manual heater 2 power change.
         signalManualPowerChange(manualPowerPercent2);
       } else {
-        logf("Battery 2 OFF/ON ignored (off_ms too long for toggle window)");
+        logf(LogLevel::Debug, "Battery 2 OFF/ON ignored (off_ms too long for toggle window)");
       }
     }
   }
@@ -470,10 +554,20 @@ void loop() {
     const bool overtempChanged = (prevOvertemp1 != mosfet1OvertempActive) || (prevOvertemp2 != mosfet2OvertempActive);
     if (overtempChanged || (now - lastNtcLogMs) >= 5000UL) {
       lastNtcLogMs = now;
-      const String ntc1Text = ntc1Valid ? (String(ntcMosfet1TempC, 2) + "C") : "n/a";
-      const String ntc2Text = ntc2Valid ? (String(ntcMosfet2TempC, 2) + "C") : "n/a";
-      logf("MOSFET NTC | h1=%s (%u mV) | h2=%s (%u mV) | ot1=%d | ot2=%d", ntc1Text.c_str(), ntcMosfet1MilliVolts,
-           ntc2Text.c_str(), ntcMosfet2MilliVolts, mosfet1OvertempActive ? 1 : 0, mosfet2OvertempActive ? 1 : 0);
+      char ntc1Text[16];
+      char ntc2Text[16];
+      if (ntc1Valid) {
+        snprintf(ntc1Text, sizeof(ntc1Text), "%.2fC", ntcMosfet1TempC);
+      } else {
+        snprintf(ntc1Text, sizeof(ntc1Text), "n/a");
+      }
+      if (ntc2Valid) {
+        snprintf(ntc2Text, sizeof(ntc2Text), "%.2fC", ntcMosfet2TempC);
+      } else {
+        snprintf(ntc2Text, sizeof(ntc2Text), "n/a");
+      }
+      logf(LogLevel::Debug, "MOSFET NTC | h1=%s (%u mV) | h2=%s (%u mV) | ot1=%d | ot2=%d", ntc1Text, ntcMosfet1MilliVolts,
+           ntc2Text, ntcMosfet2MilliVolts, mosfet1OvertempActive ? 1 : 0, mosfet2OvertempActive ? 1 : 0);
     }
 
     // In non-manual modes, update ADC/battery state at 1 Hz for diagnostics.
@@ -493,26 +587,26 @@ void loop() {
     const bool currentHeater2State = (digitalRead(SSR_PIN_2) == HIGH);
     
     if (currentHeater1State != lastHeater1State) {
-      logf("Motor/Vibration H1: %s -> %s", lastHeater1State ? "ON" : "OFF", currentHeater1State ? "ON" : "OFF");
+      logf(LogLevel::Debug, "Motor/Vibration H1: %s -> %s", lastHeater1State ? "ON" : "OFF", currentHeater1State ? "ON" : "OFF");
       lastHeater1State = currentHeater1State;
     }
     
     if (currentHeater2State != lastHeater2State) {
-      logf("Motor/Vibration H2: %s -> %s", lastHeater2State ? "ON" : "OFF", currentHeater2State ? "ON" : "OFF");
+      logf(LogLevel::Debug, "Motor/Vibration H2: %s -> %s", lastHeater2State ? "ON" : "OFF", currentHeater2State ? "ON" : "OFF");
       lastHeater2State = currentHeater2State;
     }
     
     // Check for signal pin state changes
     const bool currentSignalPinState = (digitalRead(SIGNAL_PIN) == LOW);
     if (currentSignalPinState != lastSignalPinState) {
-      logf("Signal pin: %s -> %s", lastSignalPinState ? "ON" : "OFF", currentSignalPinState ? "ON" : "OFF");
+      logf(LogLevel::Debug, "Signal pin: %s -> %s", lastSignalPinState ? "ON" : "OFF", currentSignalPinState ? "ON" : "OFF");
       lastSignalPinState = currentSignalPinState;
     }
     
     // Check for boot pin (input pin) state changes
     const bool currentInputPinState = (digitalRead(INPUT_PIN) == HIGH);
     if (currentInputPinState != lastInputPinState) {
-      logf("Boot pin: %s -> %s", lastInputPinState ? "HIGH" : "LOW", currentInputPinState ? "HIGH" : "LOW");
+      logf(LogLevel::Debug, "Boot pin: %s -> %s", lastInputPinState ? "HIGH" : "LOW", currentInputPinState ? "HIGH" : "LOW");
       lastInputPinState = currentInputPinState;
     }
   }
@@ -584,7 +678,7 @@ void loop() {
 
     if (stateChanged || heartbeatDue) {
       ++counter;
-      logf("alive %u | uptime_ms=%lu | heap=%u | mode=%s | t1=%.2f | t2=%.2f | target1=%.1f | target2=%.1f | swap=%d | h1=%s | h2=%s | adc1_mv=%u | adc2_mv=%u | batt1_cells=%u | batt1_v=%.2f | batt1_cell_v=%.2f | batt1_soc=%u | batt2_cells=%u | batt2_v=%.2f | batt2_cell_v=%.2f | batt2_soc=%u",
+      logf(LogLevel::Debug, "alive %u | uptime_ms=%lu | heap=%u | mode=%s | t1=%.2f | t2=%.2f | target1=%.1f | target2=%.1f | swap=%d | h1=%s | h2=%s | adc1_mv=%u | adc2_mv=%u | batt1_cells=%u | batt1_v=%.2f | batt1_cell_v=%.2f | batt1_soc=%u | batt2_cells=%u | batt2_v=%.2f | batt2_cell_v=%.2f | batt2_soc=%u",
            counter, now, ESP.getFreeHeap(), modeLabel.c_str(), currentTemp1, currentTemp2, targetTemp1, targetTemp2,
            swapAssignment ? 1 : 0, heater1On ? "ON" : "OFF", heater2On ? "ON" : "OFF", adc1MilliVolts, adc2MilliVolts,
            battery1CellCount, battery1PackVoltage, battery1CellVoltage, battery1SocPercent, battery2CellCount,
@@ -612,6 +706,12 @@ void loop() {
     }
   }
 
+  if (pendingTempPersist && static_cast<long>(now - pendingTempPersistAtMs) >= 0) {
+    saveTemperatureTargets();
+    pendingTempPersist = false;
+    logf(LogLevel::Debug, "Temperature targets persisted to EEPROM.");
+  }
+
   if (now - lastRuntimeSaveMs >= 60000UL) {
     saveRuntimeMinute();
     lastRuntimeSaveMs = now;
@@ -635,10 +735,10 @@ void loop() {
     const wifi_mode_t mode = WiFi.getMode();
     const bool modeHasAp = (mode == WIFI_AP || mode == WIFI_AP_STA);
     if (!wifiRadiosDisabled && !modeHasAp) {
-      logf("WIFI diag: AP missing in mode | mode=%s | ap_flag=%d | sta_status=%d | ap_timeout_min=%u",
+      logf(LogLevel::Debug, "WIFI diag: AP missing in mode | mode=%s | ap_flag=%d | sta_status=%d | ap_timeout_min=%u",
            wifiModeToText(mode), apEnabled ? 1 : 0, static_cast<int>(WiFi.status()), static_cast<unsigned int>(apAutoOffMinutes));
     } else if (apEnabled) {
-      logf("WIFI diag: AP active | ssid=%s | ip=%s | stations=%u | mode=%s", activeApSsid.c_str(),
+      logf(LogLevel::Debug, "WIFI diag: AP active | ssid=%s | ip=%s | stations=%u | mode=%s", activeApSsid.c_str(),
            WiFi.softAPIP().toString().c_str(), static_cast<unsigned int>(WiFi.softAPgetStationNum()), wifiModeToText(mode));
     }
     lastWifiDiagMs = now;
