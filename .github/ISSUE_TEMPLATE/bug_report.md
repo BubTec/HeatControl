@@ -1,42 +1,57 @@
 ---
 name: Bug report
-about: Create a report to help us improve the HeatController
-title: '[BUG] "TITLE" - PRIO 1-5'
+about: Report a reproducible HeatControl bug
+title: '[BUG] Short title'
 labels: bug
 assignees: ''
 
 ---
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+## Summary
+Clear and concise description of the bug.
 
-**Steps to reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll to '....'
-4. See error
+## Firmware / Environment
+- Firmware version (from UI): [e.g. 0.0.xx]
+- Hardware board: [e.g. ESP32-C3 board]
+- Browser + OS: [e.g. Chrome 133 on Windows 11]
+- Power setup: [battery/lab supply details]
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+## Network setup at time of issue
+- AP SSID/IP: [e.g. your-ap-ssid / 4.3.2.1]
+- Home WiFi (STA) SSID/IP: [e.g. home-wifi / 192.168.x.x]
+- Connection state in header: [AP status, Home status]
 
-**Screenshots/Logs**
-If applicable, add screenshots or relevant log outputs.
+Please do not post private data (real passwords, full public IPs, sensitive hostnames). Mask values where needed.
 
-**Hardware Setup:**
- - ESP8266 Version: [e.g. NodeMCU v3]
- - Temperature Sensors: [e.g. DS18B20]
- - Additional Hardware: [e.g. MOSFETs, power supplies etc.]
+## Steps to reproduce
+1. ...
+2. ...
+3. ...
+4. ...
 
-**Software Setup:**
- - Firmware Version: [e.g. v1.0]
- - Browser (if web interface): [e.g. Chrome, Firefox]
- - Operating Mode: [Normal/Power Mode]
+## Expected behavior
+What should happen?
 
-**Current Configuration**
- - Target Temperatures: [e.g. Heater 1: 23°C, Heater 2: 25°C]
- - Sensor Assignment: [Normal/Swapped]
- - WiFi Settings: [e.g. Default/Custom]
+## Actual behavior
+What happens instead?
 
-**Additional context**
-Add any other context about the problem here.
+## Current configuration
+- Mode: [AUTO / POWER / MANUAL]
+- Targets: [H1 xx.x C, H2 xx.x C]
+- Sensor mapping: [normal / swapped]
+- Battery cells: [H1 xS, H2 xS]
+- Manual OFF/ON window: [ms]
+- AP auto-off timeout: [minutes]
+
+## Serial log (required)
+Please paste relevant output from `/logs` (or serial monitor), especially around the failure.
+
+```text
+Paste serial log here
+```
+
+## Screenshots / video
+If relevant, attach UI screenshots or a short video.
+
+## Additional context
+Anything else that may help reproduce/debug.

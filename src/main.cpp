@@ -434,34 +434,26 @@ void loop() {
     const bool currentHeater2State = (digitalRead(SSR_PIN_2) == HIGH);
     
     if (currentHeater1State != lastHeater1State) {
-      Serial.printf("Motor/Vibration H1: %s -> %s\n", 
-                    lastHeater1State ? "ON" : "OFF",
-                    currentHeater1State ? "ON" : "OFF");
+      logf("Motor/Vibration H1: %s -> %s", lastHeater1State ? "ON" : "OFF", currentHeater1State ? "ON" : "OFF");
       lastHeater1State = currentHeater1State;
     }
     
     if (currentHeater2State != lastHeater2State) {
-      Serial.printf("Motor/Vibration H2: %s -> %s\n", 
-                    lastHeater2State ? "ON" : "OFF",
-                    currentHeater2State ? "ON" : "OFF");
+      logf("Motor/Vibration H2: %s -> %s", lastHeater2State ? "ON" : "OFF", currentHeater2State ? "ON" : "OFF");
       lastHeater2State = currentHeater2State;
     }
     
     // Check for signal pin state changes
     const bool currentSignalPinState = (digitalRead(SIGNAL_PIN) == LOW);
     if (currentSignalPinState != lastSignalPinState) {
-      Serial.printf("Signal pin: %s -> %s\n",
-                    lastSignalPinState ? "ON" : "OFF",
-                    currentSignalPinState ? "ON" : "OFF");
+      logf("Signal pin: %s -> %s", lastSignalPinState ? "ON" : "OFF", currentSignalPinState ? "ON" : "OFF");
       lastSignalPinState = currentSignalPinState;
     }
     
     // Check for boot pin (input pin) state changes
     const bool currentInputPinState = (digitalRead(INPUT_PIN) == HIGH);
     if (currentInputPinState != lastInputPinState) {
-      Serial.printf("Boot pin: %s -> %s\n",
-                    lastInputPinState ? "HIGH" : "LOW",
-                    currentInputPinState ? "HIGH" : "LOW");
+      logf("Boot pin: %s -> %s", lastInputPinState ? "HIGH" : "LOW", currentInputPinState ? "HIGH" : "LOW");
       lastInputPinState = currentInputPinState;
     }
   }

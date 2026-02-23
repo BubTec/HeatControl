@@ -97,6 +97,17 @@ void scheduleRestart(uint32_t delayMs) {
   restartAtMs = millis() + delayMs;
 }
 
+String clientIpText(AsyncWebServerRequest *request) {
+  if (request == nullptr || request->client() == nullptr) {
+    return String("unknown");
+  }
+  return request->client()->remoteIP().toString();
+}
+
+void logDeniedRequest(const char *endpoint, AsyncWebServerRequest *request) {
+  logf("HTTP %s denied | client=%s", endpoint, clientIpText(request).c_str());
+}
+
 }  // namespace
 
 void setupWebServer() {
@@ -185,30 +196,35 @@ void setupWebServer() {
 
   server.on("/setBattery1", HTTP_POST, [](AsyncWebServerRequest *request) {
     if (!isAllowedWebClient(request)) {
+      logDeniedRequest("/setBattery1", request);
       request->send(403, "text/plain", "Forbidden");
       return;
     }
     if (request->hasParam("cells", true)) {
       battery1CellCount = clampBatteryCellCount(static_cast<uint8_t>(request->getParam("cells", true)->value().toInt()));
       saveBatteryCellCounts();
+      logf("HTTP /setBattery1 | client=%s | batt1_cells=%u", clientIpText(request).c_str(), battery1CellCount);
     }
     request->redirect("/");
   });
 
   server.on("/setBattery2", HTTP_POST, [](AsyncWebServerRequest *request) {
     if (!isAllowedWebClient(request)) {
+      logDeniedRequest("/setBattery2", request);
       request->send(403, "text/plain", "Forbidden");
       return;
     }
     if (request->hasParam("cells", true)) {
       battery2CellCount = clampBatteryCellCount(static_cast<uint8_t>(request->getParam("cells", true)->value().toInt()));
       saveBatteryCellCounts();
+      logf("HTTP /setBattery2 | client=%s | batt2_cells=%u", clientIpText(request).c_str(), battery2CellCount);
     }
     request->redirect("/");
   });
 
   server.on("/setManualToggle", HTTP_POST, [](AsyncWebServerRequest *request) {
     if (!isAllowedWebClient(request)) {
+      logDeniedRequest("/setManualToggle", request);
       request->send(403, "text/plain", "Forbidden");
       return;
     }
@@ -217,20 +233,25 @@ void setupWebServer() {
           static_cast<uint16_t>(request->getParam("windowMs", true)->value().toInt());
       manualPowerToggleMaxOffMs = clampManualToggleOffMs(value);
       saveManualToggleOffMs();
+      logf("HTTP /setManualToggle | client=%s | window_ms=%u", clientIpText(request).c_str(),
+           static_cast<unsigned int>(manualPowerToggleMaxOffMs));
     }
     request->redirect("/");
   });
 
   server.on("/cycleManualPower", HTTP_POST, [](AsyncWebServerRequest *request) {
     if (!isAllowedWebClient(request)) {
+      logDeniedRequest("/cycleManualPower", request);
       request->send(403, "text/plain", "Forbidden");
       return;
     }
     if (!manualMode) {
+      logf("HTTP /cycleManualPower rejected | client=%s | reason=manual_mode_required", clientIpText(request).c_str());
       request->send(409, "text/plain", "Manual mode required");
       return;
     }
     if (!request->hasParam("channel", true)) {
+      logf("HTTP /cycleManualPower rejected | client=%s | reason=missing_channel", clientIpText(request).c_str());
       request->send(400, "text/plain", "Missing channel");
       return;
     }
@@ -239,16 +260,22 @@ void setupWebServer() {
     if (channel == 1) {
       cycleManualPowerPercent1();
       signalManualPowerChange(manualPowerPercent1);
+      logf("HTTP /cycleManualPower | client=%s | channel=1 | manual_power_1=%u", clientIpText(request).c_str(),
+           manualPowerPercent1);
       request->send(200, "text/plain", "OK");
       return;
     }
     if (channel == 2) {
       cycleManualPowerPercent2();
       signalManualPowerChange(manualPowerPercent2);
+      logf("HTTP /cycleManualPower | client=%s | channel=2 | manual_power_2=%u", clientIpText(request).c_str(),
+           manualPowerPercent2);
       request->send(200, "text/plain", "OK");
       return;
     }
 
+    logf("HTTP /cycleManualPower rejected | client=%s | reason=invalid_channel | channel=%d", clientIpText(request).c_str(),
+         channel);
     request->send(400, "text/plain", "Invalid channel");
   });
 
@@ -261,6 +288,7 @@ void setupWebServer() {
 
   server.on("/setTemp", HTTP_POST, [](AsyncWebServerRequest *request) {
     if (!isAllowedWebClient(request)) {
+      logDeniedRequest("/setTemp", request);
       request->send(403, "text/plain", "Forbidden");
       return;
     }
@@ -271,11 +299,13 @@ void setupWebServer() {
       targetTemp2 = clampTarget(request->getParam("temp2", true)->value().toFloat());
     }
     saveTemperatureTargets();
+    logf("HTTP /setTemp | client=%s | target1=%.1f | target2=%.1f", clientIpText(request).c_str(), targetTemp1, targetTemp2);
     request->redirect("/");
   });
 
   server.on("/saveSettings", HTTP_POST, [](AsyncWebServerRequest *request) {
     if (!isAllowedWebClient(request)) {
+      logDeniedRequest("/saveSettings", request);
       request->send(403, "text/plain", "Forbidden");
       return;
     }
@@ -338,31 +368,40 @@ void setupWebServer() {
       saveApAutoOffMinutes();
     }
 
+    logf("HTTP /saveSettings | client=%s | temp=%d | swap=%d | manual_window=%d | battery=%d | ap_timeout=%d",
+         clientIpText(request).c_str(), tempChanged ? 1 : 0, swapChanged ? 1 : 0, manualWindowChanged ? 1 : 0,
+         batteryChanged ? 1 : 0, apTimeoutChanged ? 1 : 0);
     request->send(200, "text/plain", "OK");
   });
 
 
   server.on("/swapSensors", HTTP_POST, [](AsyncWebServerRequest *request) {
     if (!isAllowedWebClient(request)) {
+      logDeniedRequest("/swapSensors", request);
       request->send(403, "text/plain", "Forbidden");
       return;
     }
     swapAssignment = request->hasParam("swap", true);
     saveSwapAssignment();
+    logf("HTTP /swapSensors | client=%s | swap=%d", clientIpText(request).c_str(), swapAssignment ? 1 : 0);
     request->redirect("/");
   });
 
   server.on("/setWiFi", HTTP_POST, [](AsyncWebServerRequest *request) {
     if (!isAllowedWebClient(request)) {
+      logDeniedRequest("/setWiFi", request);
       request->send(403, "text/plain", "Forbidden");
       return;
     }
+    bool staChanged = false;
+    bool apChanged = false;
     if (request->hasParam("staSsid", true)) {
       const String newStaSsid = request->getParam("staSsid", true)->value();
       const String newStaPassword = request->hasParam("staPassword", true)
                                         ? request->getParam("staPassword", true)->value()
                                         : String();
       saveWiFiCredentials(newStaSsid, newStaPassword);
+      staChanged = true;
     } else if (request->hasParam("ssid", true)) {
       // Backward compatibility for older web UIs.
       const String legacySsid = request->getParam("ssid", true)->value();
@@ -370,6 +409,7 @@ void setupWebServer() {
                                         ? request->getParam("password", true)->value()
                                         : String();
       saveWiFiCredentials(legacySsid, legacyPassword);
+      staChanged = true;
     }
 
     if (request->hasParam("apSsid", true)) {
@@ -378,32 +418,40 @@ void setupWebServer() {
                                        ? request->getParam("apPassword", true)->value()
                                        : String();
       saveApCredentials(newApSsid, newApPassword);
+      apChanged = true;
     }
     if (request->hasParam("apTimeoutMin", true)) {
       const uint16_t value = static_cast<uint16_t>(request->getParam("apTimeoutMin", true)->value().toInt());
       apAutoOffMinutes = clampApAutoOffMinutes(value);
       saveApAutoOffMinutes();
     }
+    logf("HTTP /setWiFi | client=%s | sta_changed=%d | ap_changed=%d | sta_ssid=%s | ap_ssid=%s | ap_timeout_min=%u",
+         clientIpText(request).c_str(), staChanged ? 1 : 0, apChanged ? 1 : 0, activeSsid.c_str(), activeApSsid.c_str(),
+         static_cast<unsigned int>(apAutoOffMinutes));
     request->send(200, "text/plain", "WiFi settings saved. Rebooting...");
     scheduleRestart(600);
   });
 
   server.on("/restart", HTTP_POST, [](AsyncWebServerRequest *request) {
     if (!isAllowedWebClient(request)) {
+      logDeniedRequest("/restart", request);
       request->send(403, "text/plain", "Forbidden");
       return;
     }
     // Web UI restart always boots in normal mode.
     setNextBootMode(BOOT_MODE_NORMAL);
+    logf("HTTP /restart | client=%s | boot_mode=normal", clientIpText(request).c_str());
     request->send(200, "text/plain", "Rebooting...");
     scheduleRestart(600);
   });
 
   server.on("/signalTest", HTTP_POST, [](AsyncWebServerRequest *request) {
     if (!isAllowedWebClient(request)) {
+      logDeniedRequest("/signalTest", request);
       request->send(403, "text/plain", "Forbidden");
       return;
     }
+    logf("HTTP /signalTest | client=%s", clientIpText(request).c_str());
     digitalWrite(SIGNAL_PIN, LOW);
     delay(120);
     digitalWrite(SIGNAL_PIN, HIGH);
@@ -412,6 +460,7 @@ void setupWebServer() {
 
   server.on("/logs", HTTP_GET, [](AsyncWebServerRequest *request) {
     if (!isAllowedWebClient(request)) {
+      logDeniedRequest("/logs", request);
       request->send(403, "text/plain", "Forbidden");
       return;
     }
@@ -420,21 +469,25 @@ void setupWebServer() {
 
   server.on("/resetRuntime", HTTP_POST, [](AsyncWebServerRequest *request) {
     if (!isAllowedWebClient(request)) {
+      logDeniedRequest("/resetRuntime", request);
       request->send(403, "text/plain", "Forbidden");
       return;
     }
     savedRuntimeMinutes = 0;
     writeRuntimeToEeprom(0);
     startTimeMs = millis();
+    logf("HTTP /resetRuntime | client=%s", clientIpText(request).c_str());
     request->redirect("/");
   });
 
   server.on("/resetOvertemp", HTTP_POST, [](AsyncWebServerRequest *request) {
     if (!isAllowedWebClient(request)) {
+      logDeniedRequest("/resetOvertemp", request);
       request->send(403, "text/plain", "Forbidden");
       return;
     }
     clearMosfetOvertempEvents();
+    logf("HTTP /resetOvertemp | client=%s", clientIpText(request).c_str());
     request->send(200, "text/plain", "OK");
   });
 
@@ -446,9 +499,11 @@ void setupWebServer() {
 
   server.on("/update", HTTP_GET, [](AsyncWebServerRequest *request) {
     if (!isAllowedWebClient(request)) {
+      logDeniedRequest("/update:GET", request);
       request->send(403, "text/plain", "Forbidden");
       return;
     }
+    logf("HTTP /update:GET | client=%s", clientIpText(request).c_str());
     String page;
     page.reserve(6200);
     page += F(
@@ -494,16 +549,20 @@ void setupWebServer() {
       "/update", HTTP_POST,
       [](AsyncWebServerRequest *request) {
         if (!isAllowedWebClient(request)) {
+          logDeniedRequest("/update:POST", request);
           request->send(403, "text/plain", "Forbidden");
           return;
         }
         if (!otaUploadStarted) {
+          logf("OTA finalize rejected | client=%s | reason=no_upload", clientIpText(request).c_str());
           request->send(400, "text/plain", "No upload received.");
           return;
         }
 
         if (!otaUploadOk) {
           const String msg = otaUploadMessage.isEmpty() ? String("Update failed.") : otaUploadMessage;
+          logf("OTA finalize failed | client=%s | bytes=%u | msg=%s", clientIpText(request).c_str(),
+               static_cast<unsigned int>(otaUploadBytes), msg.c_str());
           otaUploadStarted = false;
           otaUploadOk = false;
           otaUploadMessage = "";
@@ -514,11 +573,16 @@ void setupWebServer() {
         otaUploadStarted = false;
         otaUploadOk = false;
         otaUploadMessage = "";
+        logf("OTA finalize success | client=%s | bytes=%u", clientIpText(request).c_str(),
+             static_cast<unsigned int>(otaUploadBytes));
         request->send(200, "text/plain", "Update successful. Device will reboot.");
         scheduleRestart(1200);
       },
       [](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
         if (!isAllowedWebClient(request)) {
+          if (index == 0) {
+            logDeniedRequest("/update:UPLOAD", request);
+          }
           return;
         }
         if (index == 0) {
@@ -526,14 +590,17 @@ void setupWebServer() {
           otaUploadOk = false;
           otaUploadMessage = "";
           otaUploadBytes = 0;
+          logf("OTA upload started | client=%s | file=%s", clientIpText(request).c_str(), filename.c_str());
 
           if (!filename.endsWith(".bin")) {
             otaUploadMessage = "Only .bin firmware files are accepted.";
+            logf("OTA upload rejected | client=%s | reason=invalid_extension", clientIpText(request).c_str());
             return;
           }
 
           if (!Update.begin(UPDATE_SIZE_UNKNOWN, U_FLASH)) {
             otaUploadMessage = "Update begin failed. Error code: " + String(Update.getError());
+            logf("OTA upload begin failed | client=%s | err=%d", clientIpText(request).c_str(), Update.getError());
             return;
           }
         }
@@ -545,6 +612,7 @@ void setupWebServer() {
         const size_t written = Update.write(data, len);
         if (written != len) {
           otaUploadMessage = "Write failed. Error code: " + String(Update.getError());
+          logf("OTA write failed | client=%s | err=%d", clientIpText(request).c_str(), Update.getError());
           return;
         }
         otaUploadBytes += written;
@@ -554,10 +622,13 @@ void setupWebServer() {
           if (otaUploadBytes < kMinFirmwareBytes) {
             Update.abort();
             otaUploadMessage = "Firmware image too small (" + String(otaUploadBytes) + " bytes). Aborting update.";
+            logf("OTA upload aborted | client=%s | reason=image_too_small | bytes=%u", clientIpText(request).c_str(),
+                 static_cast<unsigned int>(otaUploadBytes));
             return;
           }
           if (!Update.end(true)) {
             otaUploadMessage = "Finalize failed. Error code: " + String(Update.getError());
+            logf("OTA finalize write phase failed | client=%s | err=%d", clientIpText(request).c_str(), Update.getError());
             return;
           }
           otaUploadOk = true;
@@ -605,6 +676,7 @@ void setupWebServer() {
   }
 
   server.begin();
+  logf("HTTP server started | ap_enabled=%d | fs_ready=%d", apEnabled ? 1 : 0, fileSystemReady ? 1 : 0);
 }
 
 }  // namespace HeatControl

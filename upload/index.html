@@ -822,7 +822,7 @@
           <div class="sub-title" data-i18n="system_actions_title">Systemaktionen</div>
           <div class="btn-grid" style="margin-top:8px;">
             <button type="button" class="btn" id="saveSettingsBtn" data-i18n="settings_save">Alle Einstellungen speichern</button>
-            <button type="button" class="btn" id="restartNormalBtn" data-i18n="restart_normal">Normal neu starten</button>
+            <button type="button" class="btn" id="restartNormalBtn" data-i18n="restart_normal">Neustart</button>
           </div>
           <div class="help-text" data-i18n="help_system_actions">Alle Einstellungen speichern betrifft Sollwerte, Sensor-Zuordnung, Batterie-Zellen und das Manual-Fenster. WLAN bleibt separat.</div>
         </div>
@@ -872,6 +872,10 @@
             <button type="button" class="btn" id="vibrationTestBtn" data-i18n="vibration_test">Vibration testen</button>
             <button type="button" class="btn" id="serialToggle" data-i18n="serial_button">Serielles Protokoll</button>
             <button type="button" class="btn warn" id="resetOvertempBtn" data-i18n="overtemp_reset_btn">MOSFET Overtemp-Historie reset</button>
+          </div>
+          <div class="help-text" style="margin-top:8px;">
+            <span data-i18n="diag_issue_hint">Problem gefunden? Bitte eroeffne ein Issue und haenge das serielle Protokoll an.</span>
+            <a href="https://github.com/BubTec/HeatControl/issues" target="_blank" rel="noopener" data-i18n="diag_issue_link">Issue auf GitHub erstellen</a>
           </div>
           <div class="serial-preview hidden" id="serialPreview">
             <div class="serial-preview-toolbar">
@@ -1057,7 +1061,7 @@
       ota_open: 'Update-Seite oeffnen',
       system_actions_title: 'Systemaktionen',
       settings_save: 'Alle Einstellungen speichern',
-      restart_normal: 'Normal neu starten',
+      restart_normal: 'Neustart',
       diag_title: 'Diagnose',
       diag_batt1_cells: 'Batterie 1 Zellen',
       diag_batt2_cells: 'Batterie 2 Zellen',
@@ -1072,6 +1076,8 @@
       diag_mosfet2_protect: 'MOSFET 2 Schutz',
       diag_battery1: 'Batterie 1',
       diag_battery2: 'Batterie 2',
+      diag_issue_hint: 'Problem gefunden? Bitte eroeffne ein Issue und haenge das serielle Protokoll an.',
+      diag_issue_link: 'Issue auf GitHub erstellen',
       diag_overtemp_active: 'MOSFET HEISS',
       diag_overtemp_cooling: 'kuehlt',
       diag_overtemp_trip: 'MOSFET Vorfall',
@@ -1096,7 +1102,7 @@
       toast_wifi_error: 'WLAN konnte nicht gespeichert werden',
       toast_settings_saved: 'Alle Einstellungen gespeichert',
       toast_settings_error: 'Speichern fehlgeschlagen',
-      toast_restart_normal: 'Normaler Neustart gestartet',
+      toast_restart_normal: 'Neustart gestartet',
       toast_runtime_reset: 'Gesamtlaufzeit zurueckgesetzt',
       toast_vibration_ok: 'Vibrationstest gestartet',
       toast_overtemp_reset: 'MOSFET Overtemp-Historie geloescht',
@@ -1117,7 +1123,7 @@
       toast_manual_only: 'Diese Funktion ist nur im MANUAL-Modus verfuegbar',
       confirm_auto_update: 'Automatisches Update jetzt starten?',
       confirm_auto_update_force_same: 'Aktuelle Version bereits installiert ({version}). Trotzdem Update erneut durchfuehren?',
-      confirm_restart_normal: 'Geraet im Normalmodus neu starten?',
+      confirm_restart_normal: 'Geraet neu starten?',
       confirm_overtemp_reset: 'MOSFET Overtemp-Historie wirklich loeschen?',
       confirm_runtime_reset: 'Gesamtlaufzeit wirklich zuruecksetzen?',
       current_not_connected: 'Nicht verbunden',
@@ -1178,7 +1184,7 @@
       ota_open: 'Open update page',
       system_actions_title: 'System actions',
       settings_save: 'Save all settings',
-      restart_normal: 'Restart normal mode',
+      restart_normal: 'Reboot',
       diag_title: 'Diagnostics',
       diag_batt1_cells: 'Battery 1 cells',
       diag_batt2_cells: 'Battery 2 cells',
@@ -1193,6 +1199,8 @@
       diag_mosfet2_protect: 'MOSFET 2 protection',
       diag_battery1: 'Battery 1',
       diag_battery2: 'Battery 2',
+      diag_issue_hint: 'Found an issue? Please open a GitHub issue and attach the serial log.',
+      diag_issue_link: 'Open issue on GitHub',
       diag_overtemp_active: 'MOSFET HOT',
       diag_overtemp_cooling: 'cooling',
       diag_overtemp_trip: 'MOSFET event',
@@ -1217,7 +1225,7 @@
       toast_wifi_error: 'Could not save WiFi',
       toast_settings_saved: 'All settings saved',
       toast_settings_error: 'Save failed',
-      toast_restart_normal: 'Normal restart initiated',
+      toast_restart_normal: 'Reboot initiated',
       toast_runtime_reset: 'Total runtime reset',
       toast_vibration_ok: 'Vibration test started',
       toast_overtemp_reset: 'MOSFET overtemp history cleared',
@@ -1238,7 +1246,7 @@
       toast_manual_only: 'This action is available in MANUAL mode only',
       confirm_auto_update: 'Start automatic update now?',
       confirm_auto_update_force_same: 'This version ({version}) is already installed. Run the update again anyway?',
-      confirm_restart_normal: 'Restart device in normal mode?',
+      confirm_restart_normal: 'Reboot device now?',
       confirm_overtemp_reset: 'Clear MOSFET overtemp history now?',
       confirm_runtime_reset: 'Reset total runtime?',
       current_not_connected: 'Not connected',
