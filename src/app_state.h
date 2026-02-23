@@ -150,6 +150,7 @@ extern uint16_t apAutoOffMinutes;
 extern bool staConnected;
 extern bool apEnabled;
 extern bool wifiRadiosDisabled;
+extern unsigned long wifiStartupMs;
 
 extern OneWire oneWire;
 extern DallasTemperature sensors;

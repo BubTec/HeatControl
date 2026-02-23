@@ -36,7 +36,6 @@ BatteryToggleDetector battery1Detector(BATTERY_ADC_OFF_THRESHOLD_MV, BATTERY_ADC
 BatteryToggleDetector battery2Detector(BATTERY_ADC_OFF_THRESHOLD_MV, BATTERY_ADC_ON_THRESHOLD_MV, BATTERY_STABLE_SAMPLES);
 const IPAddress AP_IP(4, 3, 2, 1);
 const IPAddress AP_NETMASK(255, 255, 255, 0);
-unsigned long wifiStartupMs = 0;
 constexpr uint8_t AP_CHANNEL = 1;
 
 const char *wifiModeToText(wifi_mode_t mode) {
@@ -387,7 +386,7 @@ void setup() {
   logf("AP SSID: %s", activeApSsid.c_str());
   logf("Configured STA SSID: %s", activeSsid.c_str());
   logf("LittleFS: %s", fileSystemReady ? "ready" : "not ready");
-  logLine("HTTP: /, /status, /runtime, /setTemp, /setLogLevel, /saveSettings, /swapSensors, /setWiFi, /restart, /resetRuntime, /update, /signalTest, /logs");
+  logLine("HTTP: /, /status, /runtime, /setTemp, /setLogLevel, /setApEnabled, /saveSettings, /swapSensors, /setWiFi, /restart, /resetRuntime, /update, /signalTest, /logs");
   logf("SSR1: %s | SSR2: %s", heaterStateText(SSR_PIN_1).c_str(), heaterStateText(SSR_PIN_2).c_str());
 }
 

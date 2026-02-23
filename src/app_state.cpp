@@ -66,6 +66,7 @@ uint16_t apAutoOffMinutes = 10;
 bool staConnected = false;
 bool apEnabled = false;
 bool wifiRadiosDisabled = false;
+unsigned long wifiStartupMs = 0;
 
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);

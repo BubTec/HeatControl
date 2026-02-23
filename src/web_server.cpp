@@ -23,6 +23,9 @@ bool otaUploadOk = false;
 String otaUploadMessage;
 size_t otaUploadBytes = 0;
 constexpr uint32_t kTempPersistDebounceMs = 1500UL;
+const IPAddress AP_IP(4, 3, 2, 1);
+const IPAddress AP_NETMASK(255, 255, 255, 0);
+constexpr uint8_t AP_CHANNEL = 1;
 
 bool sendEmbeddedFile(AsyncWebServerRequest *request, const String &path) {
   String normalized = path;
@@ -107,6 +110,38 @@ String clientIpText(AsyncWebServerRequest *request) {
 
 void logDeniedRequest(const char *endpoint, AsyncWebServerRequest *request) {
   logf("HTTP %s denied | client=%s", endpoint, clientIpText(request).c_str());
+}
+
+bool setApEnabledRuntime(bool enable, const String &clientIp) {
+  if (enable) {
+    if (activeApSsid.isEmpty()) {
+      activeApSsid = "HeatControl";
+    }
+    if (activeApPassword.isEmpty()) {
+      activeApPassword = "HeatControl";
+    }
+    wifiRadiosDisabled = false;
+    WiFi.mode(WIFI_AP_STA);
+    WiFi.softAPConfig(AP_IP, AP_IP, AP_NETMASK);
+    apEnabled = WiFi.softAP(activeApSsid.c_str(), activeApPassword.c_str(), AP_CHANNEL, false, AP_MAX_CLIENTS);
+    if (apEnabled) {
+      dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
+      dnsServer.start(53, "*", AP_IP);
+      wifiStartupMs = millis();
+      logf("HTTP /setApEnabled | client=%s | enabled=1 | ssid=%s", clientIp.c_str(), activeApSsid.c_str());
+      return true;
+    }
+    logf(LogLevel::Error, "HTTP /setApEnabled failed | client=%s | enabled=1", clientIp.c_str());
+    return false;
+  }
+
+  dnsServer.stop();
+  WiFi.softAPdisconnect(true);
+  apEnabled = false;
+  wifiRadiosDisabled = false;
+  WiFi.mode(WIFI_STA);
+  logf("HTTP /setApEnabled | client=%s | enabled=0", clientIp.c_str());
+  return true;
 }
 
 }  // namespace
@@ -333,6 +368,29 @@ void setupWebServer() {
     setLogLevel(parsed);
     saveLogLevel();
     logf("HTTP /setLogLevel | client=%s | level=%s", clientIpText(request).c_str(), logLevelToText(parsed));
+    request->send(200, "text/plain", "OK");
+  });
+
+  server.on("/setApEnabled", HTTP_POST, [](AsyncWebServerRequest *request) {
+    if (!isAllowedWebClient(request)) {
+      logDeniedRequest("/setApEnabled", request);
+      request->send(403, "text/plain", "Forbidden");
+      return;
+    }
+    if (!request->hasParam("enabled", true)) {
+      request->send(400, "text/plain", "Missing enabled");
+      return;
+    }
+
+    String enabledRaw = request->getParam("enabled", true)->value();
+    enabledRaw.trim();
+    enabledRaw.toLowerCase();
+    const bool enable = (enabledRaw == "1" || enabledRaw == "true" || enabledRaw == "on" || enabledRaw == "yes");
+    const String clientIp = clientIpText(request);
+    if (!setApEnabledRuntime(enable, clientIp)) {
+      request->send(500, "text/plain", "AP operation failed");
+      return;
+    }
     request->send(200, "text/plain", "OK");
   });
 

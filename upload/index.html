@@ -154,6 +154,17 @@
       font-size: 0.9rem;
     }
 
+    .summary-item b.clickable {
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .summary-item b.clickable:hover {
+      color: #ffffff;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
     .update-banner {
       margin-top: 8px;
       border: 1px solid rgba(255, 98, 98, 0.65);
@@ -1124,6 +1135,8 @@
       wifi_status_disconnected: 'Nicht verbunden',
       wifi_status_enabled: 'Aktiv',
       wifi_status_disabled: 'Aus',
+      summary_ap_toggle_hint_on: 'Klicken, um AP auszuschalten',
+      summary_ap_toggle_hint_off: 'Klicken, um AP einzuschalten',
       update_available: 'Neue Version verfuegbar: {version}',
       heater1_title: 'Heizung 1',
       heater2_title: 'Heizung 2',
@@ -1227,6 +1240,9 @@
       toast_serial_close: 'Serielles Protokoll geschlossen',
       toast_log_level_saved: 'Log-Level gespeichert',
       toast_log_level_error: 'Log-Level konnte nicht gesetzt werden',
+      toast_ap_enabled: 'AP aktiviert',
+      toast_ap_disabled: 'AP deaktiviert',
+      toast_ap_toggle_error: 'AP Status konnte nicht geaendert werden',
       toast_ota: 'OTA Seite wird geoeffnet',
       toast_update_checking: 'Pruefe auf neue Version...',
       toast_update_none: 'Keine neuere Version gefunden',
@@ -1262,6 +1278,8 @@
       wifi_status_disconnected: 'Not connected',
       wifi_status_enabled: 'Enabled',
       wifi_status_disabled: 'Disabled',
+      summary_ap_toggle_hint_on: 'Click to disable AP',
+      summary_ap_toggle_hint_off: 'Click to enable AP',
       update_available: 'New version available: {version}',
       heater1_title: 'Heating 1',
       heater2_title: 'Heating 2',
@@ -1365,6 +1383,9 @@
       toast_serial_close: 'Serial log closed',
       toast_log_level_saved: 'Log level saved',
       toast_log_level_error: 'Could not set log level',
+      toast_ap_enabled: 'AP enabled',
+      toast_ap_disabled: 'AP disabled',
+      toast_ap_toggle_error: 'Could not change AP status',
       toast_ota: 'Opening OTA page',
       toast_update_checking: 'Checking for updates...',
       toast_update_none: 'No newer version found',
@@ -2022,6 +2043,20 @@
     summaryStaStatus.textContent = state.staConnected ? t('wifi_status_connected') : t('wifi_status_disconnected');
     const apActive = state.apEnabled && !state.wifiRadiosDisabled;
     summaryApStatus.textContent = apActive ? t('wifi_status_enabled') : t('wifi_status_disabled');
+    summaryApStatus.classList.add('clickable');
+    summaryApStatus.title = apActive ? t('summary_ap_toggle_hint_on') : t('summary_ap_toggle_hint_off');
+  }
+
+  async function toggleApStatus() {
+    const apActive = state.apEnabled && !state.wifiRadiosDisabled;
+    const desiredEnabled = !apActive;
+    try {
+      await postForm('/setApEnabled', { enabled: desiredEnabled ? '1' : '0' });
+      showToast(desiredEnabled ? t('toast_ap_enabled') : t('toast_ap_disabled'));
+      await updateStatus();
+    } catch (_) {
+      showToast(t('toast_ap_toggle_error'));
+    }
   }
 
   async function updateStatus() {
@@ -2213,6 +2248,9 @@
 
   modePill.addEventListener('click', () => {
     setModeHelpVisibility(!showModeHelp);
+  });
+  summaryApStatus.addEventListener('click', () => {
+    void toggleApStatus();
   });
 
   statusRing1.addEventListener('click', () => {
