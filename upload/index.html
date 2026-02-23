@@ -471,6 +471,35 @@
       letter-spacing: 0.08em;
     }
 
+    .password-field {
+      position: relative;
+    }
+
+    .password-field .mock-input {
+      padding-right: 42px;
+    }
+
+    .password-toggle {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      border: 1px solid #5d6f81;
+      border-radius: 7px;
+      background: #25303a;
+      color: #d8e2ea;
+      width: 28px;
+      height: 28px;
+      font-size: 0.95rem;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .password-toggle.active {
+      background: #314250;
+      color: #ecf3f8;
+    }
+
     .switch-mock input {
       display: none;
     }
@@ -779,7 +808,10 @@
           </div>
           <div class="field">
             <label data-i18n="wifi_sta_pass">Heimnetz Passwort (STA)</label>
-            <input class="mock-input" id="staPasswordInput" type="password" maxlength="31" value="">
+            <div class="password-field">
+              <input class="mock-input" id="staPasswordInput" type="password" maxlength="31" value="">
+              <button type="button" class="password-toggle" id="staPasswordToggle" aria-label="Toggle password visibility" title="Toggle password visibility">&#128065;</button>
+            </div>
           </div>
           <div class="field">
             <label data-i18n="wifi_ap_ssid">Access Point SSID (AP)</label>
@@ -787,7 +819,10 @@
           </div>
           <div class="field">
             <label data-i18n="wifi_ap_pass">Access Point Passwort (AP)</label>
-            <input class="mock-input" id="apPasswordInput" type="password" maxlength="31" value="">
+            <div class="password-field">
+              <input class="mock-input" id="apPasswordInput" type="password" maxlength="31" value="">
+              <button type="button" class="password-toggle" id="apPasswordToggle" aria-label="Toggle password visibility" title="Toggle password visibility">&#128065;</button>
+            </div>
           </div>
           <div class="field">
             <label data-i18n="wifi_ap_timeout">AP Auto-Off (min, 0 = always on)</label>
@@ -959,8 +994,10 @@
   const swapOnLabel = document.getElementById('swapOnLabel');
   const staSsidInput = document.getElementById('staSsidInput');
   const staPasswordInput = document.getElementById('staPasswordInput');
+  const staPasswordToggle = document.getElementById('staPasswordToggle');
   const apSsidInput = document.getElementById('apSsidInput');
   const apPasswordInput = document.getElementById('apPasswordInput');
+  const apPasswordToggle = document.getElementById('apPasswordToggle');
   const apTimeoutMinutesInput = document.getElementById('apTimeoutMinutesInput');
   const battery1Cells = document.getElementById('battery1Cells');
   const battery2Cells = document.getElementById('battery2Cells');
@@ -1007,6 +1044,7 @@
   let tempPushTimer = null;
   let tempPushInFlight = false;
   let tempPushQueued = false;
+  const PASSWORD_MASK_TOKEN = '********';
 
   const state = {
     temp1: 23.0,
@@ -1684,6 +1722,55 @@
     }, TEMP_PUSH_DEBOUNCE_MS);
   }
 
+  function setMaskedPassword(input) {
+    input.value = PASSWORD_MASK_TOKEN;
+    input.dataset.masked = '1';
+  }
+
+  function isMaskedPassword(input) {
+    return input.dataset.masked === '1' && input.value === PASSWORD_MASK_TOKEN;
+  }
+
+  function getPasswordForSubmit(input) {
+    return isMaskedPassword(input) ? '' : (input.value || '');
+  }
+
+  function updatePasswordToggleState(input, toggleButton) {
+    const visible = input.type === 'text';
+    toggleButton.classList.toggle('active', visible);
+  }
+
+  function initPasswordField(input, toggleButton) {
+    setMaskedPassword(input);
+
+    input.addEventListener('focus', () => {
+      if (isMaskedPassword(input)) {
+        input.value = '';
+        input.dataset.masked = '0';
+      }
+    });
+
+    input.addEventListener('blur', () => {
+      if ((input.value || '').length === 0) {
+        input.type = 'password';
+        setMaskedPassword(input);
+      }
+      updatePasswordToggleState(input, toggleButton);
+    });
+
+    input.addEventListener('input', () => {
+      input.dataset.masked = '0';
+      updatePasswordToggleState(input, toggleButton);
+    });
+
+    toggleButton.addEventListener('click', () => {
+      input.type = input.type === 'password' ? 'text' : 'password';
+      updatePasswordToggleState(input, toggleButton);
+    });
+
+    updatePasswordToggleState(input, toggleButton);
+  }
+
   async function saveAllSettings() {
     try {
       await postForm('/saveSettings', {
@@ -1726,9 +1813,9 @@
     try {
       await postForm('/setWiFi', {
         staSsid: staSsid,
-        staPassword: staPasswordInput.value || '',
+        staPassword: getPasswordForSubmit(staPasswordInput),
         apSsid: apSsid,
-        apPassword: apPasswordInput.value || '',
+        apPassword: getPasswordForSubmit(apPasswordInput),
         apTimeoutMin: state.apTimeoutMin
       });
       showToast(t('toast_wifi_saved'));
@@ -2126,6 +2213,8 @@
     if (open) loadSerialLog();
   });
 
+  initPasswordField(staPasswordInput, staPasswordToggle);
+  initPasswordField(apPasswordInput, apPasswordToggle);
   applyLanguage('de');
   setAdvanced(false);
   setHelpVisibility(false);
