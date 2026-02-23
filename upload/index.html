@@ -1044,7 +1044,7 @@
   let tempPushTimer = null;
   let tempPushInFlight = false;
   let tempPushQueued = false;
-  const PASSWORD_MASK_TOKEN = '********';
+  const PASSWORD_MASK_PLACEHOLDER = '********';
 
   const state = {
     temp1: 23.0,
@@ -1723,12 +1723,14 @@
   }
 
   function setMaskedPassword(input) {
-    input.value = PASSWORD_MASK_TOKEN;
+    input.type = 'password';
+    input.value = '';
+    input.placeholder = PASSWORD_MASK_PLACEHOLDER;
     input.dataset.masked = '1';
   }
 
   function isMaskedPassword(input) {
-    return input.dataset.masked === '1' && input.value === PASSWORD_MASK_TOKEN;
+    return input.dataset.masked === '1';
   }
 
   function getPasswordForSubmit(input) {
@@ -1745,7 +1747,7 @@
 
     input.addEventListener('focus', () => {
       if (isMaskedPassword(input)) {
-        input.value = '';
+        input.placeholder = '';
         input.dataset.masked = '0';
       }
     });
@@ -1760,10 +1762,15 @@
 
     input.addEventListener('input', () => {
       input.dataset.masked = '0';
+      input.placeholder = '';
       updatePasswordToggleState(input, toggleButton);
     });
 
     toggleButton.addEventListener('click', () => {
+      if (isMaskedPassword(input)) {
+        input.placeholder = '';
+        input.dataset.masked = '0';
+      }
       input.type = input.type === 'password' ? 'text' : 'password';
       updatePasswordToggleState(input, toggleButton);
     });
