@@ -435,26 +435,38 @@ void setupWebServer() {
     bool apChanged = false;
     if (request->hasParam("staSsid", true)) {
       const String newStaSsid = request->getParam("staSsid", true)->value();
-      const String newStaPassword = request->hasParam("staPassword", true)
-                                        ? request->getParam("staPassword", true)->value()
-                                        : String();
+      String newStaPassword = activePassword;
+      if (request->hasParam("staPassword", true)) {
+        const String submittedStaPassword = request->getParam("staPassword", true)->value();
+        if (submittedStaPassword.length() > 0) {
+          newStaPassword = submittedStaPassword;
+        }
+      }
       saveWiFiCredentials(newStaSsid, newStaPassword);
       staChanged = true;
     } else if (request->hasParam("ssid", true)) {
       // Backward compatibility for older web UIs.
       const String legacySsid = request->getParam("ssid", true)->value();
-      const String legacyPassword = request->hasParam("password", true)
-                                        ? request->getParam("password", true)->value()
-                                        : String();
+      String legacyPassword = activePassword;
+      if (request->hasParam("password", true)) {
+        const String submittedLegacyPassword = request->getParam("password", true)->value();
+        if (submittedLegacyPassword.length() > 0) {
+          legacyPassword = submittedLegacyPassword;
+        }
+      }
       saveWiFiCredentials(legacySsid, legacyPassword);
       staChanged = true;
     }
 
     if (request->hasParam("apSsid", true)) {
       const String newApSsid = request->getParam("apSsid", true)->value();
-      const String newApPassword = request->hasParam("apPassword", true)
-                                       ? request->getParam("apPassword", true)->value()
-                                       : String();
+      String newApPassword = activeApPassword;
+      if (request->hasParam("apPassword", true)) {
+        const String submittedApPassword = request->getParam("apPassword", true)->value();
+        if (submittedApPassword.length() > 0) {
+          newApPassword = submittedApPassword;
+        }
+      }
       saveApCredentials(newApSsid, newApPassword);
       apChanged = true;
     }
