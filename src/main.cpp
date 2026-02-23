@@ -29,12 +29,30 @@ constexpr float NTC_NOMINAL_TEMP_C = 25.0F;
 constexpr uint16_t BATTERY_ADC_OFF_THRESHOLD_MV = 80;
 constexpr uint16_t BATTERY_ADC_ON_THRESHOLD_MV = 300;
 constexpr uint8_t BATTERY_STABLE_SAMPLES = 2;
+constexpr char DEFAULT_WIFI_SSID_FALLBACK[] = "HeatControl";
+constexpr char DEFAULT_WIFI_PASSWORD_FALLBACK[] = "HeatControl";
 
 BatteryToggleDetector battery1Detector(BATTERY_ADC_OFF_THRESHOLD_MV, BATTERY_ADC_ON_THRESHOLD_MV, BATTERY_STABLE_SAMPLES);
 BatteryToggleDetector battery2Detector(BATTERY_ADC_OFF_THRESHOLD_MV, BATTERY_ADC_ON_THRESHOLD_MV, BATTERY_STABLE_SAMPLES);
 const IPAddress AP_IP(4, 3, 2, 1);
 const IPAddress AP_NETMASK(255, 255, 255, 0);
 unsigned long wifiStartupMs = 0;
+constexpr uint8_t AP_CHANNEL = 1;
+
+const char *wifiModeToText(wifi_mode_t mode) {
+  switch (mode) {
+    case WIFI_OFF:
+      return "OFF";
+    case WIFI_STA:
+      return "STA";
+    case WIFI_AP:
+      return "AP";
+    case WIFI_AP_STA:
+      return "AP_STA";
+    default:
+      return "UNKNOWN";
+  }
+}
 
 uint32_t apAutoOffTimeoutMs() {
   return static_cast<uint32_t>(apAutoOffMinutes) * 60000UL;
@@ -193,6 +211,15 @@ void setup() {
   logf("AP auto-off timeout: %u min (0=disabled)", apAutoOffMinutes);
   loadSavedRuntime();
 
+  if (activeApSsid.isEmpty()) {
+    activeApSsid = "HeatControl";
+    logLine("AP SSID was empty, fallback to default.");
+  }
+  if (activeApPassword.isEmpty()) {
+    activeApPassword = "HeatControl";
+    logLine("AP password was empty, fallback to default.");
+  }
+
   startTimeMs = millis();
   lastRuntimeSaveMs = millis();
 
@@ -202,21 +229,45 @@ void setup() {
   WiFi.persistent(false);
   WiFi.disconnect(true, true);
   WiFi.softAPConfig(AP_IP, AP_IP, AP_NETMASK);
-  apEnabled = WiFi.softAP(activeApSsid.c_str(), activeApPassword.c_str(), 1, false, AP_MAX_CLIENTS);
+  apEnabled = WiFi.softAP(activeApSsid.c_str(), activeApPassword.c_str(), AP_CHANNEL, false, AP_MAX_CLIENTS);
   wifiRadiosDisabled = false;
   wifiStartupMs = millis();
-  if (!activeSsid.isEmpty()) {
+  if (apEnabled) {
+    logf("AP start ok | ssid=%s | ip=%s | channel=%u | max_clients=%u", activeApSsid.c_str(),
+         WiFi.softAPIP().toString().c_str(), static_cast<unsigned int>(AP_CHANNEL), static_cast<unsigned int>(AP_MAX_CLIENTS));
+  } else {
+    logf("AP start failed | ssid=%s | wifi_mode=%s", activeApSsid.c_str(), wifiModeToText(WiFi.getMode()));
+  }
+  const bool hasDefaultStaCredentials =
+      (activeSsid == DEFAULT_WIFI_SSID_FALLBACK && activePassword == DEFAULT_WIFI_PASSWORD_FALLBACK);
+  if (!activeSsid.isEmpty() && !hasDefaultStaCredentials) {
     WiFi.begin(activeSsid.c_str(), activePassword.c_str());
     logf("STA connect attempt: ssid=%s", activeSsid.c_str());
+  } else if (hasDefaultStaCredentials) {
+    logLine("STA connect skipped: default credentials active. AP-only until STA settings are changed.");
   }
   WiFi.onEvent([](arduino_event_id_t event, arduino_event_info_t info) {
     switch (event) {
+      case ARDUINO_EVENT_WIFI_AP_START:
+        logf("WiFi event: AP started | ssid=%s | ip=%s", activeApSsid.c_str(), WiFi.softAPIP().toString().c_str());
+        break;
+      case ARDUINO_EVENT_WIFI_AP_STOP:
+        logLine("WiFi event: AP stopped.");
+        break;
       case ARDUINO_EVENT_WIFI_AP_STACONNECTED: {
         char mac[18];
         snprintf(mac, sizeof(mac), "%02X:%02X:%02X:%02X:%02X:%02X", info.wifi_ap_staconnected.mac[0],
                  info.wifi_ap_staconnected.mac[1], info.wifi_ap_staconnected.mac[2], info.wifi_ap_staconnected.mac[3],
                  info.wifi_ap_staconnected.mac[4], info.wifi_ap_staconnected.mac[5]);
         logf("AP client connected: %s | aid=%d", mac, info.wifi_ap_staconnected.aid);
+        break;
+      }
+      case ARDUINO_EVENT_WIFI_AP_STADISCONNECTED: {
+        char mac[18];
+        snprintf(mac, sizeof(mac), "%02X:%02X:%02X:%02X:%02X:%02X", info.wifi_ap_stadisconnected.mac[0],
+                 info.wifi_ap_stadisconnected.mac[1], info.wifi_ap_stadisconnected.mac[2], info.wifi_ap_stadisconnected.mac[3],
+                 info.wifi_ap_stadisconnected.mac[4], info.wifi_ap_stadisconnected.mac[5]);
+        logf("AP client disconnected: %s | aid=%d", mac, info.wifi_ap_stadisconnected.aid);
         break;
       }
       case ARDUINO_EVENT_WIFI_STA_GOT_IP:
@@ -226,6 +277,9 @@ void setup() {
       case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
         staConnected = false;
         logf("STA disconnected: reason=%d", static_cast<int>(info.wifi_sta_disconnected.reason));
+        if (info.wifi_sta_disconnected.reason == 201) {
+          logLine("STA reason 201: network not found. STA retries in background, AP stays independent.");
+        }
         break;
       default:
         break;
@@ -574,6 +628,20 @@ void loop() {
       ESP.restart();
     }
     lastMemCheckMs = now;
+  }
+
+  static unsigned long lastWifiDiagMs = 0;
+  if ((now - lastWifiDiagMs) >= 20000UL) {
+    const wifi_mode_t mode = WiFi.getMode();
+    const bool modeHasAp = (mode == WIFI_AP || mode == WIFI_AP_STA);
+    if (!wifiRadiosDisabled && !modeHasAp) {
+      logf("WIFI diag: AP missing in mode | mode=%s | ap_flag=%d | sta_status=%d | ap_timeout_min=%u",
+           wifiModeToText(mode), apEnabled ? 1 : 0, static_cast<int>(WiFi.status()), static_cast<unsigned int>(apAutoOffMinutes));
+    } else if (apEnabled) {
+      logf("WIFI diag: AP active | ssid=%s | ip=%s | stations=%u | mode=%s", activeApSsid.c_str(),
+           WiFi.softAPIP().toString().c_str(), static_cast<unsigned int>(WiFi.softAPgetStationNum()), wifiModeToText(mode));
+    }
+    lastWifiDiagMs = now;
   }
 
   staConnected = (WiFi.status() == WL_CONNECTED);
