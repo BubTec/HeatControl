@@ -701,17 +701,17 @@ void setupWebServer() {
   server.on("/fwlink", HTTP_ANY, [](AsyncWebServerRequest *request) { sendCaptiveRedirect(request); });
 
   server.onNotFound([](AsyncWebServerRequest *request) {
-    if (request->method() == HTTP_GET && isFromLocalApSubnet(request)) {
-      sendCaptiveRedirect(request);
-      return;
-    }
-
     if (sendEmbeddedFile(request, request->url())) {
       return;
     }
 
     if (fileSystemReady && LittleFS.exists(request->url())) {
       request->send(LittleFS, request->url(), String(), false);
+      return;
+    }
+
+    if (request->method() == HTTP_GET && isFromLocalApSubnet(request)) {
+      sendCaptiveRedirect(request);
       return;
     }
 
