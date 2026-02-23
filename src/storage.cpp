@@ -108,6 +108,30 @@ void loadWiFiCredentials() {
   activePassword = String(pass);
 }
 
+void loadApAutoOffMinutes() {
+  uint16_t stored = 0U;
+  uint8_t *bytes = reinterpret_cast<uint8_t *>(&stored);
+  for (size_t i = 0; i < sizeof(uint16_t); ++i) {
+    bytes[i] = EEPROM.read(EEPROM_AP_AUTO_OFF_MINUTES_ADDR + static_cast<int>(i));
+  }
+
+  // 0xFFFF means "not initialized yet" -> use default 10 minutes.
+  if (stored == 0xFFFFU) {
+    apAutoOffMinutes = 10U;
+  } else {
+    apAutoOffMinutes = clampApAutoOffMinutes(stored);
+  }
+}
+
+void saveApAutoOffMinutes() {
+  const uint16_t value = clampApAutoOffMinutes(apAutoOffMinutes);
+  const uint8_t *bytes = reinterpret_cast<const uint8_t *>(&value);
+  for (size_t i = 0; i < sizeof(uint16_t); ++i) {
+    EEPROM.write(EEPROM_AP_AUTO_OFF_MINUTES_ADDR + static_cast<int>(i), bytes[i]);
+  }
+  EEPROM.commit();
+}
+
 void loadManualPowerPercents() {
   const uint8_t stored1 = EEPROM.read(EEPROM_MANUAL_POWER1_ADDR);
   const uint8_t stored2 = EEPROM.read(EEPROM_MANUAL_POWER2_ADDR);

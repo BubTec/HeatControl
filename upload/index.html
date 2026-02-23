@@ -767,8 +767,13 @@
             <label data-i18n="wifi_pass">Passwort</label>
             <input class="mock-input" id="passwordInput" type="password" maxlength="31" value="">
           </div>
+          <div class="field">
+            <label data-i18n="wifi_ap_timeout">AP Auto-Off (min, 0 = always on)</label>
+            <input class="mock-input" id="apTimeoutMinutesInput" type="number" min="0" max="240" step="1" value="10">
+          </div>
           <button type="button" class="btn" id="saveWifiBtn" data-i18n="wifi_save">WLAN speichern (mit Neustart)</button>
           <div class="help-text" data-i18n="help_wifi">Nach dem WLAN-Speichern ist ein Neustart notwendig, damit die neuen Daten aktiv werden.</div>
+          <div class="help-text" data-i18n="help_wifi_timeout">Wenn der ESP nicht im Heimnetz verbunden ist, wird WLAN nach dem Timeout deaktiviert.</div>
           <div class="help-text" data-i18n="help_captive_desktop">Desktop ohne Auto-Weiterleitung: im Browser direkt http://4.3.2.1 oeffnen.</div>
         </div>
 
@@ -904,6 +909,7 @@
   const swapOnLabel = document.getElementById('swapOnLabel');
   const ssidInput = document.getElementById('ssidInput');
   const passwordInput = document.getElementById('passwordInput');
+  const apTimeoutMinutesInput = document.getElementById('apTimeoutMinutesInput');
   const battery1Cells = document.getElementById('battery1Cells');
   const battery2Cells = document.getElementById('battery2Cells');
   const manualToggleWindowInput = document.getElementById('manualToggleWindowInput');
@@ -953,6 +959,7 @@
     swap: false,
     batt1Cells: 3,
     batt2Cells: 3,
+    apTimeoutMin: 10,
     windowMs: 1500,
     modeLabel: 'AUTO',
     localVersion: '',
@@ -993,6 +1000,7 @@
       wifi_title: 'WLAN Einstellungen',
       wifi_ssid: 'Netzwerkname (SSID)',
       wifi_pass: 'Passwort',
+      wifi_ap_timeout: 'AP Auto-Off (min, 0 = immer an)',
       wifi_save: 'WLAN speichern (mit Neustart)',
       runtime_title: 'System Laufzeit',
       runtime_total: 'Gesamtlaufzeit',
@@ -1032,6 +1040,7 @@
       badge_trip: 'MOSFET VORFALL',
       help_sensor_swap: 'Nur aktivieren, wenn Heizung 1/2 offensichtlich vertauscht reagieren.',
       help_wifi: 'Nach dem WLAN-Speichern ist ein Neustart notwendig, damit die neuen Daten aktiv werden.',
+      help_wifi_timeout: 'Wenn der ESP nicht im Heimnetz verbunden ist, wird WLAN nach dem Timeout deaktiviert.',
       help_captive_desktop: 'Desktop ohne Auto-Weiterleitung: im Browser direkt http://4.3.2.1 oeffnen.',
       help_runtime_reset: 'Diese Aktion setzt nur den Laufzeitzaehler zurueck. Heizparameter bleiben unveraendert.',
       help_ota: 'Nutze nur passende Firmware fuer dieses Geraet. Update nicht waehrend instabiler Versorgung starten.',
@@ -1102,6 +1111,7 @@
       wifi_title: 'WiFi settings',
       wifi_ssid: 'Network name (SSID)',
       wifi_pass: 'Password',
+      wifi_ap_timeout: 'AP auto-off (min, 0 = always on)',
       wifi_save: 'Save WiFi (with restart)',
       runtime_title: 'System runtime',
       runtime_total: 'Total runtime',
@@ -1141,6 +1151,7 @@
       badge_trip: 'MOSFET EVENT',
       help_sensor_swap: 'Only enable this when heating zone behavior is clearly swapped.',
       help_wifi: 'After saving WiFi, a restart is required before new credentials are active.',
+      help_wifi_timeout: 'If the ESP is not connected to home WiFi, wireless is disabled after this timeout.',
       help_captive_desktop: 'If desktop captive portal does not open, open http://4.3.2.1 directly in the browser.',
       help_runtime_reset: 'This action only resets runtime counters. Heating parameters stay unchanged.',
       help_ota: 'Use only matching firmware for this device. Do not update with unstable power.',
@@ -1550,6 +1561,7 @@
         temp1: state.temp1.toFixed(1),
         temp2: state.temp2.toFixed(1),
         swap: state.swap,
+        apTimeoutMin: state.apTimeoutMin,
         windowMs: Math.round(state.windowMs),
         batt1Cells: state.batt1Cells,
         batt2Cells: state.batt2Cells
@@ -1580,7 +1592,11 @@
       return;
     }
     try {
-      await postForm('/setWiFi', { ssid: ssid, password: passwordInput.value || '' });
+      await postForm('/setWiFi', {
+        ssid: ssid,
+        password: passwordInput.value || '',
+        apTimeoutMin: state.apTimeoutMin
+      });
       showToast(t('toast_wifi_saved'));
     } catch (_) {
       showToast(t('toast_wifi_error'));
@@ -1740,6 +1756,10 @@
           state.batt2Cells = Number(data.batt2Cells);
           battery2Cells.value = String(state.batt2Cells);
         }
+        if (typeof data.apTimeoutMin === 'number') {
+          state.apTimeoutMin = Math.max(0, Math.min(240, Number(data.apTimeoutMin)));
+          apTimeoutMinutesInput.value = String(Math.round(state.apTimeoutMin));
+        }
         if (typeof data.manualToggleMaxOffMs === 'number') {
           state.windowMs = Number(data.manualToggleMaxOffMs);
           manualToggleWindowInput.value = String(Math.round(state.windowMs));
@@ -1884,6 +1904,12 @@
   passwordInput.addEventListener('input', markUserEditing);
   battery1Cells.addEventListener('change', () => { markUserEditing(); state.batt1Cells = Number(battery1Cells.value || 3); });
   battery2Cells.addEventListener('change', () => { markUserEditing(); state.batt2Cells = Number(battery2Cells.value || 3); });
+  apTimeoutMinutesInput.addEventListener('input', () => {
+    markUserEditing();
+    const clamped = Math.min(240, Math.max(0, Number(apTimeoutMinutesInput.value || 10)));
+    state.apTimeoutMin = clamped;
+    apTimeoutMinutesInput.value = String(Math.round(clamped));
+  });
   manualToggleWindowInput.addEventListener('input', () => {
     markUserEditing();
     const clamped = Math.min(5000, Math.max(100, Number(manualToggleWindowInput.value || 1500)));

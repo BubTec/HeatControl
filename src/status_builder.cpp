@@ -69,6 +69,10 @@ std::string buildStatusJson(const StatusMetrics &m) {
   json += ",\"target2\":" + formatFloat(m.targetTemp2, 1);
   json += ",\"swap\":" + formatBool(m.swapAssignment);
   json += ",\"ssid\":\"" + logic_helpers::jsonEscape(m.ssid) + "\"";
+  json += ",\"apTimeoutMin\":" + std::to_string(m.apAutoOffMinutes);
+  json += ",\"staConnected\":" + formatBool(m.staConnected);
+  json += ",\"apEnabled\":" + formatBool(m.apEnabled);
+  json += ",\"wifiRadiosDisabled\":" + formatBool(m.wifiRadiosDisabled);
   json += ",\"h1\":" + formatBool(m.heater1On);
   json += ",\"h2\":" + formatBool(m.heater2On);
   json += ",\"totalRuntime\":\"" + logic_helpers::jsonEscape(m.totalRuntime) + "\"";

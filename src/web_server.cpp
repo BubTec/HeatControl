@@ -47,6 +47,26 @@ bool isFromLocalApSubnet(AsyncWebServerRequest *request) {
   return ip[0] == 4 && ip[1] == 3 && ip[2] == 2;
 }
 
+bool isAllowedWebClient(AsyncWebServerRequest *request) {
+  if (request == nullptr || request->client() == nullptr) {
+    return false;
+  }
+  const IPAddress ip = request->client()->remoteIP();
+  if (ip[0] == 4 && ip[1] == 3 && ip[2] == 2) {
+    return true;
+  }
+  if (ip[0] == 10) {
+    return true;
+  }
+  if (ip[0] == 172 && ip[1] >= 16 && ip[1] <= 31) {
+    return true;
+  }
+  if (ip[0] == 192 && ip[1] == 168) {
+    return true;
+  }
+  return false;
+}
+
 void sendCaptiveRedirect(AsyncWebServerRequest *request) {
   AsyncWebServerResponse *response = request->beginResponse(302, "text/plain", "");
   response->addHeader("Location", "http://4.3.2.1/");
@@ -57,6 +77,9 @@ void sendCaptiveRedirect(AsyncWebServerRequest *request) {
 class CaptiveRequestHandler : public AsyncWebHandler {
  public:
   bool canHandle(AsyncWebServerRequest *request) {
+    if (!apEnabled || !isFromLocalApSubnet(request)) {
+      return false;
+    }
     const String host = request->host();
     if (host == WiFi.softAPIP().toString() || host == "4.3.2.1") {
       return false;
@@ -145,6 +168,10 @@ void setupWebServer() {
     metrics.targetTemp2 = targetTemp2;
     metrics.swapAssignment = swapAssignment;
     metrics.ssid = activeSsid.c_str();
+    metrics.apAutoOffMinutes = apAutoOffMinutes;
+    metrics.staConnected = staConnected;
+    metrics.apEnabled = apEnabled;
+    metrics.wifiRadiosDisabled = wifiRadiosDisabled;
     metrics.heater1On = heater1On;
     metrics.heater2On = heater2On;
     metrics.totalRuntime = totalRuntime.c_str();
@@ -155,7 +182,7 @@ void setupWebServer() {
   });
 
   server.on("/setBattery1", HTTP_POST, [](AsyncWebServerRequest *request) {
-    if (!isFromLocalApSubnet(request)) {
+    if (!isAllowedWebClient(request)) {
       request->send(403, "text/plain", "Forbidden");
       return;
     }
@@ -167,7 +194,7 @@ void setupWebServer() {
   });
 
   server.on("/setBattery2", HTTP_POST, [](AsyncWebServerRequest *request) {
-    if (!isFromLocalApSubnet(request)) {
+    if (!isAllowedWebClient(request)) {
       request->send(403, "text/plain", "Forbidden");
       return;
     }
@@ -179,7 +206,7 @@ void setupWebServer() {
   });
 
   server.on("/setManualToggle", HTTP_POST, [](AsyncWebServerRequest *request) {
-    if (!isFromLocalApSubnet(request)) {
+    if (!isAllowedWebClient(request)) {
       request->send(403, "text/plain", "Forbidden");
       return;
     }
@@ -193,7 +220,7 @@ void setupWebServer() {
   });
 
   server.on("/cycleManualPower", HTTP_POST, [](AsyncWebServerRequest *request) {
-    if (!isFromLocalApSubnet(request)) {
+    if (!isAllowedWebClient(request)) {
       request->send(403, "text/plain", "Forbidden");
       return;
     }
@@ -231,7 +258,7 @@ void setupWebServer() {
   });
 
   server.on("/setTemp", HTTP_POST, [](AsyncWebServerRequest *request) {
-    if (!isFromLocalApSubnet(request)) {
+    if (!isAllowedWebClient(request)) {
       request->send(403, "text/plain", "Forbidden");
       return;
     }
@@ -246,7 +273,7 @@ void setupWebServer() {
   });
 
   server.on("/saveSettings", HTTP_POST, [](AsyncWebServerRequest *request) {
-    if (!isFromLocalApSubnet(request)) {
+    if (!isAllowedWebClient(request)) {
       request->send(403, "text/plain", "Forbidden");
       return;
     }
@@ -255,6 +282,7 @@ void setupWebServer() {
     bool swapChanged = false;
     bool manualWindowChanged = false;
     bool batteryChanged = false;
+    bool apTimeoutChanged = false;
 
     if (request->hasParam("temp1", true)) {
       targetTemp1 = clampTarget(request->getParam("temp1", true)->value().toFloat());
@@ -276,6 +304,11 @@ void setupWebServer() {
       const uint16_t value = static_cast<uint16_t>(request->getParam("windowMs", true)->value().toInt());
       manualPowerToggleMaxOffMs = clampManualToggleOffMs(value);
       manualWindowChanged = true;
+    }
+    if (request->hasParam("apTimeoutMin", true)) {
+      const uint16_t value = static_cast<uint16_t>(request->getParam("apTimeoutMin", true)->value().toInt());
+      apAutoOffMinutes = clampApAutoOffMinutes(value);
+      apTimeoutChanged = true;
     }
 
     if (request->hasParam("batt1Cells", true)) {
@@ -299,13 +332,16 @@ void setupWebServer() {
     if (batteryChanged) {
       saveBatteryCellCounts();
     }
+    if (apTimeoutChanged) {
+      saveApAutoOffMinutes();
+    }
 
     request->send(200, "text/plain", "OK");
   });
 
 
   server.on("/swapSensors", HTTP_POST, [](AsyncWebServerRequest *request) {
-    if (!isFromLocalApSubnet(request)) {
+    if (!isAllowedWebClient(request)) {
       request->send(403, "text/plain", "Forbidden");
       return;
     }
@@ -315,7 +351,7 @@ void setupWebServer() {
   });
 
   server.on("/setWiFi", HTTP_POST, [](AsyncWebServerRequest *request) {
-    if (!isFromLocalApSubnet(request)) {
+    if (!isAllowedWebClient(request)) {
       request->send(403, "text/plain", "Forbidden");
       return;
     }
@@ -326,12 +362,17 @@ void setupWebServer() {
                                      : String();
       saveWiFiCredentials(newSsid, newPassword);
     }
+    if (request->hasParam("apTimeoutMin", true)) {
+      const uint16_t value = static_cast<uint16_t>(request->getParam("apTimeoutMin", true)->value().toInt());
+      apAutoOffMinutes = clampApAutoOffMinutes(value);
+      saveApAutoOffMinutes();
+    }
     request->send(200, "text/plain", "WiFi settings saved. Rebooting...");
     scheduleRestart(600);
   });
 
   server.on("/restart", HTTP_POST, [](AsyncWebServerRequest *request) {
-    if (!isFromLocalApSubnet(request)) {
+    if (!isAllowedWebClient(request)) {
       request->send(403, "text/plain", "Forbidden");
       return;
     }
@@ -342,7 +383,7 @@ void setupWebServer() {
   });
 
   server.on("/signalTest", HTTP_POST, [](AsyncWebServerRequest *request) {
-    if (!isFromLocalApSubnet(request)) {
+    if (!isAllowedWebClient(request)) {
       request->send(403, "text/plain", "Forbidden");
       return;
     }
@@ -353,7 +394,7 @@ void setupWebServer() {
   });
 
   server.on("/logs", HTTP_GET, [](AsyncWebServerRequest *request) {
-    if (!isFromLocalApSubnet(request)) {
+    if (!isAllowedWebClient(request)) {
       request->send(403, "text/plain", "Forbidden");
       return;
     }
@@ -361,7 +402,7 @@ void setupWebServer() {
   });
 
   server.on("/resetRuntime", HTTP_POST, [](AsyncWebServerRequest *request) {
-    if (!isFromLocalApSubnet(request)) {
+    if (!isAllowedWebClient(request)) {
       request->send(403, "text/plain", "Forbidden");
       return;
     }
@@ -372,7 +413,7 @@ void setupWebServer() {
   });
 
   server.on("/resetOvertemp", HTTP_POST, [](AsyncWebServerRequest *request) {
-    if (!isFromLocalApSubnet(request)) {
+    if (!isAllowedWebClient(request)) {
       request->send(403, "text/plain", "Forbidden");
       return;
     }
@@ -387,7 +428,7 @@ void setupWebServer() {
   });
 
   server.on("/update", HTTP_GET, [](AsyncWebServerRequest *request) {
-    if (!isFromLocalApSubnet(request)) {
+    if (!isAllowedWebClient(request)) {
       request->send(403, "text/plain", "Forbidden");
       return;
     }
@@ -435,7 +476,7 @@ void setupWebServer() {
   server.on(
       "/update", HTTP_POST,
       [](AsyncWebServerRequest *request) {
-        if (!isFromLocalApSubnet(request)) {
+        if (!isAllowedWebClient(request)) {
           request->send(403, "text/plain", "Forbidden");
           return;
         }
@@ -460,7 +501,7 @@ void setupWebServer() {
         scheduleRestart(1200);
       },
       [](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
-        if (!isFromLocalApSubnet(request)) {
+        if (!isAllowedWebClient(request)) {
           return;
         }
         if (index == 0) {

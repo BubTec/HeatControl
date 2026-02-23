@@ -17,6 +17,8 @@ void saveSwapAssignment();
 
 void saveWiFiCredentials(const String &ssid, const String &password);
 void loadWiFiCredentials();
+void loadApAutoOffMinutes();
+void saveApAutoOffMinutes();
 
 void loadManualPowerPercents();
 void saveManualPowerPercents();

@@ -45,6 +45,10 @@ struct StatusMetrics {
   float targetTemp2 = 0.0F;
   bool swapAssignment = false;
   std::string ssid;
+  uint16_t apAutoOffMinutes = 0;
+  bool staConnected = false;
+  bool apEnabled = false;
+  bool wifiRadiosDisabled = false;
   bool heater1On = false;
   bool heater2On = false;
   std::string totalRuntime;

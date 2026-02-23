@@ -23,6 +23,7 @@ constexpr int EEPROM_MOSFET1_OVERTEMP_FLAG_ADDR = 320;
 constexpr int EEPROM_MOSFET2_OVERTEMP_FLAG_ADDR = 321;
 constexpr int EEPROM_MOSFET1_OVERTEMP_TEMP_ADDR = 324;
 constexpr int EEPROM_MOSFET2_OVERTEMP_TEMP_ADDR = 328;
+constexpr int EEPROM_AP_AUTO_OFF_MINUTES_ADDR = 332;
 constexpr int EEPROM_TEMP1_ADDR = 64;
 constexpr int EEPROM_TEMP2_ADDR = 68;
 constexpr int EEPROM_SWAP_ADDR = 72;
@@ -134,6 +135,10 @@ extern float mosfet1OvertempTripTempC;
 extern float mosfet2OvertempTripTempC;
 
 extern uint16_t manualPowerToggleMaxOffMs;
+extern uint16_t apAutoOffMinutes;
+extern bool staConnected;
+extern bool apEnabled;
+extern bool wifiRadiosDisabled;
 
 extern OneWire oneWire;
 extern DallasTemperature sensors;

@@ -42,6 +42,13 @@ void test_manual_toggle_window() {
   TEST_ASSERT_EQUAL_UINT16(1200U, clampManualToggleOffMs(1200U));
 }
 
+void test_ap_auto_off_minutes_clamp() {
+  TEST_ASSERT_EQUAL_UINT16(0U, clampApAutoOffMinutes(0U));
+  TEST_ASSERT_EQUAL_UINT16(10U, clampApAutoOffMinutes(10U));
+  TEST_ASSERT_EQUAL_UINT16(240U, clampApAutoOffMinutes(240U));
+  TEST_ASSERT_EQUAL_UINT16(240U, clampApAutoOffMinutes(999U));
+}
+
 void test_battery_cell_clamp() {
   TEST_ASSERT_EQUAL_UINT8(3, clampBatteryCellCount(0));
   TEST_ASSERT_EQUAL_UINT8(2, clampBatteryCellCount(2));
@@ -57,6 +64,7 @@ int main() {
   RUN_TEST(test_manual_power_cycle);
   RUN_TEST(test_manual_power_cycle_handles_invalid_input);
   RUN_TEST(test_manual_toggle_window);
+  RUN_TEST(test_ap_auto_off_minutes_clamp);
   RUN_TEST(test_battery_cell_clamp);
   return UNITY_END();
 }

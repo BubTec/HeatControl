@@ -32,6 +32,55 @@ constexpr uint8_t BATTERY_STABLE_SAMPLES = 2;
 
 BatteryToggleDetector battery1Detector(BATTERY_ADC_OFF_THRESHOLD_MV, BATTERY_ADC_ON_THRESHOLD_MV, BATTERY_STABLE_SAMPLES);
 BatteryToggleDetector battery2Detector(BATTERY_ADC_OFF_THRESHOLD_MV, BATTERY_ADC_ON_THRESHOLD_MV, BATTERY_STABLE_SAMPLES);
+constexpr char AP_SSID[] = "HeatControl";
+constexpr char AP_PASSWORD[] = "HeatControl";
+const IPAddress AP_IP(4, 3, 2, 1);
+const IPAddress AP_NETMASK(255, 255, 255, 0);
+unsigned long wifiStartupMs = 0;
+
+uint32_t apAutoOffTimeoutMs() {
+  return static_cast<uint32_t>(apAutoOffMinutes) * 60000UL;
+}
+
+void stopApMode() {
+  if (!apEnabled) {
+    return;
+  }
+  dnsServer.stop();
+  WiFi.softAPdisconnect(true);
+  apEnabled = false;
+  logLine("AP mode disabled.");
+}
+
+void disableAllWifiRadios() {
+  if (wifiRadiosDisabled) {
+    return;
+  }
+  stopApMode();
+  WiFi.disconnect(true, true);
+  WiFi.mode(WIFI_OFF);
+  staConnected = false;
+  wifiRadiosDisabled = true;
+  logLine("WiFi radios disabled (AP timeout reached without STA connection).");
+}
+
+void handleWifiLifetime(unsigned long now) {
+  if (wifiRadiosDisabled || apAutoOffMinutes == 0U) {
+    return;
+  }
+
+  const uint32_t timeoutMs = apAutoOffTimeoutMs();
+  if (timeoutMs == 0U || (now - wifiStartupMs) < timeoutMs) {
+    return;
+  }
+
+  if (staConnected) {
+    stopApMode();
+    return;
+  }
+
+  disableAllWifiRadios();
+}
 
 void appendSerialLogLine(const String &line) {
   char lineBuf[320];
@@ -136,10 +185,12 @@ void setup() {
   loadTemperatureTargets();
   loadSwapAssignment();
   loadWiFiCredentials();
+  loadApAutoOffMinutes();
   loadBatteryCellCounts();
   loadManualToggleOffMs();
   loadMosfetOvertempEvents();
   logf("Manual toggle window: %u ms (min=100, max=5000)", manualPowerToggleMaxOffMs);
+  logf("AP auto-off timeout: %u min (0=disabled)", apAutoOffMinutes);
   loadSavedRuntime();
 
   startTimeMs = millis();
@@ -147,24 +198,44 @@ void setup() {
 
   fileSystemReady = LittleFS.begin(true);
 
-  WiFi.mode(WIFI_AP);
+  WiFi.mode(WIFI_AP_STA);
   WiFi.persistent(false);
   WiFi.disconnect(true, true);
-  WiFi.softAPConfig(IPAddress(4, 3, 2, 1), IPAddress(4, 3, 2, 1), IPAddress(255, 255, 255, 0));
-  WiFi.softAP(activeSsid.c_str(), activePassword.c_str(), 1, false, AP_MAX_CLIENTS);
+  WiFi.softAPConfig(AP_IP, AP_IP, AP_NETMASK);
+  apEnabled = WiFi.softAP(AP_SSID, AP_PASSWORD, 1, false, AP_MAX_CLIENTS);
+  wifiRadiosDisabled = false;
+  wifiStartupMs = millis();
+  if (!activeSsid.isEmpty()) {
+    WiFi.begin(activeSsid.c_str(), activePassword.c_str());
+    logf("STA connect attempt: ssid=%s", activeSsid.c_str());
+  }
   WiFi.onEvent([](arduino_event_id_t event, arduino_event_info_t info) {
-    if (event != ARDUINO_EVENT_WIFI_AP_STACONNECTED) {
-      return;
+    switch (event) {
+      case ARDUINO_EVENT_WIFI_AP_STACONNECTED: {
+        char mac[18];
+        snprintf(mac, sizeof(mac), "%02X:%02X:%02X:%02X:%02X:%02X", info.wifi_ap_staconnected.mac[0],
+                 info.wifi_ap_staconnected.mac[1], info.wifi_ap_staconnected.mac[2], info.wifi_ap_staconnected.mac[3],
+                 info.wifi_ap_staconnected.mac[4], info.wifi_ap_staconnected.mac[5]);
+        logf("AP client connected: %s | aid=%d", mac, info.wifi_ap_staconnected.aid);
+        break;
+      }
+      case ARDUINO_EVENT_WIFI_STA_GOT_IP:
+        staConnected = true;
+        logf("STA connected: ip=%s", WiFi.localIP().toString().c_str());
+        break;
+      case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
+        staConnected = false;
+        logf("STA disconnected: reason=%d", static_cast<int>(info.wifi_sta_disconnected.reason));
+        break;
+      default:
+        break;
     }
-    char mac[18];
-    snprintf(mac, sizeof(mac), "%02X:%02X:%02X:%02X:%02X:%02X", info.wifi_ap_staconnected.mac[0],
-             info.wifi_ap_staconnected.mac[1], info.wifi_ap_staconnected.mac[2], info.wifi_ap_staconnected.mac[3],
-             info.wifi_ap_staconnected.mac[4], info.wifi_ap_staconnected.mac[5]);
-    logf("AP client connected: %s | aid=%d", mac, info.wifi_ap_staconnected.aid);
   });
 
   dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
-  dnsServer.start(53, "*", IPAddress(4, 3, 2, 1));
+  if (apEnabled) {
+    dnsServer.start(53, "*", AP_IP);
+  }
 
   setupWebServer();
 
@@ -179,7 +250,8 @@ void setup() {
   logf("MOSFET NTC pins: H1=GPIO%d | H2=GPIO%d | overtemp_limit=%.1fC", ADC_PIN_NTC_MOSFET_1, ADC_PIN_NTC_MOSFET_2,
        MOSFET_OVERTEMP_LIMIT_C);
   logf("AP IP: %s", WiFi.softAPIP().toString().c_str());
-  logf("AP SSID: %s", activeSsid.c_str());
+  logf("AP SSID: %s", AP_SSID);
+  logf("Configured STA SSID: %s", activeSsid.c_str());
   logf("LittleFS: %s", fileSystemReady ? "ready" : "not ready");
   logLine("HTTP: /, /status, /runtime, /setTemp, /saveSettings, /swapSensors, /setWiFi, /restart, /resetRuntime, /update, /signalTest, /logs");
   logf("SSR1: %s | SSR2: %s", heaterStateText(SSR_PIN_1).c_str(), heaterStateText(SSR_PIN_2).c_str());
@@ -508,5 +580,10 @@ void loop() {
     lastMemCheckMs = now;
   }
 
-  dnsServer.processNextRequest();
+  staConnected = (WiFi.status() == WL_CONNECTED);
+  handleWifiLifetime(now);
+
+  if (apEnabled) {
+    dnsServer.processNextRequest();
+  }
 }

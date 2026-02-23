@@ -48,6 +48,10 @@ void test_status_json_basic_fields() {
   metrics.targetTemp2 = 22.5F;
   metrics.swapAssignment = true;
   metrics.ssid = "HeatControl";
+  metrics.apAutoOffMinutes = 10;
+  metrics.staConnected = true;
+  metrics.apEnabled = false;
+  metrics.wifiRadiosDisabled = false;
   metrics.heater1On = true;
   metrics.heater2On = false;
   metrics.totalRuntime = "1h 2m";
@@ -58,6 +62,8 @@ void test_status_json_basic_fields() {
   TEST_ASSERT_NOT_EQUAL(std::string::npos, json.find("\"manualMode\":1"));
   TEST_ASSERT_NOT_EQUAL(std::string::npos, json.find("\"ntcMosfet2C\":null"));
   TEST_ASSERT_NOT_EQUAL(std::string::npos, json.find("\"mosfet2OvertempTripC\":null"));
+  TEST_ASSERT_NOT_EQUAL(std::string::npos, json.find("\"apTimeoutMin\":10"));
+  TEST_ASSERT_NOT_EQUAL(std::string::npos, json.find("\"staConnected\":1"));
   TEST_ASSERT_NOT_EQUAL(std::string::npos, json.find("\"h2\":0"));
   TEST_ASSERT_NOT_EQUAL(std::string::npos, json.find("\"totalRuntime\":\"1h 2m\""));
 }

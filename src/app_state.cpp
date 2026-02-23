@@ -55,6 +55,10 @@ float mosfet1OvertempTripTempC = NAN;
 float mosfet2OvertempTripTempC = NAN;
 
 uint16_t manualPowerToggleMaxOffMs = 500;
+uint16_t apAutoOffMinutes = 10;
+bool staConnected = false;
+bool apEnabled = false;
+bool wifiRadiosDisabled = false;
 
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);

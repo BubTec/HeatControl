@@ -21,6 +21,11 @@ uint16_t clampManualToggleOffMs(uint16_t value) {
   return value;
 }
 
+uint16_t clampApAutoOffMinutes(uint16_t value) {
+  if (value > 240U) return 240U;
+  return value;
+}
+
 uint8_t clampBatteryCellCount(uint8_t value) {
   if (value >= 2 && value <= 6) {
     return value;
