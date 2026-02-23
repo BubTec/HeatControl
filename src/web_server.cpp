@@ -168,6 +168,8 @@ void setupWebServer() {
     metrics.targetTemp2 = targetTemp2;
     metrics.swapAssignment = swapAssignment;
     metrics.ssid = activeSsid.c_str();
+    metrics.apSsid = activeApSsid.c_str();
+    metrics.staIp = staConnected ? WiFi.localIP().toString().c_str() : "";
     metrics.apAutoOffMinutes = apAutoOffMinutes;
     metrics.staConnected = staConnected;
     metrics.apEnabled = apEnabled;
@@ -355,12 +357,27 @@ void setupWebServer() {
       request->send(403, "text/plain", "Forbidden");
       return;
     }
-    if (request->hasParam("ssid", true)) {
-      const String newSsid = request->getParam("ssid", true)->value();
-      const String newPassword = request->hasParam("password", true)
-                                     ? request->getParam("password", true)->value()
-                                     : String();
-      saveWiFiCredentials(newSsid, newPassword);
+    if (request->hasParam("staSsid", true)) {
+      const String newStaSsid = request->getParam("staSsid", true)->value();
+      const String newStaPassword = request->hasParam("staPassword", true)
+                                        ? request->getParam("staPassword", true)->value()
+                                        : String();
+      saveWiFiCredentials(newStaSsid, newStaPassword);
+    } else if (request->hasParam("ssid", true)) {
+      // Backward compatibility for older web UIs.
+      const String legacySsid = request->getParam("ssid", true)->value();
+      const String legacyPassword = request->hasParam("password", true)
+                                        ? request->getParam("password", true)->value()
+                                        : String();
+      saveWiFiCredentials(legacySsid, legacyPassword);
+    }
+
+    if (request->hasParam("apSsid", true)) {
+      const String newApSsid = request->getParam("apSsid", true)->value();
+      const String newApPassword = request->hasParam("apPassword", true)
+                                       ? request->getParam("apPassword", true)->value()
+                                       : String();
+      saveApCredentials(newApSsid, newApPassword);
     }
     if (request->hasParam("apTimeoutMin", true)) {
       const uint16_t value = static_cast<uint16_t>(request->getParam("apTimeoutMin", true)->value().toInt());

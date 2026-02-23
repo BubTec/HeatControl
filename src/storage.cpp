@@ -9,6 +9,8 @@
 namespace HeatControl {
 
 namespace {
+constexpr char DEFAULT_WIFI_SSID[] = "HeatControl";
+constexpr char DEFAULT_WIFI_PASSWORD[] = "HeatControl";
 
 void writeFloatToEeprom(int addr, float value) {
   uint8_t *bytes = reinterpret_cast<uint8_t *>(&value);
@@ -71,6 +73,8 @@ void saveWiFiCredentials(const String &ssid, const String &password) {
   EEPROM.write(EEPROM_INIT_ADDR, 0xAA);
   for (int i = 0; i < 32; ++i) {
     EEPROM.write(EEPROM_SSID_ADDR + i, 0);
+  }
+  for (int i = 0; i < 32; ++i) {
     EEPROM.write(EEPROM_PASS_ADDR + i, 0);
   }
 
@@ -88,7 +92,8 @@ void saveWiFiCredentials(const String &ssid, const String &password) {
 
 void loadWiFiCredentials() {
   if (EEPROM.read(EEPROM_INIT_ADDR) != 0xAA) {
-    saveWiFiCredentials("HeatControl", "HeatControl");
+    saveWiFiCredentials(DEFAULT_WIFI_SSID, DEFAULT_WIFI_PASSWORD);
+    saveApCredentials(DEFAULT_WIFI_SSID, DEFAULT_WIFI_PASSWORD);
     return;
   }
 
@@ -100,12 +105,59 @@ void loadWiFiCredentials() {
   }
 
   if (ssid[0] == '\0' || static_cast<uint8_t>(ssid[0]) == 0xFF) {
-    saveWiFiCredentials("HeatControl", "HeatControl");
+    saveWiFiCredentials(DEFAULT_WIFI_SSID, DEFAULT_WIFI_PASSWORD);
     return;
   }
 
   activeSsid = String(ssid);
   activePassword = String(pass);
+}
+
+void saveApCredentials(const String &ssid, const String &password) {
+  if (ssid.isEmpty()) {
+    return;
+  }
+
+  EEPROM.write(EEPROM_INIT_ADDR, 0xAA);
+  for (int i = 0; i < 32; ++i) {
+    EEPROM.write(EEPROM_AP_SSID_ADDR + i, 0);
+  }
+  for (int i = 0; i < 32; ++i) {
+    EEPROM.write(EEPROM_AP_PASS_ADDR + i, 0);
+  }
+
+  for (size_t i = 0; i < ssid.length() && i < 31; ++i) {
+    EEPROM.write(EEPROM_AP_SSID_ADDR + static_cast<int>(i), ssid[i]);
+  }
+  for (size_t i = 0; i < password.length() && i < 31; ++i) {
+    EEPROM.write(EEPROM_AP_PASS_ADDR + static_cast<int>(i), password[i]);
+  }
+
+  EEPROM.commit();
+  activeApSsid = ssid;
+  activeApPassword = password;
+}
+
+void loadApCredentials() {
+  if (EEPROM.read(EEPROM_INIT_ADDR) != 0xAA) {
+    saveApCredentials(DEFAULT_WIFI_SSID, DEFAULT_WIFI_PASSWORD);
+    return;
+  }
+
+  char ssid[32] = {0};
+  char pass[32] = {0};
+  for (int i = 0; i < 31; ++i) {
+    ssid[i] = static_cast<char>(EEPROM.read(EEPROM_AP_SSID_ADDR + i));
+    pass[i] = static_cast<char>(EEPROM.read(EEPROM_AP_PASS_ADDR + i));
+  }
+
+  if (ssid[0] == '\0' || static_cast<uint8_t>(ssid[0]) == 0xFF) {
+    saveApCredentials(DEFAULT_WIFI_SSID, DEFAULT_WIFI_PASSWORD);
+    return;
+  }
+
+  activeApSsid = String(ssid);
+  activeApPassword = String(pass);
 }
 
 void loadApAutoOffMinutes() {

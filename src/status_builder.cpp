@@ -69,6 +69,8 @@ std::string buildStatusJson(const StatusMetrics &m) {
   json += ",\"target2\":" + formatFloat(m.targetTemp2, 1);
   json += ",\"swap\":" + formatBool(m.swapAssignment);
   json += ",\"ssid\":\"" + logic_helpers::jsonEscape(m.ssid) + "\"";
+  json += ",\"apSsid\":\"" + logic_helpers::jsonEscape(m.apSsid) + "\"";
+  json += ",\"staIp\":\"" + logic_helpers::jsonEscape(m.staIp) + "\"";
   json += ",\"apTimeoutMin\":" + std::to_string(m.apAutoOffMinutes);
   json += ",\"staConnected\":" + formatBool(m.staConnected);
   json += ",\"apEnabled\":" + formatBool(m.apEnabled);

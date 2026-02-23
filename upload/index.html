@@ -690,8 +690,11 @@
       </div>
       <div class="summary-grid">
         <div class="summary-item"><span data-i18n="summary_ap_ip">AP IP</span><b>4.3.2.1</b></div>
+        <div class="summary-item"><span data-i18n="summary_sta_ip">Heimnetz IP</span><b id="summaryStaIp">-</b></div>
         <div class="summary-item"><span data-i18n="summary_firmware">Firmware</span><b id="firmwareVersion">-</b></div>
         <div class="summary-item"><span data-i18n="summary_ssid">WLAN</span><b id="summarySsid">-</b></div>
+        <div class="summary-item"><span data-i18n="summary_sta_status">STA Status</span><b id="summaryStaStatus">-</b></div>
+        <div class="summary-item"><span data-i18n="summary_ap_status">AP Status</span><b id="summaryApStatus">-</b></div>
       </div>
       <div class="update-banner hidden" id="updateBanner"></div>
     </section>
@@ -760,12 +763,20 @@
         <div class="sub-card" id="wifiSection">
           <div class="sub-title" data-i18n="wifi_title">WLAN Einstellungen</div>
           <div class="field">
-            <label data-i18n="wifi_ssid">Netzwerkname (SSID)</label>
-            <input class="mock-input" id="ssidInput" maxlength="31" value="HeatControl">
+            <label data-i18n="wifi_sta_ssid">Heimnetz SSID (STA)</label>
+            <input class="mock-input" id="staSsidInput" maxlength="31" value="HeatControl">
           </div>
           <div class="field">
-            <label data-i18n="wifi_pass">Passwort</label>
-            <input class="mock-input" id="passwordInput" type="password" maxlength="31" value="">
+            <label data-i18n="wifi_sta_pass">Heimnetz Passwort (STA)</label>
+            <input class="mock-input" id="staPasswordInput" type="password" maxlength="31" value="">
+          </div>
+          <div class="field">
+            <label data-i18n="wifi_ap_ssid">Access Point SSID (AP)</label>
+            <input class="mock-input" id="apSsidInput" maxlength="31" value="HeatControl">
+          </div>
+          <div class="field">
+            <label data-i18n="wifi_ap_pass">Access Point Passwort (AP)</label>
+            <input class="mock-input" id="apPasswordInput" type="password" maxlength="31" value="">
           </div>
           <div class="field">
             <label data-i18n="wifi_ap_timeout">AP Auto-Off (min, 0 = always on)</label>
@@ -907,8 +918,10 @@
   const swapSensorsInput = document.getElementById('swapSensorsInput');
   const swapOffLabel = document.getElementById('swapOffLabel');
   const swapOnLabel = document.getElementById('swapOnLabel');
-  const ssidInput = document.getElementById('ssidInput');
-  const passwordInput = document.getElementById('passwordInput');
+  const staSsidInput = document.getElementById('staSsidInput');
+  const staPasswordInput = document.getElementById('staPasswordInput');
+  const apSsidInput = document.getElementById('apSsidInput');
+  const apPasswordInput = document.getElementById('apPasswordInput');
   const apTimeoutMinutesInput = document.getElementById('apTimeoutMinutesInput');
   const battery1Cells = document.getElementById('battery1Cells');
   const battery2Cells = document.getElementById('battery2Cells');
@@ -936,7 +949,10 @@
   const diagMosfet2Protect = document.getElementById('diagMosfet2Protect');
   const diagBatt1 = document.getElementById('diagBatt1');
   const diagBatt2 = document.getElementById('diagBatt2');
+  const summaryStaIp = document.getElementById('summaryStaIp');
   const summarySsid = document.getElementById('summarySsid');
+  const summaryStaStatus = document.getElementById('summaryStaStatus');
+  const summaryApStatus = document.getElementById('summaryApStatus');
   const firmwareVersion = document.getElementById('firmwareVersion');
   const updateBanner = document.getElementById('updateBanner');
 
@@ -961,6 +977,12 @@
     batt2Cells: 3,
     apTimeoutMin: 10,
     windowMs: 1500,
+    staIp: '',
+    staSsid: '',
+    apSsid: '',
+    staConnected: false,
+    apEnabled: false,
+    wifiRadiosDisabled: false,
     modeLabel: 'AUTO',
     localVersion: '',
     remoteVersion: '',
@@ -972,8 +994,15 @@
     de: {
       mode_auto: 'AUTO',
       summary_ap_ip: 'AP IP',
+      summary_sta_ip: 'Heimnetz IP',
       summary_firmware: 'Firmware',
       summary_ssid: 'WLAN',
+      summary_sta_status: 'STA Status',
+      summary_ap_status: 'AP Status',
+      wifi_status_connected: 'Verbunden',
+      wifi_status_disconnected: 'Nicht verbunden',
+      wifi_status_enabled: 'Aktiv',
+      wifi_status_disabled: 'Aus',
       update_available: 'Neue Version verfuegbar: {version}',
       heater1_title: 'Heizung 1',
       heater2_title: 'Heizung 2',
@@ -998,8 +1027,10 @@
       off: 'AUS',
       on: 'EIN',
       wifi_title: 'WLAN Einstellungen',
-      wifi_ssid: 'Netzwerkname (SSID)',
-      wifi_pass: 'Passwort',
+      wifi_sta_ssid: 'Heimnetz SSID (STA)',
+      wifi_sta_pass: 'Heimnetz Passwort (STA)',
+      wifi_ap_ssid: 'Access Point SSID (AP)',
+      wifi_ap_pass: 'Access Point Passwort (AP)',
       wifi_ap_timeout: 'AP Auto-Off (min, 0 = immer an)',
       wifi_save: 'WLAN speichern (mit Neustart)',
       runtime_title: 'System Laufzeit',
@@ -1083,8 +1114,15 @@
     en: {
       mode_auto: 'AUTO',
       summary_ap_ip: 'AP IP',
+      summary_sta_ip: 'Home network IP',
       summary_firmware: 'Firmware',
       summary_ssid: 'WiFi',
+      summary_sta_status: 'STA status',
+      summary_ap_status: 'AP status',
+      wifi_status_connected: 'Connected',
+      wifi_status_disconnected: 'Not connected',
+      wifi_status_enabled: 'Enabled',
+      wifi_status_disabled: 'Disabled',
       update_available: 'New version available: {version}',
       heater1_title: 'Heating 1',
       heater2_title: 'Heating 2',
@@ -1109,8 +1147,10 @@
       off: 'OFF',
       on: 'ON',
       wifi_title: 'WiFi settings',
-      wifi_ssid: 'Network name (SSID)',
-      wifi_pass: 'Password',
+      wifi_sta_ssid: 'Home network SSID (STA)',
+      wifi_sta_pass: 'Home network password (STA)',
+      wifi_ap_ssid: 'Access point SSID (AP)',
+      wifi_ap_pass: 'Access point password (AP)',
       wifi_ap_timeout: 'AP auto-off (min, 0 = always on)',
       wifi_save: 'Save WiFi (with restart)',
       runtime_title: 'System runtime',
@@ -1586,15 +1626,18 @@
   }
 
   async function saveWifi() {
-    const ssid = (ssidInput.value || '').trim();
-    if (!ssid) {
+    const staSsid = (staSsidInput.value || '').trim();
+    const apSsid = (apSsidInput.value || '').trim();
+    if (!staSsid || !apSsid) {
       showToast(t('toast_wifi_error'));
       return;
     }
     try {
       await postForm('/setWiFi', {
-        ssid: ssid,
-        password: passwordInput.value || '',
+        staSsid: staSsid,
+        staPassword: staPasswordInput.value || '',
+        apSsid: apSsid,
+        apPassword: apPasswordInput.value || '',
         apTimeoutMin: state.apTimeoutMin
       });
       showToast(t('toast_wifi_saved'));
@@ -1711,10 +1754,19 @@
     currentTemp2Display.textContent = formatCurrentTemp(state.current2);
     supply1Display.textContent = formatSupplyState(state.adc1Mv);
     supply2Display.textContent = formatSupplyState(state.adc2Mv);
+    renderWifiSummary();
     renderUpdateBanner();
     if (!serialHasLogData && serialLogWindow) {
       serialLogWindow.textContent = t('serial_empty');
     }
+  }
+
+  function renderWifiSummary() {
+    summaryStaIp.textContent = state.staIp || '-';
+    summarySsid.textContent = state.staSsid || '-';
+    summaryStaStatus.textContent = state.staConnected ? t('wifi_status_connected') : t('wifi_status_disconnected');
+    const apActive = state.apEnabled && !state.wifiRadiosDisabled;
+    summaryApStatus.textContent = apActive ? t('wifi_status_enabled') : t('wifi_status_disabled');
   }
 
   async function updateStatus() {
@@ -1737,6 +1789,10 @@
       const current2 = Number(data.current2);
       state.current1 = Number.isFinite(current1) ? current1 : 0;
       state.current2 = Number.isFinite(current2) ? current2 : 0;
+      state.staIp = typeof data.staIp === 'string' ? data.staIp : '';
+      state.staConnected = Number(data.staConnected || 0) === 1;
+      state.apEnabled = Number(data.apEnabled || 0) === 1;
+      state.wifiRadiosDisabled = Number(data.wifiRadiosDisabled || 0) === 1;
       currentTemp1Display.textContent = formatCurrentTemp(state.current1);
       currentTemp2Display.textContent = formatCurrentTemp(state.current2);
 
@@ -1765,10 +1821,22 @@
           manualToggleWindowInput.value = String(Math.round(state.windowMs));
         }
         if (typeof data.ssid === 'string' && data.ssid.length > 0) {
-          ssidInput.value = data.ssid;
-          summarySsid.textContent = data.ssid;
+          state.staSsid = data.ssid;
+          staSsidInput.value = data.ssid;
+        }
+        if (typeof data.apSsid === 'string' && data.apSsid.length > 0) {
+          state.apSsid = data.apSsid;
+          apSsidInput.value = data.apSsid;
         }
       }
+
+      if (!state.staSsid && typeof data.ssid === 'string' && data.ssid.length > 0) {
+        state.staSsid = data.ssid;
+      }
+      if (!state.apSsid && typeof data.apSsid === 'string' && data.apSsid.length > 0) {
+        state.apSsid = data.apSsid;
+      }
+      renderWifiSummary();
 
       const out1 = manual ? Number(data.manualPercent1 || 0) : (data.h1 ? 100 : 0);
       const out2 = manual ? Number(data.manualPercent2 || 0) : (data.h2 ? 100 : 0);
@@ -1900,8 +1968,10 @@
     updateSwapVisual();
   });
 
-  ssidInput.addEventListener('input', markUserEditing);
-  passwordInput.addEventListener('input', markUserEditing);
+  staSsidInput.addEventListener('input', markUserEditing);
+  staPasswordInput.addEventListener('input', markUserEditing);
+  apSsidInput.addEventListener('input', markUserEditing);
+  apPasswordInput.addEventListener('input', markUserEditing);
   battery1Cells.addEventListener('change', () => { markUserEditing(); state.batt1Cells = Number(battery1Cells.value || 3); });
   battery2Cells.addEventListener('change', () => { markUserEditing(); state.batt2Cells = Number(battery2Cells.value || 3); });
   apTimeoutMinutesInput.addEventListener('input', () => {

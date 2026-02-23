@@ -45,6 +45,8 @@ struct StatusMetrics {
   float targetTemp2 = 0.0F;
   bool swapAssignment = false;
   std::string ssid;
+  std::string apSsid;
+  std::string staIp;
   uint16_t apAutoOffMinutes = 0;
   bool staConnected = false;
   bool apEnabled = false;

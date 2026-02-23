@@ -32,8 +32,6 @@ constexpr uint8_t BATTERY_STABLE_SAMPLES = 2;
 
 BatteryToggleDetector battery1Detector(BATTERY_ADC_OFF_THRESHOLD_MV, BATTERY_ADC_ON_THRESHOLD_MV, BATTERY_STABLE_SAMPLES);
 BatteryToggleDetector battery2Detector(BATTERY_ADC_OFF_THRESHOLD_MV, BATTERY_ADC_ON_THRESHOLD_MV, BATTERY_STABLE_SAMPLES);
-constexpr char AP_SSID[] = "HeatControl";
-constexpr char AP_PASSWORD[] = "HeatControl";
 const IPAddress AP_IP(4, 3, 2, 1);
 const IPAddress AP_NETMASK(255, 255, 255, 0);
 unsigned long wifiStartupMs = 0;
@@ -185,6 +183,7 @@ void setup() {
   loadTemperatureTargets();
   loadSwapAssignment();
   loadWiFiCredentials();
+  loadApCredentials();
   loadApAutoOffMinutes();
   loadBatteryCellCounts();
   loadManualToggleOffMs();
@@ -202,7 +201,7 @@ void setup() {
   WiFi.persistent(false);
   WiFi.disconnect(true, true);
   WiFi.softAPConfig(AP_IP, AP_IP, AP_NETMASK);
-  apEnabled = WiFi.softAP(AP_SSID, AP_PASSWORD, 1, false, AP_MAX_CLIENTS);
+  apEnabled = WiFi.softAP(activeApSsid.c_str(), activeApPassword.c_str(), 1, false, AP_MAX_CLIENTS);
   wifiRadiosDisabled = false;
   wifiStartupMs = millis();
   if (!activeSsid.isEmpty()) {
@@ -250,7 +249,7 @@ void setup() {
   logf("MOSFET NTC pins: H1=GPIO%d | H2=GPIO%d | overtemp_limit=%.1fC", ADC_PIN_NTC_MOSFET_1, ADC_PIN_NTC_MOSFET_2,
        MOSFET_OVERTEMP_LIMIT_C);
   logf("AP IP: %s", WiFi.softAPIP().toString().c_str());
-  logf("AP SSID: %s", AP_SSID);
+  logf("AP SSID: %s", activeApSsid.c_str());
   logf("Configured STA SSID: %s", activeSsid.c_str());
   logf("LittleFS: %s", fileSystemReady ? "ready" : "not ready");
   logLine("HTTP: /, /status, /runtime, /setTemp, /saveSettings, /swapSensors, /setWiFi, /restart, /resetRuntime, /update, /signalTest, /logs");
