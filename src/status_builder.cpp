@@ -35,6 +35,7 @@ std::string formatOptionalFloat(bool valid, float value, int decimals) {
 std::string buildStatusJson(const StatusMetrics &m) {
   std::string json = "{";
   json += "\"mode\":\"" + logic_helpers::jsonEscape(m.modeText) + "\"";
+  json += ",\"logLevel\":\"" + logic_helpers::jsonEscape(m.logLevelText) + "\"";
   json += ",\"manualMode\":" + formatBool(m.manualMode);
   json += ",\"manualPercent1\":" + std::to_string(m.manualPercent1);
   json += ",\"manualPercent2\":" + std::to_string(m.manualPercent2);

@@ -21,6 +21,8 @@ void saveApCredentials(const String &ssid, const String &password);
 void loadApCredentials();
 void loadApAutoOffMinutes();
 void saveApAutoOffMinutes();
+void loadLogLevel();
+void saveLogLevel();
 
 void loadManualPowerPercents();
 void saveManualPowerPercents();

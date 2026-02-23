@@ -282,6 +282,7 @@ void setup() {
   loadWiFiCredentials();
   loadApCredentials();
   loadApAutoOffMinutes();
+  loadLogLevel();
   loadBatteryCellCounts();
   loadBatteryChemistries();
   loadManualToggleOffMs();

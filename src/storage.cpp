@@ -184,6 +184,27 @@ void saveApAutoOffMinutes() {
   EEPROM.commit();
 }
 
+void loadLogLevel() {
+  const uint8_t raw = EEPROM.read(EEPROM_LOG_LEVEL_ADDR);
+  if (raw == 0xFFU) {
+    currentLogLevel = LogLevel::Info;
+    return;
+  }
+
+  if (raw <= static_cast<uint8_t>(LogLevel::Debug)) {
+    currentLogLevel = static_cast<LogLevel>(raw);
+    return;
+  }
+
+  currentLogLevel = LogLevel::Info;
+}
+
+void saveLogLevel() {
+  const uint8_t value = static_cast<uint8_t>(currentLogLevel);
+  EEPROM.write(EEPROM_LOG_LEVEL_ADDR, value);
+  EEPROM.commit();
+}
+
 void loadManualPowerPercents() {
   const uint8_t stored1 = EEPROM.read(EEPROM_MANUAL_POWER1_ADDR);
   const uint8_t stored2 = EEPROM.read(EEPROM_MANUAL_POWER2_ADDR);

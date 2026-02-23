@@ -651,6 +651,28 @@
       color: var(--muted);
     }
 
+    .serial-toolbar-controls {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .serial-log-level {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #d6dfe6;
+    }
+
+    .serial-level-select {
+      min-width: 92px;
+      height: 28px;
+      font-size: 0.72rem;
+      padding: 2px 8px;
+    }
+
     .serial-auto-toggle {
       display: inline-flex;
       align-items: center;
@@ -939,10 +961,20 @@
           <div class="serial-preview hidden" id="serialPreview">
             <div class="serial-preview-toolbar">
               <div class="serial-preview-title" data-i18n="serial_button">Serielles Protokoll</div>
-              <label class="serial-auto-toggle">
-                <input type="checkbox" id="serialAutoScroll" checked>
-                <span data-i18n="serial_autoscroll">Auto-Scroll</span>
-              </label>
+              <div class="serial-toolbar-controls">
+                <label class="serial-log-level">
+                  <span data-i18n="serial_log_level">Log-Level</span>
+                  <select id="serialLogLevelSelect" class="mock-input serial-level-select">
+                    <option value="error" data-i18n="log_level_error">ERROR</option>
+                    <option value="info" data-i18n="log_level_info">INFO</option>
+                    <option value="debug" data-i18n="log_level_debug">DEBUG</option>
+                  </select>
+                </label>
+                <label class="serial-auto-toggle">
+                  <input type="checkbox" id="serialAutoScroll" checked>
+                  <span data-i18n="serial_autoscroll">Auto-Scroll</span>
+                </label>
+              </div>
             </div>
             <pre class="serial-log-window" id="serialLogWindow">Keine Logdaten geladen.</pre>
           </div>
@@ -966,6 +998,7 @@
   const serialPreview = document.getElementById('serialPreview');
   const serialLogWindow = document.getElementById('serialLogWindow');
   const serialAutoScrollInput = document.getElementById('serialAutoScroll');
+  const serialLogLevelSelect = document.getElementById('serialLogLevelSelect');
   let serialAutoScrollEnabled = serialAutoScrollInput ? serialAutoScrollInput.checked : true;
   let serialHasLogData = false;
   const langToggleBtn = document.getElementById('langToggleBtn');
@@ -1069,6 +1102,7 @@
     staConnected: false,
     apEnabled: false,
     wifiRadiosDisabled: false,
+    logLevel: 'info',
     modeLabel: 'AUTO',
     localVersion: '',
     remoteVersion: '',
@@ -1165,6 +1199,10 @@
       overtemp_reset_btn: 'MOSFET Overtemp-Historie reset',
       serial_button: 'Serielles Protokoll',
       serial_autoscroll: 'Auto-Scroll',
+      serial_log_level: 'Log-Level',
+      log_level_error: 'ERROR',
+      log_level_info: 'INFO',
+      log_level_debug: 'DEBUG',
       badge_hot: 'MOSFET HEISS',
       badge_trip: 'MOSFET VORFALL',
       help_sensor_swap: 'Nur aktivieren, wenn Heizung 1/2 offensichtlich vertauscht reagieren.',
@@ -1187,6 +1225,8 @@
       toast_overtemp_reset: 'MOSFET Overtemp-Historie geloescht',
       toast_serial_open: 'Serielles Protokoll geoeffnet',
       toast_serial_close: 'Serielles Protokoll geschlossen',
+      toast_log_level_saved: 'Log-Level gespeichert',
+      toast_log_level_error: 'Log-Level konnte nicht gesetzt werden',
       toast_ota: 'OTA Seite wird geoeffnet',
       toast_update_checking: 'Pruefe auf neue Version...',
       toast_update_none: 'Keine neuere Version gefunden',
@@ -1297,6 +1337,10 @@
       overtemp_reset_btn: 'Reset MOSFET overtemp history',
       serial_button: 'Serial log',
       serial_autoscroll: 'Auto-scroll',
+      serial_log_level: 'Log level',
+      log_level_error: 'ERROR',
+      log_level_info: 'INFO',
+      log_level_debug: 'DEBUG',
       badge_hot: 'MOSFET HOT',
       badge_trip: 'MOSFET EVENT',
       help_sensor_swap: 'Only enable this when heating zone behavior is clearly swapped.',
@@ -1319,6 +1363,8 @@
       toast_overtemp_reset: 'MOSFET overtemp history cleared',
       toast_serial_open: 'Serial log opened',
       toast_serial_close: 'Serial log closed',
+      toast_log_level_saved: 'Log level saved',
+      toast_log_level_error: 'Could not set log level',
       toast_ota: 'Opening OTA page',
       toast_update_checking: 'Checking for updates...',
       toast_update_none: 'No newer version found',
@@ -1908,6 +1954,26 @@
     }
   }
 
+  async function setLogLevel(level) {
+    const normalized = String(level || '').trim().toLowerCase();
+    if (!['error', 'info', 'debug'].includes(normalized)) {
+      return;
+    }
+    try {
+      await postForm('/setLogLevel', { level: normalized });
+      state.logLevel = normalized;
+      if (serialLogLevelSelect) {
+        serialLogLevelSelect.value = normalized;
+      }
+      showToast(t('toast_log_level_saved'));
+    } catch (_) {
+      if (serialLogLevelSelect) {
+        serialLogLevelSelect.value = state.logLevel || 'info';
+      }
+      showToast(t('toast_log_level_error'));
+    }
+  }
+
   async function updateVersion() {
     try {
       const response = await fetch('/version.txt');
@@ -1984,6 +2050,13 @@
       state.staConnected = Number(data.staConnected || 0) === 1;
       state.apEnabled = Number(data.apEnabled || 0) === 1;
       state.wifiRadiosDisabled = Number(data.wifiRadiosDisabled || 0) === 1;
+      const serverLogLevel = String(data.logLevel || '').toLowerCase();
+      if (serverLogLevel === 'error' || serverLogLevel === 'info' || serverLogLevel === 'debug') {
+        state.logLevel = serverLogLevel;
+        if (serialLogLevelSelect && serialLogLevelSelect.value !== serverLogLevel) {
+          serialLogLevelSelect.value = serverLogLevel;
+        }
+      }
       currentTemp1Display.textContent = formatCurrentTemp(state.current1);
       currentTemp2Display.textContent = formatCurrentTemp(state.current2);
 
@@ -2157,6 +2230,11 @@
     serialAutoScrollInput.addEventListener('change', () => {
       serialAutoScrollEnabled = !!serialAutoScrollInput.checked;
       if (serialAutoScrollEnabled) scrollSerialToBottom();
+    });
+  }
+  if (serialLogLevelSelect) {
+    serialLogLevelSelect.addEventListener('change', () => {
+      void setLogLevel(serialLogLevelSelect.value);
     });
   }
 

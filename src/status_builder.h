@@ -7,6 +7,7 @@ namespace HeatControl {
 
 struct StatusMetrics {
   std::string modeText;
+  std::string logLevelText;
   bool manualMode = false;
   uint8_t manualPercent1 = 0;
   uint8_t manualPercent2 = 0;

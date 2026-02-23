@@ -28,6 +28,7 @@ constexpr int EEPROM_MOSFET2_OVERTEMP_TEMP_ADDR = 328;
 constexpr int EEPROM_AP_AUTO_OFF_MINUTES_ADDR = 332;
 constexpr int EEPROM_BATTERY1_CHEM_ADDR = 334;
 constexpr int EEPROM_BATTERY2_CHEM_ADDR = 335;
+constexpr int EEPROM_LOG_LEVEL_ADDR = 336;
 constexpr int EEPROM_TEMP1_ADDR = 64;
 constexpr int EEPROM_TEMP2_ADDR = 68;
 constexpr int EEPROM_SWAP_ADDR = 72;

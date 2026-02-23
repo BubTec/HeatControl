@@ -142,6 +142,7 @@ void setupWebServer() {
 
     StatusMetrics metrics;
     metrics.modeText = modeText.c_str();
+    metrics.logLevelText = logLevelToText(currentLogLevel);
     metrics.manualMode = manualMode;
     metrics.manualPercent1 = manualPowerPercent1;
     metrics.manualPercent2 = manualPowerPercent2;
@@ -330,6 +331,7 @@ void setupWebServer() {
     }
 
     setLogLevel(parsed);
+    saveLogLevel();
     logf("HTTP /setLogLevel | client=%s | level=%s", clientIpText(request).c_str(), logLevelToText(parsed));
     request->send(200, "text/plain", "OK");
   });
