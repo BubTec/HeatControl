@@ -84,6 +84,14 @@
       min-height: 28px;
     }
 
+    .version-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      cursor: default;
+      user-select: none;
+    }
+
     .mode-pill {
       border: 1px solid rgba(57, 208, 152, 0.62);
       border-radius: 999px;
@@ -682,6 +690,7 @@
       <div class="mode-row">
         <div class="mode-pill" id="modePill" data-i18n="mode_auto">AUTO</div>
         <button type="button" class="lang-btn" id="langToggleBtn">English</button>
+        <div class="lang-btn version-chip"><span data-i18n="summary_firmware_short">v</span><span id="firmwareVersion">-</span></div>
       </div>
       <div class="mode-help hidden" id="modeHelpBox">
         <div><b data-i18n="mode_auto_label">AUTO:</b><span data-i18n="mode_auto_desc">Automatische Regelung fuer beide Heizkreise anhand der Solltemperaturen.</span></div>
@@ -689,12 +698,12 @@
         <div><b data-i18n="mode_manual_label">MANUAL:</b><span data-i18n="mode_manual_desc">Manuelle Steuerung fuer beide Heizkreise mit festen Leistungswerten.</span></div>
       </div>
       <div class="summary-grid">
-        <div class="summary-item"><span data-i18n="summary_ap_ip">AP IP</span><b>4.3.2.1</b></div>
-        <div class="summary-item"><span data-i18n="summary_sta_ip">Heimnetz IP</span><b id="summaryStaIp">-</b></div>
-        <div class="summary-item"><span data-i18n="summary_firmware">Firmware</span><b id="firmwareVersion">-</b></div>
-        <div class="summary-item"><span data-i18n="summary_ssid">WLAN</span><b id="summarySsid">-</b></div>
-        <div class="summary-item"><span data-i18n="summary_sta_status">STA Status</span><b id="summaryStaStatus">-</b></div>
+        <div class="summary-item"><span data-i18n="summary_ap_ip">AP IP</span><b id="summaryApIp">4.3.2.1</b></div>
         <div class="summary-item"><span data-i18n="summary_ap_status">AP Status</span><b id="summaryApStatus">-</b></div>
+        <div class="summary-item"><span data-i18n="summary_ap_ssid">AP SSID</span><b id="summaryApSsid">-</b></div>
+        <div class="summary-item"><span data-i18n="summary_sta_ip">Heimnetz IP</span><b id="summaryStaIp">-</b></div>
+        <div class="summary-item"><span data-i18n="summary_sta_status">Heimnetz Status</span><b id="summaryStaStatus">-</b></div>
+        <div class="summary-item"><span data-i18n="summary_sta_ssid">Heimnetz SSID</span><b id="summaryStaSsid">-</b></div>
       </div>
       <div class="update-banner hidden" id="updateBanner"></div>
     </section>
@@ -949,8 +958,10 @@
   const diagMosfet2Protect = document.getElementById('diagMosfet2Protect');
   const diagBatt1 = document.getElementById('diagBatt1');
   const diagBatt2 = document.getElementById('diagBatt2');
+  const summaryApIp = document.getElementById('summaryApIp');
+  const summaryApSsid = document.getElementById('summaryApSsid');
   const summaryStaIp = document.getElementById('summaryStaIp');
-  const summarySsid = document.getElementById('summarySsid');
+  const summaryStaSsid = document.getElementById('summaryStaSsid');
   const summaryStaStatus = document.getElementById('summaryStaStatus');
   const summaryApStatus = document.getElementById('summaryApStatus');
   const firmwareVersion = document.getElementById('firmwareVersion');
@@ -977,6 +988,7 @@
     batt2Cells: 3,
     apTimeoutMin: 10,
     windowMs: 1500,
+    apIp: '4.3.2.1',
     staIp: '',
     staSsid: '',
     apSsid: '',
@@ -995,9 +1007,10 @@
       mode_auto: 'AUTO',
       summary_ap_ip: 'AP IP',
       summary_sta_ip: 'Heimnetz IP',
-      summary_firmware: 'Firmware',
-      summary_ssid: 'WLAN',
-      summary_sta_status: 'STA Status',
+      summary_firmware_short: 'v',
+      summary_ap_ssid: 'AP SSID',
+      summary_sta_ssid: 'Heimnetz SSID',
+      summary_sta_status: 'Heimnetz Status',
       summary_ap_status: 'AP Status',
       wifi_status_connected: 'Verbunden',
       wifi_status_disconnected: 'Nicht verbunden',
@@ -1115,9 +1128,10 @@
       mode_auto: 'AUTO',
       summary_ap_ip: 'AP IP',
       summary_sta_ip: 'Home network IP',
-      summary_firmware: 'Firmware',
-      summary_ssid: 'WiFi',
-      summary_sta_status: 'STA status',
+      summary_firmware_short: 'v',
+      summary_ap_ssid: 'AP SSID',
+      summary_sta_ssid: 'Home network SSID',
+      summary_sta_status: 'Home network status',
       summary_ap_status: 'AP status',
       wifi_status_connected: 'Connected',
       wifi_status_disconnected: 'Not connected',
@@ -1762,8 +1776,10 @@
   }
 
   function renderWifiSummary() {
+    summaryApIp.textContent = state.apIp || '4.3.2.1';
+    summaryApSsid.textContent = state.apSsid || '-';
     summaryStaIp.textContent = state.staIp || '-';
-    summarySsid.textContent = state.staSsid || '-';
+    summaryStaSsid.textContent = state.staSsid || '-';
     summaryStaStatus.textContent = state.staConnected ? t('wifi_status_connected') : t('wifi_status_disconnected');
     const apActive = state.apEnabled && !state.wifiRadiosDisabled;
     summaryApStatus.textContent = apActive ? t('wifi_status_enabled') : t('wifi_status_disabled');
