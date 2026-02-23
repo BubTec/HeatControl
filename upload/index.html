@@ -889,16 +889,7 @@
         </div>
 
         <div class="sub-card" id="settingsSection">
-          <div class="sub-title" data-i18n="system_actions_title">Systemaktionen</div>
-          <div class="btn-grid" style="margin-top:8px;">
-            <button type="button" class="btn" id="saveSettingsBtn" data-i18n="settings_save">Alle Einstellungen speichern</button>
-            <button type="button" class="btn" id="restartNormalBtn" data-i18n="restart_normal">Neustart</button>
-          </div>
-          <div class="help-text" data-i18n="help_system_actions">Alle Einstellungen speichern betrifft Sollwerte, Sensor-Zuordnung, Batterie-Zellen und das Manual-Fenster. WLAN bleibt separat.</div>
-        </div>
-
-        <div class="sub-card" id="diagSection">
-          <div class="sub-title" data-i18n="diag_title">Diagnose</div>
+          <div class="sub-title" data-i18n="system_actions_title">Systemeinstellungen</div>
           <div class="row-two" style="margin-bottom:8px;">
             <div class="field">
               <label for="battery1Cells" data-i18n="diag_batt1_cells">Batterie 1 Zellen</label>
@@ -948,6 +939,15 @@
             <input type="number" id="manualToggleWindowInput" class="mock-input" min="100" max="5000" step="50" value="1500">
           </div>
           <div class="help-text" data-i18n="help_diag_manual">Dieses Fenster bestimmt, wie lange eine Batterie maximal aus sein darf, damit ein Manual-Schaltimpuls erkannt wird.</div>
+          <div class="btn-grid" style="margin-top:8px;">
+            <button type="button" class="btn" id="saveSettingsBtn" data-i18n="settings_save">Alle Einstellungen speichern</button>
+            <button type="button" class="btn" id="restartNormalBtn" data-i18n="restart_normal">Neustart</button>
+          </div>
+          <div class="help-text" data-i18n="help_system_actions">Alle Einstellungen speichern betrifft Sollwerte, Sensor-Zuordnung, Batterie-Zellen und das Manual-Fenster. WLAN bleibt separat.</div>
+        </div>
+
+        <div class="sub-card" id="diagSection">
+          <div class="sub-title" data-i18n="diag_title">Diagnose</div>
           <div class="diag-grid">
             <div class="diag-item"><span data-i18n="diag_boot">Boot Pin</span><b id="bootPinState">-</b></div>
             <div class="diag-item"><span data-i18n="diag_manual_window">Manual-Fenster</span><b id="manualToggleWindowDisplay">-</b></div>
@@ -1178,7 +1178,7 @@
       update_check_btn: 'Auf Update pruefen',
       update_auto_btn: 'Automatisch aktualisieren',
       ota_open: 'Update-Seite oeffnen',
-      system_actions_title: 'Systemaktionen',
+      system_actions_title: 'Systemeinstellungen',
       settings_save: 'Alle Einstellungen speichern',
       restart_normal: 'Neustart',
       diag_title: 'Diagnose',
@@ -1321,7 +1321,7 @@
       update_check_btn: 'Check for updates',
       update_auto_btn: 'Auto update',
       ota_open: 'Open update page',
-      system_actions_title: 'System actions',
+      system_actions_title: 'System settings',
       settings_save: 'Save all settings',
       restart_normal: 'Reboot',
       diag_title: 'Diagnostics',
