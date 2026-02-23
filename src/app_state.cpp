@@ -65,6 +65,7 @@ uint16_t manualPowerToggleMaxOffMs = 500;
 uint16_t apAutoOffMinutes = 10;
 bool staConnected = false;
 bool apEnabled = false;
+bool apManuallyEnabled = false;
 bool wifiRadiosDisabled = false;
 unsigned long wifiStartupMs = 0;
 

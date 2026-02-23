@@ -89,7 +89,7 @@ void handleWifiLifetime(unsigned long now) {
     return;
   }
 
-  if (staConnected) {
+  if (staConnected && !apManuallyEnabled) {
     stopApMode();
     return;
   }

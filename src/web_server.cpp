@@ -113,6 +113,7 @@ void logDeniedRequest(const char *endpoint, AsyncWebServerRequest *request) {
 }
 
 bool setApEnabledRuntime(bool enable, const String &clientIp) {
+  apManuallyEnabled = enable;
   if (enable) {
     if (activeApSsid.isEmpty()) {
       activeApSsid = "HeatControl";

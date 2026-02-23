@@ -149,6 +149,7 @@ extern uint16_t manualPowerToggleMaxOffMs;
 extern uint16_t apAutoOffMinutes;
 extern bool staConnected;
 extern bool apEnabled;
+extern bool apManuallyEnabled;
 extern bool wifiRadiosDisabled;
 extern unsigned long wifiStartupMs;
 
