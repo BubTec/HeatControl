@@ -152,6 +152,11 @@ class Handler(BaseHTTPRequestHandler):
             self._send_bytes(HTTPStatus.OK, text.encode("utf-8"), "text/plain; charset=utf-8")
             return
         if path == "/update":
+            update_page = os.path.join(UPLOAD_DIR, "update.html")
+            if os.path.isfile(update_page):
+                self._serve_upload_file("/update.html")
+                return
+
             html = (
                 "<!doctype html><html><head><meta charset='utf-8'>"
                 "<meta name='viewport' content='width=device-width, initial-scale=1'>"
@@ -232,4 +237,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
