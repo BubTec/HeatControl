@@ -33,6 +33,9 @@ void cycleManualPowerPercents();
 void loadManualToggleOffMs();
 void saveManualToggleOffMs();
 
+void loadSignalTimingPreset();
+void saveSignalTimingPreset();
+
 void loadBatteryCellCounts();
 void saveBatteryCellCounts();
 void loadBatteryChemistries();

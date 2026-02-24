@@ -213,6 +213,7 @@ void setupWebServer() {
     metrics.battery2CellVoltage = battery2CellVoltage;
     metrics.battery2SocPercent = battery2SocPercent;
     metrics.manualToggleMaxOffMs = manualPowerToggleMaxOffMs;
+    metrics.signalTimingPreset = static_cast<uint8_t>(signalTimingPreset);
     metrics.displayTemp1 = displayTemp1;
     metrics.displayTemp2 = displayTemp2;
     metrics.targetTemp1 = targetTemp1;
@@ -438,6 +439,7 @@ void setupWebServer() {
     bool batteryChanged = false;
     bool batteryChemChanged = false;
     bool apTimeoutChanged = false;
+    bool signalTimingChanged = false;
 
     if (request->hasParam("temp1", true)) {
       targetTemp1 = clampTarget(request->getParam("temp1", true)->value().toFloat());
@@ -464,6 +466,26 @@ void setupWebServer() {
       const uint16_t value = static_cast<uint16_t>(request->getParam("apTimeoutMin", true)->value().toInt());
       apAutoOffMinutes = clampApAutoOffMinutes(value);
       apTimeoutChanged = true;
+    }
+
+    if (request->hasParam("signalTiming", true)) {
+      String raw = request->getParam("signalTiming", true)->value();
+      raw.trim();
+      raw.toLowerCase();
+      if (raw == "short") {
+        signalTimingPreset = SignalTimingPreset::Short;
+        signalTimingChanged = true;
+      } else if (raw == "fast") {
+        signalTimingPreset = SignalTimingPreset::Fast;
+        signalTimingChanged = true;
+      } else if (raw == "middle") {
+        signalTimingPreset = SignalTimingPreset::Middle;
+        signalTimingChanged = true;
+      } else {
+        const uint8_t value = static_cast<uint8_t>(raw.toInt());
+        signalTimingPreset = clampSignalTimingPreset(value);
+        signalTimingChanged = true;
+      }
     }
 
     if (request->hasParam("batt1Cells", true)) {
@@ -504,10 +526,13 @@ void setupWebServer() {
     if (apTimeoutChanged) {
       saveApAutoOffMinutes();
     }
+    if (signalTimingChanged) {
+      saveSignalTimingPreset();
+    }
 
-    logf("HTTP /saveSettings | client=%s | temp=%d | swap=%d | manual_window=%d | battery=%d | battery_chem=%d | ap_timeout=%d",
+    logf("HTTP /saveSettings | client=%s | temp=%d | swap=%d | manual_window=%d | battery=%d | battery_chem=%d | ap_timeout=%d | signal_timing=%d",
          clientIpText(request).c_str(), tempChanged ? 1 : 0, swapChanged ? 1 : 0, manualWindowChanged ? 1 : 0,
-         batteryChanged ? 1 : 0, batteryChemChanged ? 1 : 0, apTimeoutChanged ? 1 : 0);
+         batteryChanged ? 1 : 0, batteryChemChanged ? 1 : 0, apTimeoutChanged ? 1 : 0, signalTimingChanged ? 1 : 0);
     request->send(200, "text/plain", "OK");
   });
 
@@ -601,9 +626,7 @@ void setupWebServer() {
       return;
     }
     logf("HTTP /signalTest | client=%s", clientIpText(request).c_str());
-    digitalWrite(SIGNAL_PIN, LOW);
-    delay(120);
-    digitalWrite(SIGNAL_PIN, HIGH);
+    signalTestPulse();
     request->send(200, "text/plain", "OK");
   });
 

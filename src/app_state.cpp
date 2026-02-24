@@ -86,4 +86,6 @@ LogLevel currentLogLevel = LogLevel::Info;
 bool pendingTempPersist = false;
 unsigned long pendingTempPersistAtMs = 0;
 
+SignalTimingPreset signalTimingPreset = SignalTimingPreset::Middle;
+
 }  // namespace HeatControl

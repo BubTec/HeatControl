@@ -66,6 +66,7 @@ std::string buildStatusJson(const StatusMetrics &m) {
   json += ",\"batt2CellV\":" + formatFloat(m.battery2CellVoltage, 2);
   json += ",\"batt2Soc\":" + std::to_string(m.battery2SocPercent);
   json += ",\"manualToggleMaxOffMs\":" + std::to_string(m.manualToggleMaxOffMs);
+  json += ",\"signalTimingPreset\":" + std::to_string(m.signalTimingPreset);
   json += ",\"current1\":" + formatFloat(m.displayTemp1, 2);
   json += ",\"current2\":" + formatFloat(m.displayTemp2, 2);
   json += ",\"target1\":" + formatFloat(m.targetTemp1, 1);

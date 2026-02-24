@@ -1,11 +1,13 @@
 #include "led_patterns.h"
 
+#include "app_state.h"
+
 namespace HeatControl {
 
 namespace {
 
-constexpr unsigned long STEP_ON_MS = 120;
-constexpr unsigned long STEP_OFF_MS = 120;
+constexpr unsigned long STEP_ON_MS = 130;
+constexpr unsigned long STEP_OFF_MS = 130;
 constexpr unsigned long STEP_DONE_PAUSE_MS = 600;
 
 constexpr unsigned long SOS_SHORT_ON_MS = 150;
@@ -89,20 +91,20 @@ void LedPattern::updateStepBlink(unsigned long nowMs) {
   if (!stepPhaseOn_) {
     stepPhaseOn_ = true;
     setOutput(true);
-    stepPhaseUntilMs_ = nowMs + STEP_ON_MS;
+    stepPhaseUntilMs_ = nowMs + scaleSignalMs(STEP_ON_MS, signalTimingPreset);
     return;
   }
 
   stepPhaseOn_ = false;
   setOutput(false);
-  stepPhaseUntilMs_ = nowMs + STEP_OFF_MS;
+  stepPhaseUntilMs_ = nowMs + scaleSignalMs(STEP_OFF_MS, signalTimingPreset);
 
   if (stepBlinksRemaining_ > 0) {
     --stepBlinksRemaining_;
   }
 
   if (stepBlinksRemaining_ == 0) {
-    stepPhaseUntilMs_ = nowMs + STEP_DONE_PAUSE_MS;
+    stepPhaseUntilMs_ = nowMs + scaleSignalMs(STEP_DONE_PAUSE_MS, signalTimingPreset);
   }
 }
 
@@ -134,4 +136,3 @@ void LedPattern::updateTrip(unsigned long nowMs) {
 }
 
 }  // namespace HeatControl
-

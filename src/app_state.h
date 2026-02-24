@@ -29,6 +29,7 @@ constexpr int EEPROM_AP_AUTO_OFF_MINUTES_ADDR = 332;
 constexpr int EEPROM_BATTERY1_CHEM_ADDR = 334;
 constexpr int EEPROM_BATTERY2_CHEM_ADDR = 335;
 constexpr int EEPROM_LOG_LEVEL_ADDR = 336;
+constexpr int EEPROM_SIGNAL_TIMING_PRESET_ADDR = 337;
 constexpr int EEPROM_TEMP1_ADDR = 64;
 constexpr int EEPROM_TEMP2_ADDR = 68;
 constexpr int EEPROM_SWAP_ADDR = 72;
@@ -91,6 +92,29 @@ constexpr float DEFAULT_TARGET_TEMP = 23.0F;
 constexpr float BATTERY_DIVIDER_RATIO = 4.0F;  // Adjust to your resistor divider (V_batt = V_adc * ratio).
 constexpr float MOSFET_OVERTEMP_LIMIT_C = 80.0F;
 constexpr float MOSFET_OVERTEMP_RESET_C = 75.0F;  // Hysteresis for re-enable after cooldown.
+
+enum class SignalTimingPreset : uint8_t {
+  Short = 0,
+  Middle = 1,
+  Fast = 2,
+};
+
+inline SignalTimingPreset clampSignalTimingPreset(uint8_t value) {
+  return (value <= static_cast<uint8_t>(SignalTimingPreset::Fast)) ? static_cast<SignalTimingPreset>(value)
+                                                                   : SignalTimingPreset::Middle;
+}
+
+inline unsigned long scaleSignalMs(unsigned long baseMs, SignalTimingPreset preset) {
+  switch (preset) {
+    case SignalTimingPreset::Short:
+      return (baseMs * 3UL) / 4UL;
+    case SignalTimingPreset::Fast:
+      return baseMs / 2UL;
+    case SignalTimingPreset::Middle:
+    default:
+      return baseMs;
+  }
+}
 
 extern unsigned long lastPrintMs;
 extern unsigned long lastSensorMs;
@@ -182,6 +206,8 @@ enum class LogLevel : uint8_t {
 extern LogLevel currentLogLevel;
 extern bool pendingTempPersist;
 extern unsigned long pendingTempPersistAtMs;
+
+extern SignalTimingPreset signalTimingPreset;
 
 const char *logLevelToText(LogLevel level);
 LogLevel parseLogLevel(const String &value, bool *ok = nullptr);

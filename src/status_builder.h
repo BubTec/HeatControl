@@ -42,6 +42,7 @@ struct StatusMetrics {
   float battery2CellVoltage = 0.0F;
   uint8_t battery2SocPercent = 0;
   uint16_t manualToggleMaxOffMs = 0;
+  uint8_t signalTimingPreset = 1;
   float displayTemp1 = 0.0F;
   float displayTemp2 = 0.0F;
   float targetTemp1 = 0.0F;
@@ -63,4 +64,3 @@ struct StatusMetrics {
 std::string buildStatusJson(const StatusMetrics &metrics);
 
 }  // namespace HeatControl
-

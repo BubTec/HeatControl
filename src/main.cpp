@@ -286,6 +286,7 @@ void setup() {
   }
 
   // Startup feedback uses channel 1 manual power as reference.
+  loadSignalTimingPreset();
   startupSignal(powerMode, manualMode, manualPowerPercent1);
   loadTemperatureTargets();
   loadSwapAssignment();

@@ -205,6 +205,22 @@ void saveLogLevel() {
   EEPROM.commit();
 }
 
+void loadSignalTimingPreset() {
+  const uint8_t raw = EEPROM.read(EEPROM_SIGNAL_TIMING_PRESET_ADDR);
+  if (raw == 0xFFU) {
+    signalTimingPreset = SignalTimingPreset::Middle;
+    return;
+  }
+
+  signalTimingPreset = clampSignalTimingPreset(raw);
+}
+
+void saveSignalTimingPreset() {
+  const uint8_t value = static_cast<uint8_t>(signalTimingPreset);
+  EEPROM.write(EEPROM_SIGNAL_TIMING_PRESET_ADDR, value);
+  EEPROM.commit();
+}
+
 void loadManualPowerPercents() {
   const uint8_t stored1 = EEPROM.read(EEPROM_MANUAL_POWER1_ADDR);
   const uint8_t stored2 = EEPROM.read(EEPROM_MANUAL_POWER2_ADDR);

@@ -7,6 +7,16 @@ namespace HeatControl {
 
 namespace {
 
+void setSignalAndLeds(bool active) {
+  digitalWrite(SIGNAL_PIN, active ? LOW : HIGH);
+  digitalWrite(BATTERY_LED_PIN_1, active ? HIGH : LOW);
+  digitalWrite(BATTERY_LED_PIN_2, active ? HIGH : LOW);
+}
+
+void delayScaled(unsigned long baseMs) {
+  delay(scaleSignalMs(baseMs, signalTimingPreset));
+}
+
 class ArduinoGpio : public logic::IGpio {
  public:
   void writePin(int pin, int level) override {
@@ -26,12 +36,14 @@ class DallasSensorsAdapter : public logic::ITemperatureSensors {
 };
 
 void signalManualPowerPattern(uint8_t manualPowerPercent, bool includeIntroPulse) {
+  const bool prevLed1 = digitalRead(BATTERY_LED_PIN_1) == HIGH;
+  const bool prevLed2 = digitalRead(BATTERY_LED_PIN_2) == HIGH;
   if (includeIntroPulse) {
     // Manual mode intro pulse.
-    digitalWrite(SIGNAL_PIN, LOW);
-    delay(500);
-    digitalWrite(SIGNAL_PIN, HIGH);
-    delay(220);
+    setSignalAndLeds(true);
+    delayScaled(500);
+    setSignalAndLeds(false);
+    delayScaled(220);
   }
 
   // Duty step feedback: 1/2/3/4 short pulses for 25/50/75/100%.
@@ -44,11 +56,14 @@ void signalManualPowerPattern(uint8_t manualPowerPercent, bool includeIntroPulse
     stepPulses = 2;
   }
   for (int i = 0; i < stepPulses; ++i) {
-    digitalWrite(SIGNAL_PIN, LOW);
-    delay(130);
-    digitalWrite(SIGNAL_PIN, HIGH);
-    delay(130);
+    setSignalAndLeds(true);
+    delayScaled(130);
+    setSignalAndLeds(false);
+    delayScaled(130);
   }
+
+  digitalWrite(BATTERY_LED_PIN_1, prevLed1 ? HIGH : LOW);
+  digitalWrite(BATTERY_LED_PIN_2, prevLed2 ? HIGH : LOW);
 }
 
 }  // namespace
@@ -59,17 +74,32 @@ void startupSignal(bool isPowerMode, bool isManualMode, uint8_t manualPowerPerce
   }
 
   const int pulseCount = isPowerMode ? 2 : 1;
+  const bool prevLed1 = digitalRead(BATTERY_LED_PIN_1) == HIGH;
+  const bool prevLed2 = digitalRead(BATTERY_LED_PIN_2) == HIGH;
   for (int i = 0; i < pulseCount; ++i) {
-    digitalWrite(SIGNAL_PIN, LOW);
-    delay(300);
-    digitalWrite(SIGNAL_PIN, HIGH);
-    delay(200);
+    setSignalAndLeds(true);
+    delayScaled(300);
+    setSignalAndLeds(false);
+    delayScaled(200);
   }
+
+  digitalWrite(BATTERY_LED_PIN_1, prevLed1 ? HIGH : LOW);
+  digitalWrite(BATTERY_LED_PIN_2, prevLed2 ? HIGH : LOW);
 }
 
 void signalManualPowerChange(uint8_t manualPowerPercent) {
   // Short feedback pattern without the long intro pulse.
   signalManualPowerPattern(manualPowerPercent, false);
+}
+
+void signalTestPulse() {
+  const bool prevLed1 = digitalRead(BATTERY_LED_PIN_1) == HIGH;
+  const bool prevLed2 = digitalRead(BATTERY_LED_PIN_2) == HIGH;
+  setSignalAndLeds(true);
+  delayScaled(120);
+  setSignalAndLeds(false);
+  digitalWrite(BATTERY_LED_PIN_1, prevLed1 ? HIGH : LOW);
+  digitalWrite(BATTERY_LED_PIN_2, prevLed2 ? HIGH : LOW);
 }
 
 bool isSensorError(float temperatureC) {
