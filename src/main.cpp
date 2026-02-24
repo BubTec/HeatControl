@@ -220,10 +220,14 @@ void setup() {
   pinMode(SSR_PIN_2, OUTPUT);
   pinMode(INPUT_PIN, INPUT_PULLDOWN);
   pinMode(SIGNAL_PIN, OUTPUT);
+  pinMode(BATTERY_LED_PIN_1, OUTPUT);
+  pinMode(BATTERY_LED_PIN_2, OUTPUT);
 
   digitalWrite(SSR_PIN_1, LOW);
   digitalWrite(SSR_PIN_2, LOW);
   digitalWrite(SIGNAL_PIN, HIGH);
+  digitalWrite(BATTERY_LED_PIN_1, LOW);
+  digitalWrite(BATTERY_LED_PIN_2, LOW);
 
   // ADC setup (ESP32-C3): 12-bit readings, extended input range.
   analogReadResolution(12);
@@ -237,6 +241,8 @@ void setup() {
   lastHeater2State = (digitalRead(SSR_PIN_2) == HIGH);
   lastSignalPinState = (digitalRead(SIGNAL_PIN) == LOW);
   lastInputPinState = (digitalRead(INPUT_PIN) == HIGH);
+  lastBatteryLed1State = (digitalRead(BATTERY_LED_PIN_1) == HIGH);
+  lastBatteryLed2State = (digitalRead(BATTERY_LED_PIN_2) == HIGH);
 
   const uint8_t savedBootMode = getAndClearBootMode();
   if (savedBootMode == BOOT_MODE_NORMAL) {
@@ -427,6 +433,24 @@ void loop() {
     const bool batt1OnNow = batt1Sample.onNow;
     const bool batt2OffNow = batt2Sample.offNow;
     const bool batt2OnNow = batt2Sample.onNow;
+
+    // Battery presence LEDs: ON when battery is stably detected as ON.
+    // Avoid flicker in the hysteresis band by only updating on stable ON/OFF.
+    if (batt1OnNow && !lastBatteryLed1State) {
+      lastBatteryLed1State = true;
+      digitalWrite(BATTERY_LED_PIN_1, HIGH);
+    } else if (batt1OffNow && lastBatteryLed1State) {
+      lastBatteryLed1State = false;
+      digitalWrite(BATTERY_LED_PIN_1, LOW);
+    }
+
+    if (batt2OnNow && !lastBatteryLed2State) {
+      lastBatteryLed2State = true;
+      digitalWrite(BATTERY_LED_PIN_2, HIGH);
+    } else if (batt2OffNow && lastBatteryLed2State) {
+      lastBatteryLed2State = false;
+      digitalWrite(BATTERY_LED_PIN_2, LOW);
+    }
 
     // Persist last known battery presence mask (bit0 = battery1, bit1 = battery2)
     // only when it changes, to avoid unnecessary EEPROM wear.

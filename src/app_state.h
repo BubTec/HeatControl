@@ -50,6 +50,12 @@ constexpr int ADC_PIN_NTC_MOSFET_2 = 4;
 constexpr int ONE_WIRE_BUS = 7;
 constexpr int AP_MAX_CLIENTS = 4;
 
+// Battery presence LEDs (active HIGH).
+// Note: GPIO8/GPIO9 are ESP32-C3 strapping pins. Using them as OUTPUT is usually fine,
+// but make sure the external LED circuit does not pull them to a boot-incorrect level.
+constexpr int BATTERY_LED_PIN_1 = 8;
+constexpr int BATTERY_LED_PIN_2 = 9;
+
 // Keep UART0 free on final PCB for external flashing/debug adapter.
 constexpr int UART0_RX_RESERVED_PIN = 20;
 constexpr int UART0_TX_RESERVED_PIN = 21;
@@ -99,6 +105,8 @@ extern bool lastHeater1State;
 extern bool lastHeater2State;
 extern bool lastSignalPinState;
 extern bool lastInputPinState;
+extern bool lastBatteryLed1State;
+extern bool lastBatteryLed2State;
 
 extern bool manualHeater1Enabled;
 extern bool manualHeater2Enabled;

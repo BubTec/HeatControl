@@ -46,6 +46,8 @@ HeatControl is a dual-zone heating control system for drysuit diving, based on E
 - `GPIO1` -> ADC voltage input 2 (`ADC_PIN_2`)
 - `GPIO3` -> MOSFET 1 NTC ADC input (`ADC_PIN_NTC_MOSFET_1`)
 - `GPIO4` -> MOSFET 2 NTC ADC input (`ADC_PIN_NTC_MOSFET_2`)
+- `GPIO8` -> Battery 1 presence LED (`BATTERY_LED_PIN_1`)
+- `GPIO9` -> Battery 2 presence LED (`BATTERY_LED_PIN_2`)
 - `GPIO20`/`GPIO21` -> UART0 reserved (left free by firmware)
 - `GPIO18`/`GPIO19` -> Native USB reserved (left free by firmware)
 - `GPIO2`/`GPIO8`/`GPIO9` -> Strapping pins; do not use for fixed voltage-divider inputs
