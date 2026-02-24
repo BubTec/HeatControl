@@ -64,6 +64,39 @@ def click(driver, css_selector: str, timeout_s: float = 8.0) -> None:
     WebDriverWait(driver, timeout_s).until(EC.element_to_be_clickable((By.CSS_SELECTOR, css_selector))).click()
 
 
+def screenshot_element(driver, css_selector: str, out_path: str, timeout_s: float = 8.0) -> None:
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.common.by import By
+
+    element = WebDriverWait(driver, timeout_s).until(lambda d: d.find_element(By.CSS_SELECTOR, css_selector))
+    driver.execute_script("arguments[0].scrollIntoView({block: 'start', inline: 'nearest'});", element)
+    time.sleep(0.2)
+    element.screenshot(out_path)
+
+
+def screenshot_xpath(driver, xpath: str, out_path: str, timeout_s: float = 8.0) -> None:
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.common.by import By
+
+    element = WebDriverWait(driver, timeout_s).until(lambda d: d.find_element(By.XPATH, xpath))
+    driver.execute_script("arguments[0].scrollIntoView({block: 'start', inline: 'nearest'});", element)
+    time.sleep(0.2)
+    element.screenshot(out_path)
+
+
+def screenshot_closest(driver, css_selector: str, ancestor_selector: str, out_path: str, timeout_s: float = 8.0) -> None:
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.common.by import By
+
+    element = WebDriverWait(driver, timeout_s).until(lambda d: d.find_element(By.CSS_SELECTOR, css_selector))
+    ancestor = driver.execute_script("return arguments[0].closest(arguments[1]);", element, ancestor_selector)
+    if not ancestor:
+        raise RuntimeError(f"Ancestor not found for {css_selector} closest({ancestor_selector})")
+    driver.execute_script("arguments[0].scrollIntoView({block: 'start', inline: 'nearest'});", ancestor)
+    time.sleep(0.2)
+    ancestor.screenshot(out_path)
+
+
 def main() -> int:
     os.makedirs(DOC_DIR, exist_ok=True)
 
@@ -98,25 +131,35 @@ def main() -> int:
         try:
             driver.get(base_url + "/")
             time.sleep(0.8)
-            path_overview = os.path.join(DOC_DIR, "GUI-overview.png")
-            driver.save_screenshot(path_overview)
+
+            path_heaters = os.path.join(DOC_DIR, "GUI-heaters.png")
+            screenshot_xpath(driver, "(//section[contains(@class,'heater-card')])[1]", path_heaters)
 
             click(driver, "#advancedToggle")
-            time.sleep(0.5)
-            path_advanced = os.path.join(DOC_DIR, "GUI-advanced.png")
-            driver.save_screenshot(path_advanced)
+            time.sleep(0.4)
 
-            click(driver, "#helpToggleBtn")
-            time.sleep(0.5)
-            path_help = os.path.join(DOC_DIR, "GUI-advanced-help.png")
-            driver.save_screenshot(path_help)
+            path_wifi = os.path.join(DOC_DIR, "GUI-settings-wifi.png")
+            screenshot_element(driver, "#wifiSection", path_wifi)
+
+            path_ota = os.path.join(DOC_DIR, "GUI-settings-ota.png")
+            screenshot_closest(driver, "#otaOpenBtn", ".sub-card", path_ota)
+
+            path_diagnostics = os.path.join(DOC_DIR, "GUI-settings-diagnostics.png")
+            screenshot_element(driver, "#settingsSection", path_diagnostics)
+
+            driver.get(base_url + "/update")
+            time.sleep(0.6)
+            path_update = os.path.join(DOC_DIR, "GUI-update.png")
+            screenshot_element(driver, ".card", path_update)
         finally:
             driver.quit()
 
         print("Wrote:")
-        print("- documentation/GUI-overview.png")
-        print("- documentation/GUI-advanced.png")
-        print("- documentation/GUI-advanced-help.png")
+        print("- documentation/GUI-heaters.png")
+        print("- documentation/GUI-settings-wifi.png")
+        print("- documentation/GUI-settings-ota.png")
+        print("- documentation/GUI-settings-diagnostics.png")
+        print("- documentation/GUI-update.png")
         return 0
     finally:
         proc.terminate()
@@ -126,4 +169,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

@@ -154,11 +154,27 @@ The firmware uses the following patterns (timings are approximate):
 ### Web Interface
 <img src="documentation/GUI.png" alt="Web Interface" width="300"/>
 
-Updated screenshots (generated from the mock UI server):
+Screenshots (generated from the mock UI server):
 
-<img src="documentation/GUI-overview.png" alt="Web Interface Overview" width="300"/>
-<img src="documentation/GUI-advanced.png" alt="Web Interface Advanced Settings" width="300"/>
-<img src="documentation/GUI-advanced-help.png" alt="Web Interface Advanced Help" width="300"/>
+- Heaters (main controls):
+
+<img src="documentation/GUI-heaters.png" alt="Web Interface Heaters" width="300"/>
+
+- WiFi settings (STA/AP + timeout):
+
+<img src="documentation/GUI-settings-wifi.png" alt="Web Interface WiFi Settings" width="300"/>
+
+- OTA section entry (buttons inside Advanced):
+
+<img src="documentation/GUI-settings-ota.png" alt="Web Interface OTA Section" width="300"/>
+
+- Diagnostics/system actions (battery, runtime, etc.):
+
+<img src="documentation/GUI-settings-diagnostics.png" alt="Web Interface Diagnostics" width="300"/>
+
+- OTA upload page (`/update`):
+
+<img src="documentation/GUI-update.png" alt="Web Interface OTA Upload" width="300"/>
 
 The web interface provides:
 - Live temperature readings
