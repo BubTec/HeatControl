@@ -105,8 +105,6 @@ extern bool lastHeater1State;
 extern bool lastHeater2State;
 extern bool lastSignalPinState;
 extern bool lastInputPinState;
-extern bool lastBatteryLed1State;
-extern bool lastBatteryLed2State;
 
 extern bool manualHeater1Enabled;
 extern bool manualHeater2Enabled;

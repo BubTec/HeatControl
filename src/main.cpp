@@ -11,6 +11,7 @@
 #include "app_state.h"
 #include "battery_toggle.h"
 #include "control.h"
+#include "led_patterns.h"
 #include "logic_helpers.h"
 #include "storage.h"
 #include "web_server.h"
@@ -34,6 +35,11 @@ constexpr char DEFAULT_WIFI_PASSWORD_FALLBACK[] = "HeatControl";
 
 BatteryToggleDetector battery1Detector(BATTERY_ADC_OFF_THRESHOLD_MV, BATTERY_ADC_ON_THRESHOLD_MV, BATTERY_STABLE_SAMPLES);
 BatteryToggleDetector battery2Detector(BATTERY_ADC_OFF_THRESHOLD_MV, BATTERY_ADC_ON_THRESHOLD_MV, BATTERY_STABLE_SAMPLES);
+LedPattern batteryLed1(BATTERY_LED_PIN_1);
+LedPattern batteryLed2(BATTERY_LED_PIN_2);
+
+uint8_t lastManualPowerLedStep1 = 0;
+uint8_t lastManualPowerLedStep2 = 0;
 const IPAddress AP_IP(4, 3, 2, 1);
 const IPAddress AP_NETMASK(255, 255, 255, 0);
 constexpr uint8_t AP_CHANNEL = 1;
@@ -220,14 +226,13 @@ void setup() {
   pinMode(SSR_PIN_2, OUTPUT);
   pinMode(INPUT_PIN, INPUT_PULLDOWN);
   pinMode(SIGNAL_PIN, OUTPUT);
-  pinMode(BATTERY_LED_PIN_1, OUTPUT);
-  pinMode(BATTERY_LED_PIN_2, OUTPUT);
 
   digitalWrite(SSR_PIN_1, LOW);
   digitalWrite(SSR_PIN_2, LOW);
   digitalWrite(SIGNAL_PIN, HIGH);
-  digitalWrite(BATTERY_LED_PIN_1, LOW);
-  digitalWrite(BATTERY_LED_PIN_2, LOW);
+
+  batteryLed1.begin();
+  batteryLed2.begin();
 
   // ADC setup (ESP32-C3): 12-bit readings, extended input range.
   analogReadResolution(12);
@@ -241,8 +246,6 @@ void setup() {
   lastHeater2State = (digitalRead(SSR_PIN_2) == HIGH);
   lastSignalPinState = (digitalRead(SIGNAL_PIN) == LOW);
   lastInputPinState = (digitalRead(INPUT_PIN) == HIGH);
-  lastBatteryLed1State = (digitalRead(BATTERY_LED_PIN_1) == HIGH);
-  lastBatteryLed2State = (digitalRead(BATTERY_LED_PIN_2) == HIGH);
 
   const uint8_t savedBootMode = getAndClearBootMode();
   if (savedBootMode == BOOT_MODE_NORMAL) {
@@ -262,6 +265,8 @@ void setup() {
   if (manualMode) {
     powerMode = false;
     loadManualPowerPercents();
+    lastManualPowerLedStep1 = manualPowerPercent1;
+    lastManualPowerLedStep2 = manualPowerPercent2;
     if (digitalRead(INPUT_PIN) == HIGH) {
       // Short OFF/ON gesture in manual mode: adjust only the heater that belonged
       // to the last active battery, if we have a clear mapping from EEPROM.
@@ -399,6 +404,9 @@ void setup() {
 void loop() {
   const unsigned long now = millis();
 
+  batteryLed1.setTripLatched(mosfet1OvertempLatched);
+  batteryLed2.setTripLatched(mosfet2OvertempLatched);
+
   if (restartScheduled && (static_cast<long>(now - restartAtMs) >= 0)) {
     restartScheduled = false;
     if (pendingTempPersist) {
@@ -436,20 +444,16 @@ void loop() {
 
     // Battery presence LEDs: ON when battery is stably detected as ON.
     // Avoid flicker in the hysteresis band by only updating on stable ON/OFF.
-    if (batt1OnNow && !lastBatteryLed1State) {
-      lastBatteryLed1State = true;
-      digitalWrite(BATTERY_LED_PIN_1, HIGH);
-    } else if (batt1OffNow && lastBatteryLed1State) {
-      lastBatteryLed1State = false;
-      digitalWrite(BATTERY_LED_PIN_1, LOW);
+    if (batt1OnNow) {
+      batteryLed1.setBaseOn(true);
+    } else if (batt1OffNow) {
+      batteryLed1.setBaseOn(false);
     }
 
-    if (batt2OnNow && !lastBatteryLed2State) {
-      lastBatteryLed2State = true;
-      digitalWrite(BATTERY_LED_PIN_2, HIGH);
-    } else if (batt2OffNow && lastBatteryLed2State) {
-      lastBatteryLed2State = false;
-      digitalWrite(BATTERY_LED_PIN_2, LOW);
+    if (batt2OnNow) {
+      batteryLed2.setBaseOn(true);
+    } else if (batt2OffNow) {
+      batteryLed2.setBaseOn(false);
     }
 
     // Persist last known battery presence mask (bit0 = battery1, bit1 = battery2)
@@ -501,6 +505,8 @@ void loop() {
         logf(LogLevel::Info, "Battery 1 OFF/ON trigger (%lums) -> manual power 1 = %u%%", offMs, manualPowerPercent1);
         // Haptic feedback for manual heater 1 power change.
         signalManualPowerChange(manualPowerPercent1);
+        batteryLed1.triggerManualPowerStepFromPercent(manualPowerPercent1);
+        lastManualPowerLedStep1 = manualPowerPercent1;
       } else {
         logf(LogLevel::Debug, "Battery 1 OFF/ON ignored (off_ms too long for toggle window)");
       }
@@ -520,11 +526,25 @@ void loop() {
         logf(LogLevel::Info, "Battery 2 OFF/ON trigger (%lums) -> manual power 2 = %u%%", offMs, manualPowerPercent2);
         // Haptic feedback for manual heater 2 power change.
         signalManualPowerChange(manualPowerPercent2);
+        batteryLed2.triggerManualPowerStepFromPercent(manualPowerPercent2);
+        lastManualPowerLedStep2 = manualPowerPercent2;
       } else {
         logf(LogLevel::Debug, "Battery 2 OFF/ON ignored (off_ms too long for toggle window)");
       }
     }
   }
+
+  if (manualPowerPercent1 != lastManualPowerLedStep1) {
+    batteryLed1.triggerManualPowerStepFromPercent(manualPowerPercent1);
+    lastManualPowerLedStep1 = manualPowerPercent1;
+  }
+  if (manualPowerPercent2 != lastManualPowerLedStep2) {
+    batteryLed2.triggerManualPowerStepFromPercent(manualPowerPercent2);
+    lastManualPowerLedStep2 = manualPowerPercent2;
+  }
+
+  batteryLed1.update(now);
+  batteryLed2.update(now);
 
   if (now - lastSensorMs >= 1000) {
     lastSensorMs = now;
