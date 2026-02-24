@@ -154,6 +154,12 @@ The firmware uses the following patterns (timings are approximate):
 ### Web Interface
 <img src="documentation/GUI.png" alt="Web Interface" width="300"/>
 
+Updated screenshots (generated from the mock UI server):
+
+<img src="documentation/GUI-overview.png" alt="Web Interface Overview" width="300"/>
+<img src="documentation/GUI-advanced.png" alt="Web Interface Advanced Settings" width="300"/>
+<img src="documentation/GUI-advanced-help.png" alt="Web Interface Advanced Help" width="300"/>
+
 The web interface provides:
 - Live temperature readings
 - Target temperature controls
@@ -164,6 +170,10 @@ The web interface provides:
 - Runtime reset
 - MOSFET overtemp-history reset (acknowledge latched events)
 - OTA update upload page
+
+Notes:
+- "Advanced" contains WiFi, OTA, diagnostics and system actions.
+- The mode is reported by the device (AUTO/POWER/MANUAL) and is not a manual toggle.
 
 ## Installation
 1. Clone this repository
