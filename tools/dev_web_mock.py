@@ -82,6 +82,21 @@ class MockState:
 STATE = MockState()
 
 
+def _parse_scalar(value: str) -> object:
+    text = str(value).strip()
+    lower = text.lower()
+    if lower in ("true", "on", "yes"):
+        return True
+    if lower in ("false", "off", "no"):
+        return False
+    try:
+        if "." in text:
+            return float(text)
+        return int(text)
+    except ValueError:
+        return text
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "HeatControlMock/1.0"
 
@@ -108,6 +123,26 @@ class Handler(BaseHTTPRequestHandler):
             parsed = urllib.parse.parse_qs(raw.decode("utf-8"), keep_blank_values=True)
             return {k: (v[0] if v else "") for k, v in parsed.items()}
         return {}
+
+    def _read_json(self) -> object | None:
+        length = int(self.headers.get("Content-Length", "0") or "0")
+        if length <= 0:
+            return None
+        raw = self.rfile.read(length)
+        try:
+            return json.loads(raw.decode("utf-8"))
+        except Exception:
+            return None
+
+    def _apply_state_update(self, update: dict[str, object]) -> None:
+        for key, value in update.items():
+            STATE.data[str(key)] = value
+
+    def _handle_mock_get(self, path: str) -> bool:
+        if path == "/__mock/state":
+            self._send_json(HTTPStatus.OK, STATE.data)
+            return True
+        return False
 
     def _serve_upload_file(self, rel_path: str) -> None:
         rel_path = rel_path.lstrip("/")
@@ -144,6 +179,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         path = urllib.parse.urlparse(self.path).path
+        if self._handle_mock_get(path):
+            return
         if path == "/status":
             self._send_json(HTTPStatus.OK, STATE.data)
             return
@@ -175,6 +212,28 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         path = urllib.parse.urlparse(self.path).path
+
+        if path == "/__mock/reset":
+            global STATE
+            STATE = MockState()
+            self._send_json(HTTPStatus.OK, {"ok": 1})
+            return
+
+        if path == "/__mock/state":
+            content_type = self.headers.get("Content-Type", "")
+            update: dict[str, object] = {}
+            if "application/json" in content_type:
+                payload = self._read_json()
+                if isinstance(payload, dict):
+                    update = payload
+            else:
+                form = self._read_form()
+                update = {k: _parse_scalar(v) for k, v in form.items()}
+
+            self._apply_state_update(update)
+            STATE.add_log("info", f"Mock state updated: {', '.join(sorted(update.keys()))}")
+            self._send_json(HTTPStatus.OK, {"ok": 1})
+            return
 
         if path == "/update":
             STATE.add_log("info", "Received mock OTA upload")

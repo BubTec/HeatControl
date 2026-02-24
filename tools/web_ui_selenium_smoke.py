@@ -21,6 +21,18 @@ def http_get_text(url: str, timeout_s: float = 2.0) -> str:
         return response.read().decode("utf-8", errors="replace")
 
 
+def http_post_json(url: str, payload: dict, timeout_s: float = 2.0) -> str:
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        url,
+        data=data,
+        method="POST",
+        headers={"Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(req, timeout=timeout_s) as response:
+        return response.read().decode("utf-8", errors="replace")
+
+
 def wait_http_ok(url: str, timeout_s: float = 5.0) -> None:
     start = time.monotonic()
     last_error: Exception | None = None
@@ -92,9 +104,22 @@ def run_smoke(base_url: str) -> None:
 
     driver = create_driver(headless=True)
     try:
+        http_post_json(
+            base_url + "/__mock/state",
+            {
+                "manualMode": 1,
+                "mode": "MANUAL",
+                "manualPercent1": 50,
+                "manualPercent2": 25,
+                "current1": 24.0,
+                "current2": 26.0,
+            },
+        )
+
         driver.get(base_url + "/")
 
         WebDriverWait(driver, 8).until(EC.presence_of_element_located((By.CSS_SELECTOR, "#modePill")))
+        WebDriverWait(driver, 8).until(lambda d: d.find_element(By.CSS_SELECTOR, "#modePill").text.strip() == "MANUAL")
         firmware_version = wait_for_text_not_equal(driver, "#firmwareVersion", "-")
         print(f"[ok] firmware version shown: {firmware_version}")
 

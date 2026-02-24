@@ -192,6 +192,12 @@ You can test the web UI in a browser without an ESP by serving the static files 
 - Open the UI: `http://127.0.0.1:8080/`
 - Helpful endpoints: `http://127.0.0.1:8080/status` and `http://127.0.0.1:8080/logs`
 
+The mock server also provides test-only endpoints for switching states without modifying the real UI:
+
+- Read current mock state: `GET /__mock/state`
+- Update mock state: `POST /__mock/state` (JSON or form data)
+- Reset mock state: `POST /__mock/reset`
+
 If you need access from another machine in your LAN, use `--host 0.0.0.0` and make sure the port is reachable.
 
 ### Selenium smoke test
