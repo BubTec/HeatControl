@@ -47,6 +47,10 @@ Thumbs.db
 *.log
 *.tmp
 
+# Python
+__pycache__/
+*.pyc
+
 # PlatformIO
 .pio/
 .pioenvs/

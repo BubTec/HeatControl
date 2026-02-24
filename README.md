@@ -184,5 +184,22 @@ The web interface provides:
 ## Tests
 - Native logic/unit-tests: `export PATH=$PATH:~/.local/bin && pio test -e native`
 
+### Hardware-free web UI testing
+
+You can test the web UI in a browser without an ESP by serving the static files from `upload/` together with a small mock API.
+
+- Start the mock server (local only): `python3 tools/dev_web_mock.py --host 127.0.0.1 --port 8080`
+- Open the UI: `http://127.0.0.1:8080/`
+- Helpful endpoints: `http://127.0.0.1:8080/status` and `http://127.0.0.1:8080/logs`
+
+If you need access from another machine in your LAN, use `--host 0.0.0.0` and make sure the port is reachable.
+
+### Selenium smoke test
+
+If you have Google Chrome/Chromium available, you can run a minimal UI smoke test via Selenium.
+
+- Install: `pip install -r tools/requirements-e2e.txt`
+- Run (auto-starts mock server): `python3 tools/web_ui_selenium_smoke.py`
+
 ## License
 This project is licensed under GPL-3.0. See `LICENSE`.
