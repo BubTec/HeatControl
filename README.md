@@ -176,6 +176,14 @@ Screenshots:
 
 <img src="documentation/GUI-update.png" alt="Web Interface OTA Upload" width="300"/>
 
+- Serial log panel:
+
+<img src="documentation/GUI-serial-log.png" alt="Web Interface Serial Log" width="300"/>
+
+- MOSFET overtemp indicator (HOT/TRIP badge):
+
+<img src="documentation/GUI-overtemp-badge.png" alt="Web Interface Overtemp Badge" width="300"/>
+
 The web interface provides:
 - Live temperature readings
 - Target temperature controls

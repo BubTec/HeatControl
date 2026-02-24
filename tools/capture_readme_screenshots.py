@@ -124,6 +124,8 @@ def main() -> int:
                 "target2": 24.0,
                 "batt1Soc": 78,
                 "batt2Soc": 74,
+                "mosfet1OvertempActive": 1,
+                "mosfet1OvertempLatched": 0,
             },
         )
 
@@ -138,6 +140,9 @@ def main() -> int:
             path_heaters = os.path.join(DOC_DIR, "GUI-heaters.png")
             screenshot_xpath(driver, "(//section[contains(@class,'heater-card')])[1]", path_heaters)
 
+            path_overtemp = os.path.join(DOC_DIR, "GUI-overtemp-badge.png")
+            screenshot_closest(driver, "#heater1ProtectBadge", "section.heater-card", path_overtemp)
+
             click(driver, "#advancedToggle")
             time.sleep(0.4)
 
@@ -150,6 +155,11 @@ def main() -> int:
             path_diagnostics = os.path.join(DOC_DIR, "GUI-settings-diagnostics.png")
             screenshot_element(driver, "#settingsSection", path_diagnostics)
 
+            click(driver, "#serialToggle")
+            time.sleep(0.4)
+            path_serial = os.path.join(DOC_DIR, "GUI-serial-log.png")
+            screenshot_element(driver, "#serialPreview", path_serial)
+
             driver.get(base_url + "/update")
             time.sleep(0.6)
             path_update = os.path.join(DOC_DIR, "GUI-update.png")
@@ -160,9 +170,11 @@ def main() -> int:
         print("Wrote:")
         print("- documentation/GUI.png")
         print("- documentation/GUI-heaters.png")
+        print("- documentation/GUI-overtemp-badge.png")
         print("- documentation/GUI-settings-wifi.png")
         print("- documentation/GUI-settings-ota.png")
         print("- documentation/GUI-settings-diagnostics.png")
+        print("- documentation/GUI-serial-log.png")
         print("- documentation/GUI-update.png")
         return 0
     finally:
