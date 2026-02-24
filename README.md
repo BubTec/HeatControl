@@ -100,6 +100,8 @@ HeatControl is a dual-zone heating control system for drysuit diving, based on E
 | **1**  | **ADC1-1**      | ADC voltage input 2    | Voltage sense input (use a divider; max 3.3V at the pin) |
 | **3**  | **D1 / A1**     | MOSFET 1 NTC ADC input | NTC divider on MOSFET 1 (`ADC_PIN_NTC_MOSFET_1`, max 3.3V at pin) |
 | **4**  | **D2 / A2**     | MOSFET 2 NTC ADC input | NTC divider on MOSFET 2 (`ADC_PIN_NTC_MOSFET_2`, max 3.3V at pin) |
+| **8**  | *(GPIO8)*       | Battery 1 LED          | Battery 1 presence/status LED (`BATTERY_LED_PIN_1`, active HIGH) |
+| **9**  | *(GPIO9)*       | Battery 2 LED          | Battery 2 presence/status LED (`BATTERY_LED_PIN_2`, active HIGH) |
 | **20/21** | **RX/TX**    | UART0                  | Reserved/free for serial adapter or debugging |
 | **18/19** | **USB D-/D+**| Native USB             | Reserved/free for optional native USB |
 
