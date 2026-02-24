@@ -132,6 +132,9 @@ def main() -> int:
             driver.get(base_url + "/")
             time.sleep(0.8)
 
+            path_main = os.path.join(DOC_DIR, "GUI.png")
+            driver.save_screenshot(path_main)
+
             path_heaters = os.path.join(DOC_DIR, "GUI-heaters.png")
             screenshot_xpath(driver, "(//section[contains(@class,'heater-card')])[1]", path_heaters)
 
@@ -155,6 +158,7 @@ def main() -> int:
             driver.quit()
 
         print("Wrote:")
+        print("- documentation/GUI.png")
         print("- documentation/GUI-heaters.png")
         print("- documentation/GUI-settings-wifi.png")
         print("- documentation/GUI-settings-ota.png")

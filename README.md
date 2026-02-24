@@ -154,7 +154,7 @@ The firmware uses the following patterns (timings are approximate):
 ### Web Interface
 <img src="documentation/GUI.png" alt="Web Interface" width="300"/>
 
-Screenshots (generated from the mock UI server):
+Screenshots:
 
 - Heaters (main controls):
 
